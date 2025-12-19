@@ -1,7 +1,6 @@
 package ui
 
 import (
-	"context"
 	"fmt"
 	"strings"
 
@@ -10,9 +9,14 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
+	"cocomail/internal/auth"
 	"cocomail/internal/gmail"
 	"cocomail/internal/ui/components"
 )
+
+type selectedEmail struct {
+	email gmail.Email
+}
 
 type view int
 
@@ -31,7 +35,8 @@ const (
 )
 
 type App struct {
-	client    *gmail.Client
+	creds     *auth.Credentials
+	imap      *gmail.IMAPClient
 	mailList  components.MailList
 	viewport  viewport.Model
 	spinner   spinner.Model
@@ -52,15 +57,16 @@ type errorMsg struct {
 }
 
 type clientReadyMsg struct {
-	client *gmail.Client
+	imap *gmail.IMAPClient
 }
 
-func NewApp() App {
+func NewApp(creds *auth.Credentials) App {
 	s := spinner.New()
 	s.Spinner = spinner.Dot
 	s.Style = SpinnerStyle
 
 	return App{
+		creds:    creds,
 		mailList: components.NewMailList(),
 		spinner:  s,
 		state:    stateLoading,
@@ -71,23 +77,23 @@ func NewApp() App {
 func (a App) Init() tea.Cmd {
 	return tea.Batch(
 		a.spinner.Tick,
-		initClient,
+		a.initClient(),
 	)
 }
 
-func initClient() tea.Msg {
-	ctx := context.Background()
-	client, err := gmail.NewClient(ctx)
-	if err != nil {
-		return errorMsg{err: err}
+func (a App) initClient() tea.Cmd {
+	return func() tea.Msg {
+		client, err := gmail.NewIMAPClient(a.creds)
+		if err != nil {
+			return errorMsg{err: err}
+		}
+		return clientReadyMsg{imap: client}
 	}
-	return clientReadyMsg{client: client}
 }
 
 func (a *App) loadEmails() tea.Cmd {
 	return func() tea.Msg {
-		ctx := context.Background()
-		emails, err := a.client.ListMessages(ctx, "", 50)
+		emails, err := a.imap.FetchMessages("INBOX", 50)
 		if err != nil {
 			return errorMsg{err: err}
 		}
@@ -102,6 +108,9 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "ctrl+c", "q":
+			if a.imap != nil {
+				a.imap.Close()
+			}
 			return a, tea.Quit
 		case "esc":
 			if a.view == readView {
@@ -116,8 +125,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 					if email.Unread {
 						go func() {
-							ctx := context.Background()
-							a.client.MarkAsRead(ctx, email.ID)
+							a.imap.MarkAsRead(email.UID)
 						}()
 					}
 				}
@@ -132,10 +140,9 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if a.view == listView && a.state == stateReady {
 				if email := a.mailList.SelectedEmail(); email != nil {
 					go func() {
-						ctx := context.Background()
-						a.client.TrashMessage(ctx, email.ID)
+						a.imap.DeleteMessage(email.UID)
 					}()
-					a.statusMsg = "Email moved to trash"
+					a.statusMsg = "Email deleted"
 				}
 			}
 		}
@@ -153,7 +160,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, cmd)
 
 	case clientReadyMsg:
-		a.client = msg.client
+		a.imap = msg.imap
 		a.statusMsg = "Loading emails..."
 		return a, a.loadEmails()
 

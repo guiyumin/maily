@@ -9,6 +9,7 @@ require (
 	github.com/emersion/go-imap/v2 v2.0.0-beta.7
 	github.com/emersion/go-message v0.18.2
 	golang.org/x/term v0.27.0
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (

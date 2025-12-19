@@ -36,6 +36,7 @@ const (
 
 type App struct {
 	creds         *auth.Credentials
+	accountEmail  string
 	imap          *gmail.IMAPClient
 	mailList      components.MailList
 	viewport      viewport.Model
@@ -62,18 +63,19 @@ type clientReadyMsg struct {
 	imap *gmail.IMAPClient
 }
 
-func NewApp(creds *auth.Credentials) App {
+func NewApp(creds *auth.Credentials, accountEmail string) App {
 	s := spinner.New()
 	s.Spinner = spinner.Dot
 	s.Style = SpinnerStyle
 
 	return App{
-		creds:      creds,
-		mailList:   components.NewMailList(),
-		spinner:    s,
-		state:      stateLoading,
-		view:       listView,
-		emailLimit: 50,
+		creds:        creds,
+		accountEmail: accountEmail,
+		mailList:     components.NewMailList(),
+		spinner:      s,
+		state:        stateLoading,
+		view:         listView,
+		emailLimit:   50,
 	}
 }
 
@@ -316,7 +318,10 @@ func (a App) renderConfirmDialog() string {
 
 func (a App) renderHeader() string {
 	title := TitleStyle.Render(" COCOMAIL ")
-	return HeaderStyle.Width(a.width).Render(title)
+	account := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#9CA3AF")).
+		Render(" " + a.accountEmail)
+	return HeaderStyle.Width(a.width).Render(title + account)
 }
 
 func (a App) renderListView() string {

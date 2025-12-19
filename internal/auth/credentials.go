@@ -2,7 +2,6 @@ package auth
 
 import (
 	"bufio"
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -10,17 +9,29 @@ import (
 	"unicode"
 
 	"golang.org/x/term"
+	"gopkg.in/yaml.v3"
 )
 
-const credentialsFileName = "credentials.json"
+const accountsFileName = "accounts.yml"
 
 type Credentials struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
-	IMAPHost string `json:"imap_host"`
-	IMAPPort int    `json:"imap_port"`
-	SMTPHost string `json:"smtp_host"`
-	SMTPPort int    `json:"smtp_port"`
+	Email    string `yaml:"email"`
+	Password string `yaml:"password"`
+	IMAPHost string `yaml:"imap_host"`
+	IMAPPort int    `yaml:"imap_port"`
+	SMTPHost string `yaml:"smtp_host"`
+	SMTPPort int    `yaml:"smtp_port"`
+}
+
+type Account struct {
+	Name        string      `yaml:"name"`
+	Provider    string      `yaml:"provider"`
+	Credentials Credentials `yaml:"credentials"`
+}
+
+type AccountStore struct {
+	Active   string    `yaml:"active"`
+	Accounts []Account `yaml:"accounts"`
 }
 
 func GmailCredentials(email, password string) Credentials {
@@ -34,30 +45,30 @@ func GmailCredentials(email, password string) Credentials {
 	}
 }
 
-func LoadCredentials() (*Credentials, error) {
+func LoadAccountStore() (*AccountStore, error) {
 	configDir, err := getConfigDir()
 	if err != nil {
 		return nil, err
 	}
 
-	credPath := filepath.Join(configDir, credentialsFileName)
-	data, err := os.ReadFile(credPath)
+	storePath := filepath.Join(configDir, accountsFileName)
+	data, err := os.ReadFile(storePath)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return nil, nil
+			return &AccountStore{}, nil
 		}
 		return nil, err
 	}
 
-	var creds Credentials
-	if err := json.Unmarshal(data, &creds); err != nil {
+	var store AccountStore
+	if err := yaml.Unmarshal(data, &store); err != nil {
 		return nil, err
 	}
 
-	return &creds, nil
+	return &store, nil
 }
 
-func SaveCredentials(creds *Credentials) error {
+func (s *AccountStore) Save() error {
 	configDir, err := getConfigDir()
 	if err != nil {
 		return err
@@ -67,16 +78,66 @@ func SaveCredentials(creds *Credentials) error {
 		return err
 	}
 
-	credPath := filepath.Join(configDir, credentialsFileName)
-	data, err := json.MarshalIndent(creds, "", "  ")
+	storePath := filepath.Join(configDir, accountsFileName)
+	data, err := yaml.Marshal(s)
 	if err != nil {
 		return err
 	}
 
-	return os.WriteFile(credPath, data, 0600)
+	return os.WriteFile(storePath, data, 0600)
 }
 
-func PromptGmailCredentials() (*Credentials, error) {
+func (s *AccountStore) AddAccount(account Account) {
+	// Check if account with same email exists
+	for i, a := range s.Accounts {
+		if a.Credentials.Email == account.Credentials.Email {
+			s.Accounts[i] = account
+			return
+		}
+	}
+	s.Accounts = append(s.Accounts, account)
+}
+
+func (s *AccountStore) RemoveAccount(email string) bool {
+	for i, a := range s.Accounts {
+		if a.Credentials.Email == email {
+			s.Accounts = append(s.Accounts[:i], s.Accounts[i+1:]...)
+			if s.Active == email {
+				s.Active = ""
+			}
+			return true
+		}
+	}
+	return false
+}
+
+func (s *AccountStore) GetAccount(email string) *Account {
+	for _, a := range s.Accounts {
+		if a.Credentials.Email == email {
+			return &a
+		}
+	}
+	return nil
+}
+
+func (s *AccountStore) GetActiveAccount() *Account {
+	if s.Active == "" && len(s.Accounts) > 0 {
+		return &s.Accounts[0]
+	}
+	return s.GetAccount(s.Active)
+}
+
+func (s *AccountStore) SetActive(email string) bool {
+	for _, a := range s.Accounts {
+		if a.Credentials.Email == email {
+			s.Active = email
+			return true
+		}
+	}
+	return false
+}
+
+func PromptGmailCredentials() (*Account, error) {
 	reader := bufio.NewReader(os.Stdin)
 
 	fmt.Println()
@@ -105,7 +166,6 @@ func PromptGmailCredentials() (*Credentials, error) {
 	fmt.Println()
 
 	password := string(passwordBytes)
-	// Strip ALL whitespace (spaces, tabs, newlines, etc.)
 	var cleaned strings.Builder
 	for _, r := range password {
 		if !unicode.IsSpace(r) {
@@ -114,19 +174,13 @@ func PromptGmailCredentials() (*Credentials, error) {
 	}
 	password = cleaned.String()
 
-
 	creds := GmailCredentials(email, password)
-	return &creds, nil
-}
-
-func DeleteCredentials() error {
-	configDir, err := getConfigDir()
-	if err != nil {
-		return err
+	account := &Account{
+		Name:        email,
+		Provider:    "gmail",
+		Credentials: creds,
 	}
-
-	credPath := filepath.Join(configDir, credentialsFileName)
-	return os.Remove(credPath)
+	return account, nil
 }
 
 func getConfigDir() (string, error) {

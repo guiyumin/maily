@@ -47,6 +47,7 @@ type App struct {
 	err           error
 	statusMsg     string
 	confirmDelete bool
+	emailLimit    uint32
 }
 
 type emailsLoadedMsg struct {
@@ -67,11 +68,12 @@ func NewApp(creds *auth.Credentials) App {
 	s.Style = SpinnerStyle
 
 	return App{
-		creds:    creds,
-		mailList: components.NewMailList(),
-		spinner:  s,
-		state:    stateLoading,
-		view:     listView,
+		creds:      creds,
+		mailList:   components.NewMailList(),
+		spinner:    s,
+		state:      stateLoading,
+		view:       listView,
+		emailLimit: 50,
 	}
 }
 
@@ -94,7 +96,7 @@ func (a App) initClient() tea.Cmd {
 
 func (a *App) loadEmails() tea.Cmd {
 	return func() tea.Msg {
-		emails, err := a.imap.FetchMessages("INBOX", 50)
+		emails, err := a.imap.FetchMessages("INBOX", a.emailLimit)
 		if err != nil {
 			return errorMsg{err: err}
 		}
@@ -144,7 +146,6 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if a.state == stateReady && !a.confirmDelete {
 				if a.mailList.SelectedEmail() != nil {
 					a.confirmDelete = true
-					a.statusMsg = "Delete this email? (y/n)"
 				}
 			}
 		case "y":
@@ -152,18 +153,25 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if email := a.mailList.SelectedEmail(); email != nil {
 					uid := email.UID
 					a.mailList.RemoveCurrent()
-					a.statusMsg = "Deleted"
 					a.view = listView
 					go func() {
 						a.imap.DeleteMessage(uid)
 					}()
 				}
 				a.confirmDelete = false
+				a.statusMsg = ""
 			}
 		case "n":
 			if a.confirmDelete {
 				a.confirmDelete = false
 				a.statusMsg = ""
+			}
+		case "l":
+			if a.view == listView && a.state == stateReady && !a.confirmDelete {
+				a.emailLimit += 50
+				a.state = stateLoading
+				a.statusMsg = fmt.Sprintf("Loading %d emails...", a.emailLimit)
+				return a, tea.Batch(a.spinner.Tick, a.loadEmails())
 			}
 		}
 
@@ -242,11 +250,49 @@ func (a App) View() string {
 		}
 	}
 
+	// Show confirmation dialog overlay
+	if a.confirmDelete {
+		dialog := a.renderConfirmDialog()
+		content = lipgloss.Place(
+			a.width,
+			a.height-4,
+			lipgloss.Center,
+			lipgloss.Center,
+			dialog,
+		)
+	}
+
 	return lipgloss.JoinVertical(
 		lipgloss.Left,
 		a.renderHeader(),
 		content,
 		a.renderStatusBar(),
+	)
+}
+
+func (a App) renderConfirmDialog() string {
+	dialogStyle := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("#EF4444")).
+		Padding(1, 3).
+		Align(lipgloss.Center)
+
+	title := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("#EF4444")).
+		Render("Delete Email?")
+
+	hint := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#9CA3AF")).
+		Render("press y to confirm, n to cancel")
+
+	return dialogStyle.Render(
+		lipgloss.JoinVertical(
+			lipgloss.Center,
+			title,
+			"",
+			hint,
+		),
 	)
 }
 
@@ -298,6 +344,7 @@ func (a App) renderStatusBar() string {
 		help = HelpKeyStyle.Render("j/k") + HelpDescStyle.Render(" navigate  ") +
 			HelpKeyStyle.Render("enter") + HelpDescStyle.Render(" open  ") +
 			HelpKeyStyle.Render("r") + HelpDescStyle.Render(" refresh  ") +
+			HelpKeyStyle.Render("l") + HelpDescStyle.Render(" load more  ") +
 			HelpKeyStyle.Render("d") + HelpDescStyle.Render(" delete  ") +
 			HelpKeyStyle.Render("q") + HelpDescStyle.Render(" quit")
 	} else {

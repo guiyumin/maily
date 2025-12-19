@@ -36,9 +36,6 @@ func main() {
 	case "accounts":
 		handleAccounts()
 
-	case "switch":
-		handleSwitch()
-
 	case "help", "--help", "-h":
 		printHelp()
 
@@ -64,26 +61,8 @@ func runTUI() {
 		os.Exit(1)
 	}
 
-	// If multiple accounts and none active, let user choose
-	var account *auth.Account
-	if len(store.Accounts) > 1 && store.Active == "" {
-		account = promptAccountSelection(store)
-		store.SetActive(account.Credentials.Email)
-		store.Save()
-	} else {
-		account = store.GetActiveAccount()
-	}
-
-	if account == nil {
-		fmt.Println("No active account. Run:")
-		fmt.Println()
-		fmt.Println("  cocomail login gmail")
-		fmt.Println()
-		os.Exit(1)
-	}
-
 	p := tea.NewProgram(
-		ui.NewApp(&account.Credentials, account.Credentials.Email),
+		ui.NewApp(store),
 		tea.WithAltScreen(),
 		tea.WithMouseCellMotion(),
 	)
@@ -91,33 +70,6 @@ func runTUI() {
 	if _, err := p.Run(); err != nil {
 		fmt.Printf("Error running program: %v\n", err)
 		os.Exit(1)
-	}
-}
-
-func promptAccountSelection(store *auth.AccountStore) *auth.Account {
-	fmt.Println()
-	fmt.Println("  Select an account:")
-	fmt.Println("  ──────────────────")
-	fmt.Println()
-
-	for i, acc := range store.Accounts {
-		fmt.Printf("  %d. %s (%s)\n", i+1, acc.Credentials.Email, acc.Provider)
-	}
-	fmt.Println()
-
-	reader := bufio.NewReader(os.Stdin)
-	for {
-		fmt.Print("  Enter number: ")
-		input, _ := reader.ReadString('\n')
-		input = strings.TrimSpace(input)
-
-		num, err := strconv.Atoi(input)
-		if err != nil || num < 1 || num > len(store.Accounts) {
-			fmt.Println("  Invalid selection. Try again.")
-			continue
-		}
-
-		return &store.Accounts[num-1]
 	}
 }
 
@@ -168,7 +120,6 @@ func loginGmail() {
 	}
 
 	store.AddAccount(*account)
-	store.SetActive(account.Credentials.Email)
 
 	if err := store.Save(); err != nil {
 		fmt.Printf("Error saving account: %v\n", err)
@@ -219,11 +170,7 @@ func handleLogout() {
 	fmt.Println("  Which account to remove?")
 	fmt.Println()
 	for i, acc := range store.Accounts {
-		active := ""
-		if acc.Credentials.Email == store.Active {
-			active = " (active)"
-		}
-		fmt.Printf("  %d. %s%s\n", i+1, acc.Credentials.Email, active)
+		fmt.Printf("  %d. %s\n", i+1, acc.Credentials.Email)
 	}
 	fmt.Println()
 
@@ -267,72 +214,9 @@ func handleAccounts() {
 	fmt.Println("  Accounts:")
 	fmt.Println("  ─────────")
 	for _, acc := range store.Accounts {
-		active := ""
-		if acc.Credentials.Email == store.Active {
-			active = " ← active"
-		}
-		fmt.Printf("  • %s (%s)%s\n", acc.Credentials.Email, acc.Provider, active)
+		fmt.Printf("  • %s (%s)\n", acc.Credentials.Email, acc.Provider)
 	}
 	fmt.Println()
-}
-
-func handleSwitch() {
-	store, err := auth.LoadAccountStore()
-	if err != nil {
-		fmt.Printf("Error: %v\n", err)
-		os.Exit(1)
-	}
-
-	if len(store.Accounts) == 0 {
-		fmt.Println("No accounts configured.")
-		return
-	}
-
-	if len(store.Accounts) == 1 {
-		fmt.Println("Only one account configured.")
-		return
-	}
-
-	// If specific account provided
-	if len(os.Args) >= 3 {
-		email := os.Args[2]
-		if store.SetActive(email) {
-			store.Save()
-			fmt.Printf("✓ Switched to %s\n", email)
-		} else {
-			fmt.Printf("Account not found: %s\n", email)
-		}
-		return
-	}
-
-	// Show selection
-	fmt.Println()
-	fmt.Println("  Switch to which account?")
-	fmt.Println()
-	for i, acc := range store.Accounts {
-		active := ""
-		if acc.Credentials.Email == store.Active {
-			active = " (current)"
-		}
-		fmt.Printf("  %d. %s%s\n", i+1, acc.Credentials.Email, active)
-	}
-	fmt.Println()
-
-	reader := bufio.NewReader(os.Stdin)
-	fmt.Print("  Enter number: ")
-	input, _ := reader.ReadString('\n')
-	input = strings.TrimSpace(input)
-
-	num, err := strconv.Atoi(input)
-	if err != nil || num < 1 || num > len(store.Accounts) {
-		fmt.Println("Cancelled.")
-		return
-	}
-
-	email := store.Accounts[num-1].Credentials.Email
-	store.SetActive(email)
-	store.Save()
-	fmt.Printf("✓ Switched to %s\n", email)
 }
 
 func printHelp() {
@@ -342,11 +226,11 @@ func printHelp() {
 	fmt.Println("  cocomail                Start the email client")
 	fmt.Println("  cocomail login gmail    Add a Gmail account")
 	fmt.Println("  cocomail accounts       List all accounts")
-	fmt.Println("  cocomail switch         Switch active account")
 	fmt.Println("  cocomail logout         Remove an account")
 	fmt.Println("  cocomail help           Show this help")
 	fmt.Println()
 	fmt.Println("Keyboard shortcuts (in client):")
+	fmt.Println("  tab      Switch account")
 	fmt.Println("  j/k      Navigate up/down")
 	fmt.Println("  enter    Open email")
 	fmt.Println("  esc      Go back")

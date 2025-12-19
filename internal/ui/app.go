@@ -35,9 +35,11 @@ const (
 )
 
 type App struct {
-	creds         *auth.Credentials
-	accountEmail  string
+	store         *auth.AccountStore
+	accountIdx    int
 	imap          *gmail.IMAPClient
+	imapCache     map[int]*gmail.IMAPClient
+	emailCache    map[int][]gmail.Email
 	mailList      components.MailList
 	viewport      viewport.Model
 	spinner       spinner.Model
@@ -63,20 +65,29 @@ type clientReadyMsg struct {
 	imap *gmail.IMAPClient
 }
 
-func NewApp(creds *auth.Credentials, accountEmail string) App {
+func NewApp(store *auth.AccountStore) App {
 	s := spinner.New()
 	s.Spinner = spinner.Dot
 	s.Style = SpinnerStyle
 
 	return App{
-		creds:        creds,
-		accountEmail: accountEmail,
-		mailList:     components.NewMailList(),
-		spinner:      s,
-		state:        stateLoading,
-		view:         listView,
-		emailLimit:   50,
+		store:      store,
+		accountIdx: 0,
+		imapCache:  make(map[int]*gmail.IMAPClient),
+		emailCache: make(map[int][]gmail.Email),
+		mailList:   components.NewMailList(),
+		spinner:    s,
+		state:      stateLoading,
+		view:       listView,
+		emailLimit: 50,
 	}
+}
+
+func (a App) currentAccount() *auth.Account {
+	if a.accountIdx >= 0 && a.accountIdx < len(a.store.Accounts) {
+		return &a.store.Accounts[a.accountIdx]
+	}
+	return nil
 }
 
 func (a App) Init() tea.Cmd {
@@ -87,8 +98,15 @@ func (a App) Init() tea.Cmd {
 }
 
 func (a App) initClient() tea.Cmd {
+	account := a.currentAccount()
+	if account == nil {
+		return func() tea.Msg {
+			return errorMsg{err: fmt.Errorf("no account configured")}
+		}
+	}
+	creds := &account.Credentials
 	return func() tea.Msg {
-		client, err := gmail.NewIMAPClient(a.creds)
+		client, err := gmail.NewIMAPClient(creds)
 		if err != nil {
 			return errorMsg{err: err}
 		}
@@ -113,6 +131,12 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "ctrl+c", "q":
+			// Close all cached IMAP connections
+			for _, client := range a.imapCache {
+				if client != nil {
+					client.Close()
+				}
+			}
 			if a.imap != nil {
 				a.imap.Close()
 			}
@@ -175,6 +199,38 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				a.statusMsg = fmt.Sprintf("Loading %d emails...", a.emailLimit)
 				return a, tea.Batch(a.spinner.Tick, a.loadEmails())
 			}
+		case "tab":
+			if len(a.store.Accounts) > 1 && !a.confirmDelete {
+				// Save current emails to cache
+				if emails := a.mailList.Emails(); len(emails) > 0 {
+					a.emailCache[a.accountIdx] = emails
+				}
+				// Save current IMAP connection to cache
+				if a.imap != nil {
+					a.imapCache[a.accountIdx] = a.imap
+				}
+
+				// Switch to next account
+				a.accountIdx = (a.accountIdx + 1) % len(a.store.Accounts)
+				a.view = listView
+
+				// Check if we have cached data for this account
+				if cached, ok := a.emailCache[a.accountIdx]; ok && len(cached) > 0 {
+					a.imap = a.imapCache[a.accountIdx]
+					a.mailList.SetEmails(cached)
+					a.state = stateReady
+					a.statusMsg = fmt.Sprintf("%d emails", len(cached))
+					return a, nil
+				}
+
+				// No cache, need to load
+				a.imap = nil
+				a.state = stateLoading
+				a.emailLimit = 50
+				a.mailList.SetEmails(nil)
+				a.statusMsg = "Loading..."
+				return a, tea.Batch(a.spinner.Tick, a.initClient())
+			}
 		}
 
 	case tea.MouseMsg:
@@ -209,13 +265,15 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case clientReadyMsg:
 		a.imap = msg.imap
+		a.imapCache[a.accountIdx] = msg.imap
 		a.statusMsg = "Loading emails..."
 		return a, a.loadEmails()
 
 	case emailsLoadedMsg:
 		a.mailList.SetEmails(msg.emails)
+		a.emailCache[a.accountIdx] = msg.emails
 		a.state = stateReady
-		a.statusMsg = fmt.Sprintf("Loaded %d emails", len(msg.emails))
+		a.statusMsg = fmt.Sprintf("%d emails", len(msg.emails))
 
 	case errorMsg:
 		a.state = stateError
@@ -318,10 +376,32 @@ func (a App) renderConfirmDialog() string {
 
 func (a App) renderHeader() string {
 	title := TitleStyle.Render(" COCOMAIL ")
-	account := lipgloss.NewStyle().
+
+	// Render account tabs
+	var tabs []string
+	activeTabStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#F9FAFB")).
+		Background(lipgloss.Color("#7C3AED")).
+		Padding(0, 1)
+	inactiveTabStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("#9CA3AF")).
-		Render(" " + a.accountEmail)
-	return HeaderStyle.Width(a.width).Render(title + account)
+		Padding(0, 1)
+
+	for i, acc := range a.store.Accounts {
+		email := acc.Credentials.Email
+		// Shorten email for display
+		if at := strings.Index(email, "@"); at > 0 {
+			email = email[:at]
+		}
+		if i == a.accountIdx {
+			tabs = append(tabs, activeTabStyle.Render(email))
+		} else {
+			tabs = append(tabs, inactiveTabStyle.Render(email))
+		}
+	}
+
+	tabsStr := strings.Join(tabs, " ")
+	return HeaderStyle.Width(a.width).Render(title + " " + tabsStr)
 }
 
 func (a App) renderListView() string {
@@ -363,15 +443,20 @@ func (a App) renderEmailContent(email gmail.Email) string {
 
 func (a App) renderStatusBar() string {
 	var help string
+	tabHint := ""
+	if len(a.store.Accounts) > 1 {
+		tabHint = HelpKeyStyle.Render("tab") + HelpDescStyle.Render(" switch  ")
+	}
 	if a.view == listView {
-		help = HelpKeyStyle.Render("j/k") + HelpDescStyle.Render(" navigate  ") +
+		help = tabHint +
+			HelpKeyStyle.Render("j/k") + HelpDescStyle.Render(" navigate  ") +
 			HelpKeyStyle.Render("enter") + HelpDescStyle.Render(" open  ") +
 			HelpKeyStyle.Render("r") + HelpDescStyle.Render(" refresh  ") +
-			HelpKeyStyle.Render("l") + HelpDescStyle.Render(" load more  ") +
 			HelpKeyStyle.Render("d") + HelpDescStyle.Render(" delete  ") +
 			HelpKeyStyle.Render("q") + HelpDescStyle.Render(" quit")
 	} else {
-		help = HelpKeyStyle.Render("esc") + HelpDescStyle.Render(" back  ") +
+		help = tabHint +
+			HelpKeyStyle.Render("esc") + HelpDescStyle.Render(" back  ") +
 			HelpKeyStyle.Render("j/k") + HelpDescStyle.Render(" scroll  ") +
 			HelpKeyStyle.Render("q") + HelpDescStyle.Render(" quit")
 	}

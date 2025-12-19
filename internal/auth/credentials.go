@@ -30,7 +30,6 @@ type Account struct {
 }
 
 type AccountStore struct {
-	Active   string    `yaml:"active"`
 	Accounts []Account `yaml:"accounts"`
 }
 
@@ -102,9 +101,6 @@ func (s *AccountStore) RemoveAccount(email string) bool {
 	for i, a := range s.Accounts {
 		if a.Credentials.Email == email {
 			s.Accounts = append(s.Accounts[:i], s.Accounts[i+1:]...)
-			if s.Active == email {
-				s.Active = ""
-			}
 			return true
 		}
 	}
@@ -118,23 +114,6 @@ func (s *AccountStore) GetAccount(email string) *Account {
 		}
 	}
 	return nil
-}
-
-func (s *AccountStore) GetActiveAccount() *Account {
-	if s.Active == "" && len(s.Accounts) > 0 {
-		return &s.Accounts[0]
-	}
-	return s.GetAccount(s.Active)
-}
-
-func (s *AccountStore) SetActive(email string) bool {
-	for _, a := range s.Accounts {
-		if a.Credentials.Email == email {
-			s.Active = email
-			return true
-		}
-	}
-	return false
 }
 
 func PromptGmailCredentials() (*Account, error) {

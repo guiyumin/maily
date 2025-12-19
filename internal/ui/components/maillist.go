@@ -72,6 +72,10 @@ func (m *MailList) SetEmails(emails []gmail.Email) {
 	}
 }
 
+func (m MailList) Emails() []gmail.Email {
+	return m.emails
+}
+
 func (m *MailList) SetSize(width, height int) {
 	m.width = width
 	m.height = height

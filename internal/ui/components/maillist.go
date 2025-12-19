@@ -158,9 +158,12 @@ func (m MailList) renderEmailLine(email gmail.Email, selected bool) string {
 	subject := truncate(email.Subject, maxWidth-35)
 	date := formatDate(email.Date)
 
-	status := "   "
+	// Status indicator - show read/unread
+	var status string
 	if email.Unread {
-		status = lipgloss.NewStyle().Foreground(lipgloss.Color("#3B82F6")).Render(" ● ")
+		status = lipgloss.NewStyle().Foreground(lipgloss.Color("#3B82F6")).Render("  ●  ")
+	} else {
+		status = lipgloss.NewStyle().Foreground(lipgloss.Color("#6B7280")).Render("  ○  ")
 	}
 
 	line := fmt.Sprintf("%-20s │ %-*s │ %s",
@@ -170,26 +173,19 @@ func (m MailList) renderEmailLine(email gmail.Email, selected bool) string {
 		date,
 	)
 
-	line = status + line
+	lineStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#F9FAFB")).
+		Width(m.width - 9)
 
 	if selected {
-		return lipgloss.NewStyle().
+		lineStyle = lineStyle.
 			Bold(true).
-			Foreground(lipgloss.Color("#F9FAFB")).
-			Background(lipgloss.Color("#7C3AED")).
-			Width(m.width - 4).
-			Render(line)
+			Background(lipgloss.Color("#7C3AED"))
+	} else if email.Unread {
+		lineStyle = lineStyle.Bold(true)
 	}
 
-	style := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("#F9FAFB")).
-		Width(m.width - 4)
-
-	if email.Unread {
-		style = style.Bold(true)
-	}
-
-	return style.Render(line)
+	return status + lineStyle.Render(line)
 }
 
 func extractName(from string) string {

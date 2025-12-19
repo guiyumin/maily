@@ -9,6 +9,7 @@ import (
 	"github.com/emersion/go-imap/v2"
 	"github.com/emersion/go-imap/v2/imapclient"
 	"github.com/emersion/go-message/mail"
+	_ "github.com/emersion/go-message/charset" // Register charset decoders
 
 	"cocomail/internal/auth"
 )

@@ -75,27 +75,28 @@ func SaveCredentials(creds *Credentials) error {
 	return os.WriteFile(credPath, data, 0600)
 }
 
-func PromptCredentials() (*Credentials, error) {
+func PromptGmailCredentials() (*Credentials, error) {
 	reader := bufio.NewReader(os.Stdin)
 
-	fmt.Println("┌─────────────────────────────────────────────────┐")
-	fmt.Println("│              COCOMAIL SETUP                     │")
-	fmt.Println("├─────────────────────────────────────────────────┤")
-	fmt.Println("│ To use Gmail, you need an App Password:        │")
-	fmt.Println("│ 1. Enable 2-Step Verification (if not done)    │")
-	fmt.Println("│ 2. Go to: myaccount.google.com/apppasswords    │")
-	fmt.Println("│ 3. Generate a password for 'Mail'              │")
-	fmt.Println("└─────────────────────────────────────────────────┘")
+	fmt.Println()
+	fmt.Println("  Gmail Login")
+	fmt.Println("  ───────────")
+	fmt.Println()
+	fmt.Println("  You need an App Password to continue.")
+	fmt.Println()
+	fmt.Println("  1. Enable 2-Step Verification (if not done)")
+	fmt.Println("  2. Go to: myaccount.google.com/apppasswords")
+	fmt.Println("  3. Create an app password for 'Mail'")
 	fmt.Println()
 
-	fmt.Print("Email: ")
+	fmt.Print("  Email: ")
 	email, err := reader.ReadString('\n')
 	if err != nil {
 		return nil, err
 	}
 	email = strings.TrimSpace(email)
 
-	fmt.Print("App Password: ")
+	fmt.Print("  App Password: ")
 	passwordBytes, err := term.ReadPassword(int(os.Stdin.Fd()))
 	if err != nil {
 		return nil, err

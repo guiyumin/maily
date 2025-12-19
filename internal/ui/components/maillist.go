@@ -7,6 +7,7 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/emersion/go-imap/v2"
 
 	"maily/internal/gmail"
 )
@@ -48,12 +49,14 @@ var DefaultMailListKeyMap = MailListKeyMap{
 }
 
 type MailList struct {
-	emails   []gmail.Email
-	cursor   int
-	width    int
-	height   int
-	keyMap   MailListKeyMap
-	selected *gmail.Email
+	emails        []gmail.Email
+	cursor        int
+	width         int
+	height        int
+	keyMap        MailListKeyMap
+	selected      *gmail.Email
+	selectionMode bool
+	selections    map[imap.UID]bool
 }
 
 func NewMailList() MailList {
@@ -107,6 +110,21 @@ func (m MailList) SelectedEmail() *gmail.Email {
 		return nil
 	}
 	return &m.emails[m.cursor]
+}
+
+func (m MailList) Cursor() int {
+	return m.cursor
+}
+
+func (m *MailList) SetSelectionMode(enabled bool) {
+	m.selectionMode = enabled
+	if !enabled {
+		m.selections = nil
+	}
+}
+
+func (m *MailList) SetSelections(selections map[imap.UID]bool) {
+	m.selections = selections
 }
 
 func (m MailList) Update(msg tea.Msg) (MailList, tea.Cmd) {
@@ -163,14 +181,20 @@ func (m MailList) View() string {
 	return b.String()
 }
 
-func (m MailList) renderEmailLine(email gmail.Email, selected bool) string {
+func (m MailList) renderEmailLine(email gmail.Email, isCursor bool) string {
 	dateWidth := 12
 	fromWidth := 20
 	statusWidth := 5
+	checkboxWidth := 0
 	rightPadding := 4
-	spacing := 4  // spaces between columns
+	spacing := 4 // spaces between columns
 
-	availableWidth := m.width - statusWidth - fromWidth - dateWidth - spacing - rightPadding
+	// Add checkbox width if in selection mode
+	if m.selectionMode {
+		checkboxWidth = 5
+	}
+
+	availableWidth := m.width - statusWidth - checkboxWidth - fromWidth - dateWidth - spacing - rightPadding
 	if availableWidth < 20 {
 		availableWidth = 20
 	}
@@ -178,6 +202,17 @@ func (m MailList) renderEmailLine(email gmail.Email, selected bool) string {
 	from := truncate(extractName(email.From), fromWidth)
 	subject := truncate(email.Subject, availableWidth)
 	date := formatDate(email.Date)
+
+	// Checkbox for selection mode
+	isSelected := m.selections[email.UID]
+	var checkbox string
+	if m.selectionMode {
+		if isSelected {
+			checkbox = lipgloss.NewStyle().Foreground(lipgloss.Color("#10B981")).Render(" [✓] ")
+		} else {
+			checkbox = lipgloss.NewStyle().Foreground(lipgloss.Color("#6B7280")).Render(" [ ] ")
+		}
+	}
 
 	// Status indicator - show read/unread
 	var status string
@@ -196,15 +231,18 @@ func (m MailList) renderEmailLine(email gmail.Email, selected bool) string {
 	lineStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("#F9FAFB"))
 
-	if selected {
+	if isCursor {
 		lineStyle = lineStyle.
 			Bold(true).
 			Background(lipgloss.Color("#7C3AED"))
+	} else if m.selectionMode && isSelected {
+		lineStyle = lineStyle.
+			Foreground(lipgloss.Color("#10B981"))
 	} else if email.Unread {
 		lineStyle = lineStyle.Bold(true)
 	}
 
-	return status + lineStyle.Render(line)
+	return checkbox + status + lineStyle.Render(line)
 }
 
 func extractName(from string) string {

@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/emersion/go-imap/v2"
 
 	"maily/internal/auth"
 	"maily/internal/gmail"
@@ -58,6 +59,12 @@ type App struct {
 	isSearchResult bool // showing search results
 	searchQuery    string
 	inboxCache     []gmail.Email
+
+	// Multi-select (search mode only)
+	selected map[imap.UID]bool
+
+	// Scroll throttling (count-based)
+	scrollCount int
 }
 
 type emailsLoadedMsg struct {
@@ -102,6 +109,7 @@ func NewApp(store *auth.AccountStore) App {
 		view:        listView,
 		emailLimit:  50,
 		searchInput: si,
+		selected:    make(map[imap.UID]bool),
 	}
 }
 
@@ -176,6 +184,8 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				a.isSearchResult = false
 				a.searchQuery = ""
 				a.searchInput.SetValue("")
+				a.selected = make(map[imap.UID]bool) // Clear selections
+				a.mailList.SetSelectionMode(false)
 				a.mailList.SetEmails(a.inboxCache)
 				a.statusMsg = fmt.Sprintf("%d emails", len(a.inboxCache))
 			}
@@ -207,13 +217,22 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		case "d":
 			if a.state == stateReady && !a.confirmDelete {
-				if a.mailList.SelectedEmail() != nil {
+				// In search mode with selections, delete selected emails
+				if a.isSearchResult && a.selectedCount() > 0 {
+					a.confirmDelete = true
+				} else if a.mailList.SelectedEmail() != nil {
 					a.confirmDelete = true
 				}
 			}
 		case "y":
 			if a.confirmDelete {
-				if email := a.mailList.SelectedEmail(); email != nil {
+				// In search mode with selections, delete selected emails
+				if a.isSearchResult && a.selectedCount() > 0 {
+					a.state = stateLoading
+					a.statusMsg = "Deleting..."
+					a.confirmDelete = false
+					return a, tea.Batch(a.spinner.Tick, a.deleteSelectedEmails())
+				} else if email := a.mailList.SelectedEmail(); email != nil {
 					uid := email.UID
 					a.mailList.RemoveCurrent()
 					a.view = listView
@@ -235,6 +254,45 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				a.state = stateLoading
 				a.statusMsg = fmt.Sprintf("Loading %d emails...", a.emailLimit)
 				return a, tea.Batch(a.spinner.Tick, a.loadEmails())
+			}
+		case " ": // Space to toggle selection (search mode only)
+			if a.isSearchResult && a.view == listView && a.state == stateReady {
+				if email := a.mailList.SelectedEmail(); email != nil {
+					a.selected[email.UID] = !a.selected[email.UID]
+					a.mailList.SetSelections(a.selected)
+					// Move cursor down after selection
+					if a.mailList.Cursor() < len(a.mailList.Emails())-1 {
+						a.mailList.ScrollDown()
+					}
+				}
+			}
+		case "a": // Select/deselect all (search mode only)
+			if a.isSearchResult && a.view == listView && a.state == stateReady {
+				emails := a.mailList.Emails()
+				allSelected := len(a.selected) == len(emails) && len(emails) > 0
+				// Check if all are actually selected
+				for _, email := range emails {
+					if !a.selected[email.UID] {
+						allSelected = false
+						break
+					}
+				}
+				if allSelected {
+					// Deselect all
+					a.selected = make(map[imap.UID]bool)
+				} else {
+					// Select all
+					for _, email := range emails {
+						a.selected[email.UID] = true
+					}
+				}
+				a.mailList.SetSelections(a.selected)
+			}
+		case "m": // Mark read/unread (search mode only, for selected emails)
+			if a.isSearchResult && a.view == listView && a.state == stateReady && a.selectedCount() > 0 {
+				a.state = stateLoading
+				a.statusMsg = "Marking as read..."
+				return a, tea.Batch(a.spinner.Tick, a.markSelectedAsRead())
 			}
 		case "tab":
 			if len(a.store.Accounts) > 1 && !a.confirmDelete && !a.isSearchResult {
@@ -276,16 +334,30 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case tea.MouseButtonWheelUp:
 				switch a.view {
 				case listView:
-					a.mailList.ScrollUp()
+					// Only process every 3rd scroll event
+					a.scrollCount++
+					if a.scrollCount >= 3 {
+						a.mailList.ScrollUp()
+						a.scrollCount = 0
+					}
+					return a, nil
 				case readView:
 					a.viewport.ScrollUp(3)
+					return a, nil
 				}
 			case tea.MouseButtonWheelDown:
 				switch a.view {
 				case listView:
-					a.mailList.ScrollDown()
+					// Only process every 3rd scroll event
+					a.scrollCount++
+					if a.scrollCount >= 3 {
+						a.mailList.ScrollDown()
+						a.scrollCount = 0
+					}
+					return a, nil
 				case readView:
 					a.viewport.ScrollDown(3)
+					return a, nil
 				}
 			}
 		}
@@ -320,6 +392,8 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case appSearchResultsMsg:
 		a.mailList.SetEmails(msg.emails)
+		a.mailList.SetSelectionMode(true)
+		a.mailList.SetSelections(a.selected)
 		a.state = stateReady
 		a.isSearchResult = true
 		a.searchQuery = msg.query
@@ -327,6 +401,18 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			a.statusMsg = fmt.Sprintf("No results for '%s'", msg.query)
 		} else {
 			a.statusMsg = fmt.Sprintf("%d results for '%s'", len(msg.emails), msg.query)
+		}
+
+	case bulkActionCompleteMsg:
+		a.state = stateReady
+		// Clear selections after action
+		a.selected = make(map[imap.UID]bool)
+		a.mailList.SetSelections(a.selected)
+		a.statusMsg = fmt.Sprintf("Successfully %s %d email(s)", msg.action, msg.count)
+		// Re-run search to refresh the list
+		if a.isSearchResult && a.searchQuery != "" {
+			a.state = stateLoading
+			return a, tea.Batch(a.spinner.Tick, a.executeSearch(a.searchQuery))
 		}
 	}
 
@@ -378,7 +464,11 @@ func (a App) View() string {
 
 	// Show confirmation dialog overlay
 	if a.confirmDelete {
-		content = components.RenderCentered(a.width, a.height, components.RenderConfirmDialog())
+		deleteCount := 1
+		if a.isSearchResult && a.selectedCount() > 0 {
+			deleteCount = a.selectedCount()
+		}
+		content = components.RenderCentered(a.width, a.height, components.RenderConfirmDialog(deleteCount))
 	}
 
 	// Show search input overlay
@@ -407,6 +497,7 @@ func (a App) View() string {
 		IsSearchResult: a.isSearchResult,
 		IsListView:     a.view == listView,
 		AccountCount:   len(a.store.Accounts),
+		SelectionCount: a.selectedCount(),
 	}
 
 	return lipgloss.JoinVertical(
@@ -423,4 +514,14 @@ func (a App) renderEmailContent(email gmail.Email) string {
 		body = email.Snippet
 	}
 	return body
+}
+
+func (a App) selectedCount() int {
+	count := 0
+	for _, selected := range a.selected {
+		if selected {
+			count++
+		}
+	}
+	return count
 }

@@ -25,6 +25,7 @@ type StatusBarData struct {
 	IsSearchResult bool
 	IsListView     bool
 	AccountCount   int
+	SelectionCount int
 }
 
 type EmailViewData struct {
@@ -81,10 +82,11 @@ func RenderStatusBar(data StatusBarData) string {
 		help = HelpKeyStyle.Render("enter") + HelpDescStyle.Render(" search  ") +
 			HelpKeyStyle.Render("esc") + HelpDescStyle.Render(" cancel")
 	} else if data.IsSearchResult {
-		help = HelpKeyStyle.Render("j/k") + HelpDescStyle.Render(" navigate  ") +
-			HelpKeyStyle.Render("enter") + HelpDescStyle.Render(" open  ") +
-			HelpKeyStyle.Render("/") + HelpDescStyle.Render(" search  ") +
-			HelpKeyStyle.Render("esc") + HelpDescStyle.Render(" back to inbox  ") +
+		help = HelpKeyStyle.Render("space") + HelpDescStyle.Render(" select  ") +
+			HelpKeyStyle.Render("a") + HelpDescStyle.Render(" all  ") +
+			HelpKeyStyle.Render("m") + HelpDescStyle.Render(" mark read  ") +
+			HelpKeyStyle.Render("d") + HelpDescStyle.Render(" delete  ") +
+			HelpKeyStyle.Render("esc") + HelpDescStyle.Render(" back  ") +
 			HelpKeyStyle.Render("q") + HelpDescStyle.Render(" quit")
 	} else if data.IsListView {
 		help = tabHint +
@@ -102,10 +104,20 @@ func RenderStatusBar(data StatusBarData) string {
 	}
 
 	status := StatusKeyStyle.Render(data.StatusMsg)
-	gap := max(0, data.Width-lipgloss.Width(help)-lipgloss.Width(status)-12)
+
+	// Show selection count in search mode
+	selectionInfo := ""
+	if data.IsSearchResult && data.SelectionCount > 0 {
+		selectionInfo = lipgloss.NewStyle().
+			Bold(true).
+			Foreground(lipgloss.Color("#10B981")).
+			Render(fmt.Sprintf(" %d selected ", data.SelectionCount))
+	}
+
+	gap := max(0, data.Width-lipgloss.Width(help)-lipgloss.Width(status)-lipgloss.Width(selectionInfo)-12)
 
 	return StatusBarStyle.Width(data.Width).PaddingLeft(4).PaddingRight(4).Render(
-		help + strings.Repeat(" ", gap) + status,
+		help + strings.Repeat(" ", gap) + selectionInfo + status,
 	)
 }
 
@@ -138,12 +150,17 @@ func RenderReadView(email EmailViewData, width int, viewportContent string) stri
 	)
 }
 
-func RenderConfirmDialog() string {
+func RenderConfirmDialog(count int) string {
 	dialogStyle := DialogStyle.BorderForeground(Danger)
+
+	titleText := "Delete Email?"
+	if count > 1 {
+		titleText = fmt.Sprintf("Delete %d Emails?", count)
+	}
 
 	title := DialogTitleStyle.
 		Foreground(Danger).
-		Render("Delete Email?")
+		Render(titleText)
 
 	hint := DialogHintStyle.Render("press y to confirm, n to cancel")
 

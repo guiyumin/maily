@@ -11,7 +11,7 @@ import (
 	"github.com/emersion/go-message/mail"
 	_ "github.com/emersion/go-message/charset" // Register charset decoders
 
-	"cocomail/internal/auth"
+	"maily/internal/auth"
 )
 
 type IMAPClient struct {

@@ -5,18 +5,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Build Commands
 
 ```bash
-make build      # Build to build/cocomail
+make build      # Build to build/maily
 make clean      # Remove build directory
 ```
 
 ## Architecture
 
-Cocomail is a terminal email client built with Go and Bubbletea (Elm-architecture TUI framework).
+Maily is a terminal email client built with Go and Bubbletea (Elm-architecture TUI framework).
 
 ### Core Structure
 
 - `main.go` - CLI entry point, handles commands: `login`, `logout`, `accounts`, `help`
-- `internal/auth/` - Account management, credentials stored in `~/.config/cocomail/accounts.yml`
+- `internal/auth/` - Account management, credentials stored in `~/.config/maily/accounts.yml`
 - `internal/gmail/` - IMAP client (fetching, read/unread, delete) and SMTP client (send, reply)
 - `internal/ui/` - Bubbletea TUI application
 - `config/` - App configuration (unused currently)
@@ -37,10 +37,10 @@ The UI follows Elm architecture with `Init()`, `Update()`, `View()` methods:
 
 ### Authentication Flow
 
-1. User runs `cocomail login gmail`
+1. User runs `maily login gmail`
 2. Prompts for email and App Password (password input hidden, strips all unicode whitespace)
 3. Verifies credentials by connecting to IMAP before saving
-4. Stores in `~/.config/cocomail/accounts.yml`
+4. Stores in `~/.config/maily/accounts.yml`
 
 ### IMAP Notes
 

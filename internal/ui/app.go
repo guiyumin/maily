@@ -9,9 +9,9 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"cocomail/internal/auth"
-	"cocomail/internal/gmail"
-	"cocomail/internal/ui/components"
+	"maily/internal/auth"
+	"maily/internal/gmail"
+	"maily/internal/ui/components"
 )
 
 type selectedEmail struct {
@@ -375,7 +375,7 @@ func (a App) renderConfirmDialog() string {
 }
 
 func (a App) renderHeader() string {
-	title := TitleStyle.Render(" COCOMAIL ")
+	title := TitleStyle.Render(" MAILY ")
 
 	// Render account tabs
 	var tabs []string

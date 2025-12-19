@@ -8,9 +8,9 @@ import (
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"cocomail/internal/auth"
-	"cocomail/internal/gmail"
-	"cocomail/internal/ui"
+	"maily/internal/auth"
+	"maily/internal/gmail"
+	"maily/internal/ui"
 )
 
 func main() {
@@ -22,7 +22,7 @@ func main() {
 	switch os.Args[1] {
 	case "login":
 		if len(os.Args) < 3 {
-			fmt.Println("Usage: cocomail login <provider>")
+			fmt.Println("Usage: maily login <provider>")
 			fmt.Println()
 			fmt.Println("Providers:")
 			fmt.Println("  gmail    Login with Gmail")
@@ -56,7 +56,7 @@ func runTUI() {
 	if len(store.Accounts) == 0 {
 		fmt.Println("No accounts configured. Run:")
 		fmt.Println()
-		fmt.Println("  cocomail login gmail")
+		fmt.Println("  maily login gmail")
 		fmt.Println()
 		os.Exit(1)
 	}
@@ -129,7 +129,7 @@ func loginGmail() {
 	fmt.Println()
 	fmt.Printf("  ✓ Logged in as %s\n", account.Credentials.Email)
 	fmt.Println()
-	fmt.Println("  Run 'cocomail' to start.")
+	fmt.Println("  Run 'maily' to start.")
 }
 
 func handleLogout() {
@@ -206,7 +206,7 @@ func handleAccounts() {
 	if len(store.Accounts) == 0 {
 		fmt.Println("No accounts configured.")
 		fmt.Println()
-		fmt.Println("Run: cocomail login gmail")
+		fmt.Println("Run: maily login gmail")
 		return
 	}
 
@@ -220,14 +220,14 @@ func handleAccounts() {
 }
 
 func printHelp() {
-	fmt.Println("cocomail - A terminal email client")
+	fmt.Println("maily - A terminal email client")
 	fmt.Println()
 	fmt.Println("Usage:")
-	fmt.Println("  cocomail                Start the email client")
-	fmt.Println("  cocomail login gmail    Add a Gmail account")
-	fmt.Println("  cocomail accounts       List all accounts")
-	fmt.Println("  cocomail logout         Remove an account")
-	fmt.Println("  cocomail help           Show this help")
+	fmt.Println("  maily                Start the email client")
+	fmt.Println("  maily login gmail    Add a Gmail account")
+	fmt.Println("  maily accounts       List all accounts")
+	fmt.Println("  maily logout         Remove an account")
+	fmt.Println("  maily help           Show this help")
 	fmt.Println()
 	fmt.Println("Keyboard shortcuts (in client):")
 	fmt.Println("  tab      Switch account")

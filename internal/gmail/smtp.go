@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"net/smtp"
 
-	"cocomail/internal/auth"
+	"maily/internal/auth"
 )
 
 type SMTPClient struct {

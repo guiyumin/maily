@@ -1,6 +1,6 @@
 .PHONY: build clean
 
-APP_NAME := cocomail
+APP_NAME := maily
 BUILD_DIR := build
 
 build:

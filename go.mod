@@ -1,4 +1,4 @@
-module cocomail
+module maily
 
 go 1.23.0
 

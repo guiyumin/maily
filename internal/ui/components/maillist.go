@@ -9,7 +9,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"cocomail/internal/gmail"
+	"maily/internal/gmail"
 )
 
 type MailListKeyMap struct {

@@ -69,7 +69,7 @@ func getConfigDir() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(homeDir, ".config", "cocomail"), nil
+	return filepath.Join(homeDir, ".config", "maily"), nil
 }
 
 func GetConfigDir() (string, error) {

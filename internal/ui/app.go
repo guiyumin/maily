@@ -168,15 +168,16 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if a.confirmDelete {
 				a.confirmDelete = false
 				a.statusMsg = ""
+			} else if a.view == readView {
+				// Go back to list view (preserves search mode if active)
+				a.view = listView
 			} else if a.isSearchResult {
-				// Exit search results, restore inbox
+				// Exit search results, restore inbox (only from list view)
 				a.isSearchResult = false
 				a.searchQuery = ""
 				a.searchInput.SetValue("")
 				a.mailList.SetEmails(a.inboxCache)
 				a.statusMsg = fmt.Sprintf("%d emails", len(a.inboxCache))
-			} else if a.view == readView {
-				a.view = listView
 			}
 		case "/":
 			if a.view == listView && a.state == stateReady && !a.confirmDelete {

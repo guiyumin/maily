@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"flag"
 	"fmt"
 	"os"
 	"strconv"
@@ -9,7 +10,6 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"maily/internal/auth"
-	"maily/internal/gmail"
 	"maily/internal/ui"
 )
 
@@ -35,6 +35,9 @@ func main() {
 
 	case "accounts":
 		handleAccounts()
+
+	case "search":
+		handleSearch()
 
 	case "help", "--help", "-h":
 		printHelp()
@@ -87,49 +90,15 @@ func handleLogin(provider string) {
 }
 
 func loginGmail() {
-	account, err := auth.PromptGmailCredentials()
-	if err != nil {
+	p := tea.NewProgram(
+		ui.NewLoginApp("gmail"),
+		tea.WithAltScreen(),
+	)
+
+	if _, err := p.Run(); err != nil {
 		fmt.Printf("Error: %v\n", err)
 		os.Exit(1)
 	}
-
-	// Test connection before saving
-	fmt.Println()
-	fmt.Print("  Verifying credentials...")
-
-	client, err := gmail.NewIMAPClient(&account.Credentials)
-	if err != nil {
-		fmt.Println(" ✗")
-		fmt.Println()
-		fmt.Printf("  Login failed: %v\n", err)
-		fmt.Println()
-		fmt.Println("  Make sure you:")
-		fmt.Println("  • Used an App Password (not your regular password)")
-		fmt.Println("  • Have IMAP enabled in Gmail settings")
-		fmt.Println()
-		os.Exit(1)
-	}
-	client.Close()
-	fmt.Println(" ✓")
-
-	// Save to account store
-	store, err := auth.LoadAccountStore()
-	if err != nil {
-		fmt.Printf("Error: %v\n", err)
-		os.Exit(1)
-	}
-
-	store.AddAccount(*account)
-
-	if err := store.Save(); err != nil {
-		fmt.Printf("Error saving account: %v\n", err)
-		os.Exit(1)
-	}
-
-	fmt.Println()
-	fmt.Printf("  ✓ Logged in as %s\n", account.Credentials.Email)
-	fmt.Println()
-	fmt.Println("  Run 'maily' to start.")
 }
 
 func handleLogout() {
@@ -219,6 +188,95 @@ func handleAccounts() {
 	fmt.Println()
 }
 
+func handleSearch() {
+	searchCmd := flag.NewFlagSet("search", flag.ExitOnError)
+	fromFlag := searchCmd.String("from", "", "Account email to search from")
+	queryFlag := searchCmd.String("query", "", "Gmail search query (uses Gmail syntax)")
+
+	searchCmd.Usage = func() {
+		fmt.Println("Usage: maily search --from=<account> --query=\"<query>\"")
+		fmt.Println()
+		fmt.Println("Options:")
+		searchCmd.PrintDefaults()
+		fmt.Println()
+		fmt.Println("Gmail search syntax examples:")
+		fmt.Println("  from:sender@example.com    Emails from a sender")
+		fmt.Println("  subject:hello              Emails with subject containing 'hello'")
+		fmt.Println("  has:attachment             Emails with attachments")
+		fmt.Println("  is:unread                  Unread emails")
+		fmt.Println("  older_than:30d             Emails older than 30 days")
+		fmt.Println("  category:promotions        Promotional emails")
+		fmt.Println("  larger:5M                  Emails larger than 5MB")
+		fmt.Println()
+		fmt.Println("Example:")
+		fmt.Println("  maily search --from=me@gmail.com --query=\"category:promotions older_than:30d\"")
+	}
+
+	if err := searchCmd.Parse(os.Args[2:]); err != nil {
+		os.Exit(1)
+	}
+
+	if *queryFlag == "" {
+		fmt.Println("Error: --query is required")
+		fmt.Println()
+		searchCmd.Usage()
+		os.Exit(1)
+	}
+
+	store, err := auth.LoadAccountStore()
+	if err != nil {
+		fmt.Printf("Error loading accounts: %v\n", err)
+		os.Exit(1)
+	}
+
+	if len(store.Accounts) == 0 {
+		fmt.Println("No accounts configured. Run:")
+		fmt.Println()
+		fmt.Println("  maily login gmail")
+		fmt.Println()
+		os.Exit(1)
+	}
+
+	// Find the account
+	var account *auth.Account
+	if *fromFlag == "" {
+		if len(store.Accounts) == 1 {
+			account = &store.Accounts[0]
+		} else {
+			fmt.Println("Error: --from is required when multiple accounts are configured")
+			fmt.Println()
+			fmt.Println("Available accounts:")
+			for _, acc := range store.Accounts {
+				fmt.Printf("  - %s\n", acc.Credentials.Email)
+			}
+			os.Exit(1)
+		}
+	} else {
+		account = store.GetAccount(*fromFlag)
+		if account == nil {
+			fmt.Printf("Error: account '%s' not found\n", *fromFlag)
+			fmt.Println()
+			fmt.Println("Available accounts:")
+			for _, acc := range store.Accounts {
+				fmt.Printf("  - %s\n", acc.Credentials.Email)
+			}
+			os.Exit(1)
+		}
+	}
+
+	// Run the search TUI
+	p := tea.NewProgram(
+		ui.NewSearchApp(account, *queryFlag),
+		tea.WithAltScreen(),
+		tea.WithMouseCellMotion(),
+	)
+
+	if _, err := p.Run(); err != nil {
+		fmt.Printf("Error running search: %v\n", err)
+		os.Exit(1)
+	}
+}
+
 func printHelp() {
 	fmt.Println("maily - A terminal email client")
 	fmt.Println()
@@ -227,6 +285,7 @@ func printHelp() {
 	fmt.Println("  maily login gmail    Add a Gmail account")
 	fmt.Println("  maily accounts       List all accounts")
 	fmt.Println("  maily logout         Remove an account")
+	fmt.Println("  maily search         Search emails with Gmail query syntax")
 	fmt.Println("  maily help           Show this help")
 	fmt.Println()
 	fmt.Println("Keyboard shortcuts (in client):")

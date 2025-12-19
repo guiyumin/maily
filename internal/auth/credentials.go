@@ -126,7 +126,7 @@ func PromptGmailCredentials() (*Account, error) {
 	fmt.Println("  You need an App Password to continue.")
 	fmt.Println()
 	fmt.Println("  1. Enable 2-Step Verification (if not done)")
-	fmt.Println("  2. Go to: myaccount.google.com/apppasswords")
+	fmt.Println("  2. Go to: https://myaccount.google.com/apppasswords")
 	fmt.Println("  3. Create an app password for 'Mail'")
 	fmt.Println()
 

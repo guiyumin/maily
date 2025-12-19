@@ -261,3 +261,152 @@ func (c *IMAPClient) DeleteMessage(uid imap.UID) error {
 
 	return c.client.Expunge().Close()
 }
+
+func (c *IMAPClient) DeleteMessages(uids []imap.UID) error {
+	if len(uids) == 0 {
+		return nil
+	}
+
+	uidSet := imap.UIDSet{}
+	for _, uid := range uids {
+		uidSet.AddNum(uid)
+	}
+
+	storeFlags := &imap.StoreFlags{
+		Op:    imap.StoreFlagsAdd,
+		Flags: []imap.Flag{imap.FlagDeleted},
+	}
+
+	if err := c.client.Store(uidSet, storeFlags, nil).Close(); err != nil {
+		return err
+	}
+
+	return c.client.Expunge().Close()
+}
+
+func (c *IMAPClient) ArchiveMessages(uids []imap.UID) error {
+	if len(uids) == 0 {
+		return nil
+	}
+
+	uidSet := imap.UIDSet{}
+	for _, uid := range uids {
+		uidSet.AddNum(uid)
+	}
+
+	// Move to All Mail (archive in Gmail)
+	if _, err := c.client.Move(uidSet, "[Gmail]/All Mail").Wait(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *IMAPClient) MarkMessagesAsRead(uids []imap.UID) error {
+	if len(uids) == 0 {
+		return nil
+	}
+
+	uidSet := imap.UIDSet{}
+	for _, uid := range uids {
+		uidSet.AddNum(uid)
+	}
+
+	storeFlags := &imap.StoreFlags{
+		Op:    imap.StoreFlagsAdd,
+		Flags: []imap.Flag{imap.FlagSeen},
+	}
+
+	return c.client.Store(uidSet, storeFlags, nil).Close()
+}
+
+// SearchMessages searches for emails using Gmail's X-GM-RAW extension
+// The query uses Gmail's native search syntax (from:, has:attachment, older_than:, etc.)
+func (c *IMAPClient) SearchMessages(mailbox string, query string) ([]Email, error) {
+	_, err := c.client.Select(mailbox, nil).Wait()
+	if err != nil {
+		return nil, fmt.Errorf("failed to select mailbox: %w", err)
+	}
+
+	// Use X-GM-RAW for Gmail's native search
+	searchCriteria := &imap.SearchCriteria{
+		Header: []imap.SearchCriteriaHeaderField{
+			{Key: "X-GM-RAW", Value: query},
+		},
+	}
+
+	searchData, err := c.client.Search(searchCriteria, nil).Wait()
+	if err != nil {
+		return nil, fmt.Errorf("search failed: %w", err)
+	}
+
+	if len(searchData.AllUIDs()) == 0 {
+		return []Email{}, nil
+	}
+
+	// Fetch the found messages
+	uidSet := imap.UIDSet{}
+	for _, uid := range searchData.AllUIDs() {
+		uidSet.AddNum(uid)
+	}
+
+	fetchOptions := &imap.FetchOptions{
+		UID:      true,
+		Flags:    true,
+		Envelope: true,
+	}
+
+	messages, err := c.client.Fetch(uidSet, fetchOptions).Collect()
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch messages: %w", err)
+	}
+
+	emails := make([]Email, 0, len(messages))
+	for i := len(messages) - 1; i >= 0; i-- {
+		msg := messages[i]
+		email := c.parseMessageHeader(msg)
+		emails = append(emails, email)
+	}
+
+	return emails, nil
+}
+
+// parseMessageHeader parses message headers without body (faster for search results)
+func (c *IMAPClient) parseMessageHeader(msg *imapclient.FetchMessageBuffer) Email {
+	email := Email{}
+
+	email.UID = msg.UID
+
+	if env := msg.Envelope; env != nil {
+		email.Subject = env.Subject
+		email.Date = env.Date
+
+		if len(env.From) > 0 {
+			from := env.From[0]
+			if from.Name != "" {
+				email.From = fmt.Sprintf("%s <%s@%s>", from.Name, from.Mailbox, from.Host)
+			} else {
+				email.From = fmt.Sprintf("%s@%s", from.Mailbox, from.Host)
+			}
+		}
+
+		if len(env.To) > 0 {
+			to := env.To[0]
+			if to.Name != "" {
+				email.To = fmt.Sprintf("%s <%s@%s>", to.Name, to.Mailbox, to.Host)
+			} else {
+				email.To = fmt.Sprintf("%s@%s", to.Mailbox, to.Host)
+			}
+		}
+	}
+
+	email.Unread = true
+	for _, flag := range msg.Flags {
+		if flag == imap.FlagSeen {
+			email.Unread = false
+			break
+		}
+	}
+
+	return email
+}

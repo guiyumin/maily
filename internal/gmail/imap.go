@@ -320,30 +320,28 @@ func (c *IMAPClient) MarkMessagesAsRead(uids []imap.UID) error {
 	return c.client.Store(uidSet, storeFlags, nil).Close()
 }
 
-// SearchMessages searches for emails using IMAP BODY search
-// The query searches in the body of messages
+// SearchMessages searches for emails using Gmail's X-GM-RAW extension
+// This supports Gmail's full search syntax (from:, has:attachment, category:, etc.)
 func (c *IMAPClient) SearchMessages(mailbox string, query string) ([]Email, error) {
-	_, err := c.client.Select(mailbox, nil).Wait()
-	if err != nil {
-		return nil, fmt.Errorf("failed to select mailbox: %w", err)
-	}
-
-	searchCriteria := &imap.SearchCriteria{
-		Body: []string{query},
-	}
-
-	searchData, err := c.client.UIDSearch(searchCriteria, nil).Wait()
+	// Use Gmail's X-GM-RAW for powerful search
+	uids, err := GmailSearch(c.creds, mailbox, query)
 	if err != nil {
 		return nil, fmt.Errorf("search failed: %w", err)
 	}
 
-	if len(searchData.AllUIDs()) == 0 {
+	if len(uids) == 0 {
 		return []Email{}, nil
+	}
+
+	// Select mailbox for fetching
+	_, err = c.client.Select(mailbox, nil).Wait()
+	if err != nil {
+		return nil, fmt.Errorf("failed to select mailbox: %w", err)
 	}
 
 	// Fetch the found messages
 	uidSet := imap.UIDSet{}
-	for _, uid := range searchData.AllUIDs() {
+	for _, uid := range uids {
 		uidSet.AddNum(uid)
 	}
 

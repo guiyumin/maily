@@ -17,13 +17,28 @@ var (
 
 var searchCmd = &cobra.Command{
 	Use:   "search",
-	Short: "Search emails by text",
-	Long: `Search emails by text in headers and body.
+	Short: "Search emails with Gmail query syntax",
+	Long: `Search emails using Gmail's powerful search syntax.
 
-The search looks for the query text in the entire message
-including subject, from, to, and body content.`,
-	Example: `  maily search -a me@gmail.com -q "temu"
-  maily search --account=me@gmail.com --query="invoice"`,
+Gmail search syntax examples:
+  temu                       Simple text search
+  from:sender@example.com    Emails from a sender
+  to:recipient@example.com   Emails to a recipient
+  subject:hello              Emails with subject containing 'hello'
+  has:attachment             Emails with attachments
+  is:unread                  Unread emails
+  is:starred                 Starred emails
+  in:inbox                   Emails in inbox
+  in:trash                   Emails in trash
+  older_than:30d             Emails older than 30 days
+  newer_than:7d              Emails newer than 7 days
+  category:promotions        Promotional emails
+  category:social            Social emails
+  larger:5M                  Emails larger than 5MB
+  label:important            Emails with label`,
+	Example: `  maily search -a me@gmail.com -q "from:temu"
+  maily search -a me@gmail.com -q "category:promotions older_than:30d"
+  maily search -a me@gmail.com -q "has:attachment is:unread"`,
 	Run: func(cmd *cobra.Command, args []string) {
 		handleSearch()
 	},

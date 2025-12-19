@@ -33,7 +33,22 @@
 - [ ] Display summary in preview pane or modal
 - [ ] Consider batch summarization for email threads
 
-## 5. Support OAuth Login (Future)
+## 5. CLI Bulk Processing Commands
+
+Non-interactive CLI commands for quick bulk mail operations (useful for scripting/automation).
+
+- [ ] `maily delete --from=<sender>` - Delete all emails from a sender
+- [ ] `maily delete --older-than=<days>` - Delete emails older than N days
+- [ ] `maily mark-read --from=<sender>` - Mark all from sender as read
+- [ ] `maily archive --from=<sender>` - Archive emails from sender
+- [ ] Support combining filters (e.g., `--from` + `--older-than`)
+- [ ] Add `--dry-run` flag to preview what would be affected
+- [ ] Add confirmation prompt for destructive actions (delete, archive)
+  - Show count of affected emails before proceeding
+  - Add `--yes` / `-y` flag to skip confirmation (for scripting)
+- [ ] Add `--account=<email>` flag for multi-account support
+
+## 6. Support OAuth Login (Future)
 
 For when the project has more traction. Unverified OAuth apps show scary warnings to users.
 

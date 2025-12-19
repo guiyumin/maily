@@ -33,13 +33,20 @@ func handleLogin(provider string) {
 }
 
 func loginGmail() {
+	loginApp := ui.NewLoginApp("gmail")
 	p := tea.NewProgram(
-		ui.NewLoginApp("gmail"),
+		loginApp,
 		tea.WithAltScreen(),
 	)
 
-	if _, err := p.Run(); err != nil {
+	finalModel, err := p.Run()
+	if err != nil {
 		fmt.Printf("Error: %v\n", err)
 		os.Exit(1)
+	}
+
+	// If login succeeded, go directly to email list
+	if login, ok := finalModel.(ui.LoginApp); ok && login.Success() {
+		runTUI()
 	}
 }

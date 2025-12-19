@@ -151,6 +151,7 @@ func (a LoginApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case verifySuccessMsg:
 		a.state = loginStateSuccess
 		a.account = msg.account
+		return a, tea.Quit // Auto-transition to email list
 
 	case verifyErrorMsg:
 		a.state = loginStateError

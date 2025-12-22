@@ -144,12 +144,11 @@ func (m *CalendarApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyMsg:
+		// Handle form input first if in form view
+		if m.view == viewAddEvent || m.view == viewEditEvent {
+			return m.handleFormInput(msg)
+		}
 		return m.handleKeyPress(msg)
-	}
-
-	// Update form inputs if in form view
-	if m.view == viewAddEvent || m.view == viewEditEvent {
-		return m.updateForm(msg)
 	}
 
 	return m, nil
@@ -159,8 +158,6 @@ func (m *CalendarApp) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch m.view {
 	case viewCalendar:
 		return m.handleCalendarKeys(msg)
-	case viewAddEvent, viewEditEvent:
-		return m.handleFormKeys(msg)
 	case viewDeleteConfirm:
 		return m.handleDeleteKeys(msg)
 	}
@@ -244,35 +241,69 @@ func (m *CalendarApp) handleCalendarKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m *CalendarApp) handleFormKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m *CalendarApp) handleFormInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "esc":
 		m.view = viewCalendar
 		return m, nil
 
-	case "tab", "down":
+	case "tab":
 		m.formFocusIdx = (m.formFocusIdx + 1) % 6
 		m.updateFormFocus()
 		return m, nil
 
-	case "shift+tab", "up":
+	case "shift+tab":
 		m.formFocusIdx = (m.formFocusIdx + 5) % 6
 		m.updateFormFocus()
 		return m, nil
 
 	case "enter":
 		if m.formFocusIdx == 5 { // Calendar selector
+			if len(m.calendars) > 0 {
+				m.form.calendar = (m.form.calendar + 1) % len(m.calendars)
+			}
+			return m, nil
+		}
+		// Move to next field on enter, save on last field
+		if m.formFocusIdx < 4 {
+			m.formFocusIdx++
+			m.updateFormFocus()
+			return m, nil
+		}
+		return m, m.saveEvent()
+
+	case "ctrl+s", "alt+s":
+		return m, m.saveEvent()
+
+	case "left":
+		if m.formFocusIdx == 5 && len(m.calendars) > 0 {
+			m.form.calendar = (m.form.calendar + len(m.calendars) - 1) % len(m.calendars)
+			return m, nil
+		}
+
+	case "right":
+		if m.formFocusIdx == 5 && len(m.calendars) > 0 {
 			m.form.calendar = (m.form.calendar + 1) % len(m.calendars)
 			return m, nil
 		}
-		// Save event
-		return m, m.saveEvent()
-
-	case "ctrl+s":
-		return m, m.saveEvent()
 	}
 
-	return m, nil
+	// Pass keystrokes to the focused text input
+	var cmd tea.Cmd
+	switch m.formFocusIdx {
+	case 0:
+		m.form.title, cmd = m.form.title.Update(msg)
+	case 1:
+		m.form.date, cmd = m.form.date.Update(msg)
+	case 2:
+		m.form.start, cmd = m.form.start.Update(msg)
+	case 3:
+		m.form.end, cmd = m.form.end.Update(msg)
+	case 4:
+		m.form.location, cmd = m.form.location.Update(msg)
+	}
+
+	return m, cmd
 }
 
 func (m *CalendarApp) handleDeleteKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
@@ -291,28 +322,6 @@ func (m *CalendarApp) handleDeleteKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 
 	return m, nil
-}
-
-func (m *CalendarApp) updateForm(msg tea.Msg) (tea.Model, tea.Cmd) {
-	var cmds []tea.Cmd
-	var cmd tea.Cmd
-
-	m.form.title, cmd = m.form.title.Update(msg)
-	cmds = append(cmds, cmd)
-
-	m.form.date, cmd = m.form.date.Update(msg)
-	cmds = append(cmds, cmd)
-
-	m.form.start, cmd = m.form.start.Update(msg)
-	cmds = append(cmds, cmd)
-
-	m.form.end, cmd = m.form.end.Update(msg)
-	cmds = append(cmds, cmd)
-
-	m.form.location, cmd = m.form.location.Update(msg)
-	cmds = append(cmds, cmd)
-
-	return m, tea.Batch(cmds...)
 }
 
 func (m *CalendarApp) initAddForm() {
@@ -547,7 +556,9 @@ func (m *CalendarApp) renderCalendar() string {
 	// Help bar
 	b.WriteString(m.renderHelpBar())
 
-	return b.String()
+	// Wrap with padding
+	calStyle := lipgloss.NewStyle().Padding(1, 2)
+	return calStyle.Render(b.String())
 }
 
 func (m *CalendarApp) renderMonthGrid() string {
@@ -654,8 +665,7 @@ func (m *CalendarApp) renderForm(title string) string {
 
 	titleStyle := lipgloss.NewStyle().
 		Bold(true).
-		Foreground(components.Primary).
-		MarginBottom(1)
+		Foreground(components.Primary)
 
 	b.WriteString(titleStyle.Render(title))
 	b.WriteString("\n\n")
@@ -735,9 +745,11 @@ func (m *CalendarApp) renderForm(title string) string {
 
 	// Help
 	helpStyle := lipgloss.NewStyle().Foreground(components.Muted)
-	b.WriteString(helpStyle.Render("Tab: next field  Ctrl+S: save  Esc: cancel"))
+	b.WriteString(helpStyle.Render("Tab: next field  ⌘S/Ctrl+S: save  Esc: cancel"))
 
-	return b.String()
+	// Wrap with padding
+	formStyle := lipgloss.NewStyle().Padding(1, 2)
+	return formStyle.Render(b.String())
 }
 
 func (m *CalendarApp) renderDeleteConfirm() string {
@@ -761,7 +773,9 @@ func (m *CalendarApp) renderDeleteConfirm() string {
 	helpStyle := lipgloss.NewStyle().Foreground(components.Muted)
 	b.WriteString(helpStyle.Render("y: yes  n: no"))
 
-	return b.String()
+	// Wrap with padding
+	dialogStyle := lipgloss.NewStyle().Padding(1, 2)
+	return dialogStyle.Render(b.String())
 }
 
 func (m *CalendarApp) renderHelpBar() string {

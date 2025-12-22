@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	repoOwner = "guiyumion"
+	repoOwner = "guiyumin"
 	repoName  = "maily"
 )
 

@@ -52,7 +52,7 @@ changelog:
 
 release:
   github:
-    owner: guiyumion
+    owner: guiyumin
     name: maily
   draft: false
   prerelease: auto
@@ -60,10 +60,10 @@ release:
 
 brews:
   - repository:
-      owner: guiyumion
+      owner: guiyumin
       name: homebrew-tap
       token: "{{ .Env.TAP_GITHUB_TOKEN }}"
-    homepage: "https://github.com/guiyumion/maily"
+    homepage: "https://github.com/guiyumin/maily"
     description: "A terminal email client for Gmail"
     license: "MIT"
     directory: Formula

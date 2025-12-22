@@ -180,14 +180,15 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				// Go back to list view (preserves search mode if active)
 				a.view = listView
 			} else if a.isSearchResult {
-				// Exit search results, restore inbox (only from list view)
+				// Exit search results, refresh inbox to reflect any deletions
 				a.isSearchResult = false
 				a.searchQuery = ""
 				a.searchInput.SetValue("")
 				a.selected = make(map[imap.UID]bool) // Clear selections
 				a.mailList.SetSelectionMode(false)
-				a.mailList.SetEmails(a.inboxCache)
-				a.statusMsg = fmt.Sprintf("%d emails", len(a.inboxCache))
+				a.state = stateLoading
+				a.statusMsg = "Refreshing..."
+				return a, tea.Batch(a.spinner.Tick, a.loadEmails())
 			}
 		case "/":
 			if a.view == listView && a.state == stateReady && !a.confirmDelete {

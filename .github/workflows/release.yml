@@ -13,7 +13,7 @@ jobs:
     strategy:
       matrix:
         include:
-          - runner: macos-13
+          - runner: macos-14
             goarch: amd64
           - runner: macos-14
             goarch: arm64
@@ -39,6 +39,11 @@ jobs:
           GOOS: darwin
           GOARCH: ${{ matrix.goarch }}
         run: |
+          # Set up cross-compilation for amd64 on ARM runner
+          if [ "${{ matrix.goarch }}" = "amd64" ]; then
+            export CC="clang -arch x86_64"
+            export CXX="clang++ -arch x86_64"
+          fi
           go build -ldflags "-s -w -X maily/internal/version.Version=${{ steps.version.outputs.VERSION }} -X maily/internal/version.Commit=${{ github.sha }} -X maily/internal/version.Date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" -o maily .
           zip maily_${{ steps.version.outputs.VERSION }}_darwin_${{ matrix.goarch }}.zip maily README.md LICENSE*
 

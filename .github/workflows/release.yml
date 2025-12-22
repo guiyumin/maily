@@ -10,7 +10,14 @@ permissions:
 
 jobs:
   release:
-    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - runner: macos-13
+            goarch: amd64
+          - runner: macos-14
+            goarch: arm64
+    runs-on: ${{ matrix.runner }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -22,31 +29,98 @@ jobs:
         with:
           go-version: "1.23"
 
-      - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v6
-        with:
-          distribution: goreleaser
-          version: "~> v2"
-          args: release --clean
+      - name: Extract version
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Build
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
+          CGO_ENABLED: 1
+          GOOS: darwin
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          go build -ldflags "-s -w -X maily/internal/version.Version=${{ steps.version.outputs.VERSION }} -X maily/internal/version.Commit=${{ github.sha }} -X maily/internal/version.Date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" -o maily .
+          zip maily_${{ steps.version.outputs.VERSION }}_darwin_${{ matrix.goarch }}.zip maily README.md LICENSE*
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: maily-darwin-${{ matrix.goarch }}
+          path: maily_${{ steps.version.outputs.VERSION }}_darwin_${{ matrix.goarch }}.zip
+
+  publish:
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
 
       - name: Extract version
         id: version
         run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
 
-      - name: Prepare latest zips
+      - name: Prepare release files
         run: |
-          mkdir -p latest
-          cp dist/maily_${{ steps.version.outputs.VERSION }}_darwin_amd64.zip latest/maily-darwin-amd64.zip
-          cp dist/maily_${{ steps.version.outputs.VERSION }}_darwin_arm64.zip latest/maily-darwin-arm64.zip
+          mkdir -p release
+          cp dist/maily-darwin-amd64/*.zip release/
+          cp dist/maily-darwin-arm64/*.zip release/
+          # Create latest naming
+          cp release/maily_${{ steps.version.outputs.VERSION }}_darwin_amd64.zip release/maily-darwin-amd64.zip
+          cp release/maily_${{ steps.version.outputs.VERSION }}_darwin_arm64.zip release/maily-darwin-arm64.zip
+          # Generate checksums
+          cd release && sha256sum *.zip > checksums.txt
 
-      - name: Upload latest zips
+      - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            latest/maily-darwin-amd64.zip
-            latest/maily-darwin-arm64.zip
+            release/maily_${{ steps.version.outputs.VERSION }}_darwin_amd64.zip
+            release/maily_${{ steps.version.outputs.VERSION }}_darwin_arm64.zip
+            release/maily-darwin-amd64.zip
+            release/maily-darwin-arm64.zip
+            release/checksums.txt
+          generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  homebrew:
+    needs: publish
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Extract version
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Update Homebrew tap
+        env:
+          TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.VERSION }}
+        run: |
+          # Download checksums
+          curl -sL "https://github.com/guiyumin/maily/releases/download/v${VERSION}/checksums.txt" -o checksums.txt
+          AMD64_SHA=$(grep "maily_${VERSION}_darwin_amd64" checksums.txt | awk '{print $1}')
+          ARM64_SHA=$(grep "maily_${VERSION}_darwin_arm64" checksums.txt | awk '{print $1}')
+
+          # Clone tap repo and update formula
+          git clone https://x-access-token:${TAP_GITHUB_TOKEN}@github.com/guiyumin/homebrew-tap.git
+          cd homebrew-tap
+
+          # Update version and URLs
+          sed -i "s/version \".*\"/version \"${VERSION}\"/" Formula/maily.rb
+          sed -i "s|releases/download/v[^/]*/maily_[^_]*_darwin_arm64|releases/download/v${VERSION}/maily_${VERSION}_darwin_arm64|" Formula/maily.rb
+          sed -i "s|releases/download/v[^/]*/maily_[^_]*_darwin_amd64|releases/download/v${VERSION}/maily_${VERSION}_darwin_amd64|" Formula/maily.rb
+
+          # Update sha256 checksums
+          sed -i "/darwin_arm64/{ n; s/sha256 \".*\"/sha256 \"${ARM64_SHA}\"/; }" Formula/maily.rb
+          sed -i "/darwin_amd64/{ n; s/sha256 \".*\"/sha256 \"${AMD64_SHA}\"/; }" Formula/maily.rb
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Formula/maily.rb
+          git commit -m "maily: update to v${VERSION}"
+          git push

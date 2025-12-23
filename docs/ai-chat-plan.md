@@ -77,9 +77,41 @@ Both paths end at the same confirmation screen before saving.
 
 Press `e` to extract and add to calendar with one keystroke.
 
-### 4. TUI Chat Panel
-- In-app chat for quick questions
-- Context-aware (knows current email, calendar view)
+### 4. Slash Commands (TUI only)
+
+Press `/` to open command palette with fuzzy search:
+
+```
+┌─ Commands ───────────────────────────────────────┐
+│  /                                               │
+│                                                  │
+│  > summarize      Summarize this email           │
+│    extract        Extract events to calendar     │
+│    add            Add new calendar event         │
+│    reply          Reply to this email            │
+│    delete         Delete this email              │
+│    refresh        Refresh inbox                  │
+│    settings       Open settings                  │
+└──────────────────────────────────────────────────┘
+```
+
+Type to filter, arrow keys to navigate, Enter to select.
+
+**Context-aware:** Commands shown depend on current view:
+- Email content view: summarize, extract, reply, delete
+- Email list view: refresh, compose, add event
+- Calendar view: add, edit, delete event
+
+**Power users still have shortcuts:**
+| Shortcut | Command |
+|----------|---------|
+| `s` | /summarize |
+| `e` | /extract |
+| `a` | /add |
+| `r` | /reply |
+| `d` | /delete |
+
+Both paths do the same thing - `/` is discoverable, shortcuts are fast.
 
 ### 5. Today View (Daily Dashboard)
 
@@ -146,10 +178,10 @@ internal/
 │   └── nlp.go             # Natural language date/time parsing
 └── ui/
     └── components/
-        ├── chatpanel.go   # TUI chat panel component
-        ├── todayview.go   # Today dashboard (emails + events split)
-        ├── compactmail.go # Compact email list (title only)
-        └── eventlist.go   # Vertical event timeline
+        ├── commandpalette.go  # Slash command palette (/)
+        ├── todayview.go       # Today dashboard (emails + events split)
+        ├── compactmail.go     # Compact email list (title only)
+        └── eventlist.go       # Vertical event timeline
 ```
 
 ### AI Provider Strategy
@@ -162,11 +194,53 @@ internal/
 - Gemini: `gemini -p "prompt" --output-format json`
 - Ollama: `ollama run llama3.2:3b "prompt"`
 
-Auto-detect which CLI is available, just use it for everything:
-- Date parsing ("tomorrow 9am" → structured event)
-- Email summarization
-- Event extraction from emails
-- Any future AI features
+Auto-detect which CLI is available, just use it for everything.
+
+### Confirmation Flow (important!)
+
+LLMs can hallucinate. Always show parsed result and ask for confirmation before any action.
+
+**Example: `maily c add "lunch with bob next tuesday noon"`**
+```
+┌─ Confirm Event ──────────────────────────────────┐
+│                                                  │
+│  Title:  Lunch with Bob                          │
+│  Date:   Tuesday, Dec 31, 2024                   │
+│  Time:   12:00 PM                                │
+│  Duration: 1 hour                                │
+│                                                  │
+│  [Enter] Confirm   [e] Edit   [Esc] Cancel       │
+└──────────────────────────────────────────────────┘
+```
+
+**Example: `e` to extract from email**
+```
+┌─ Found Event in Email ───────────────────────────┐
+│                                                  │
+│  "Let's meet Thursday at 3pm at the office"      │
+│                                                  │
+│  → Title:  Meeting                               │
+│  → Date:   Thursday, Dec 26, 2024                │
+│  → Time:   3:00 PM                               │
+│                                                  │
+│  [Enter] Add to calendar   [e] Edit   [Esc] Skip │
+└──────────────────────────────────────────────────┘
+```
+
+**Example: `s` to summarize email (only in email content view)**
+```
+┌─ Summary ────────────────────────────────────────┐
+│                                                  │
+│  Bob is requesting a meeting to discuss Q1       │
+│  budget. He proposes Thursday 3pm. Action items: │
+│  - Review attached spreadsheet                   │
+│  - Prepare Q4 numbers                            │
+│                                                  │
+│  [Esc] Close                                     │
+└──────────────────────────────────────────────────┘
+```
+
+Read-only, no confirmation needed. Only available when viewing email content.
 
 ### Natural Language Date Parsing
 
@@ -195,21 +269,23 @@ For summarization, build context from:
 
 ## Implementation Phases
 
-### Phase 0: Today View (No AI)
+### Phase 0: Today View + Slash Commands (No AI)
 - [ ] Add `maily today` / `maily t` command
 - [ ] Create compact email list component (title only)
 - [ ] Create vertical event list component
 - [ ] Build split-panel today view
 - [ ] Add event CRUD (add/edit/delete) via keyboard
 - [ ] Tab or arrow keys to switch between panels
+- [ ] Slash command palette (`/` to open, fuzzy search, context-aware)
 
 ### Phase 1: AI Integration (single phase for all AI features)
 - [ ] Auto-detect available AI CLI (claude, codex, gemini, ollama)
 - [ ] Implement `callAI(prompt) -> response` helper
-- [ ] `maily c add "tomorrow 9am meeting"` - NLP event creation
+- [ ] Create confirmation dialog component (show AI result, allow edit/confirm/cancel)
+- [ ] `maily c add "tomorrow 9am meeting"` - NLP event creation with confirmation
 - [ ] TUI quick-add with NLP (hybrid: quick add vs form)
-- [ ] `e` key to extract events from current email
-- [ ] `s` key to summarize current email
+- [ ] `e` key to extract events from email → confirm before adding
+- [ ] `s` key to summarize email (only in email content view, read-only)
 - [ ] `maily chat "question"` - one-shot Q&A
 
 ## Configuration

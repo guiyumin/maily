@@ -12,8 +12,8 @@ import (
 
 var rootCmd = &cobra.Command{
 	Use:   "maily",
-	Short: "A terminal email client",
-	Long:  "maily - A terminal email client for Gmail",
+	Short: "A handy CLI email client in your terminal",
+	Long:  "maily - A handy CLI email client in your terminal",
 	Run: func(cmd *cobra.Command, args []string) {
 		runTUI()
 	},
@@ -29,6 +29,7 @@ func init() {
 	rootCmd.AddCommand(accountsCmd)
 	rootCmd.AddCommand(searchCmd)
 	rootCmd.AddCommand(calendarCmd)
+	rootCmd.AddCommand(todayCmd)
 	rootCmd.AddCommand(versionCmd)
 	rootCmd.AddCommand(updateCmd)
 }

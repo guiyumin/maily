@@ -157,6 +157,23 @@ This keeps cache small while having attachment metadata.
 - Limit to 255 chars
 - Fallback: `attachment_<index>.bin` if invalid
 
+## Update Flow
+
+When running `maily update`:
+
+```
+1. Stop daemon if running
+2. Stop any running sync (graceful kill)
+   - Send SIGTERM to sync processes
+   - Wait up to 5s for graceful shutdown
+   - Force kill (SIGKILL) if still running
+   - Clean up stale lock files
+3. Download and install new binary
+4. Restart daemon if it was previously running
+```
+
+Safe because we use atomic writes - interrupted sync just means incomplete sync, next sync will fix it.
+
 ## That's it.
 
 No complex foreground/background sync.

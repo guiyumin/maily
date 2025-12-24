@@ -106,11 +106,11 @@ func RenderStatusBar(data StatusBarData) string {
 			HelpKeyStyle.Render("q") + HelpDescStyle.Render(" quit")
 	} else if data.IsListView {
 		help = tabHint +
-			HelpKeyStyle.Render("j/k") + HelpDescStyle.Render(" navigate  ") +
 			HelpKeyStyle.Render("enter") + HelpDescStyle.Render(" open  ") +
 			HelpKeyStyle.Render("c") + HelpDescStyle.Render(" compose  ") +
 			HelpKeyStyle.Render("r") + HelpDescStyle.Render(" reply  ") +
 			HelpKeyStyle.Render("s") + HelpDescStyle.Render(" search  ") +
+			HelpKeyStyle.Render("g") + HelpDescStyle.Render(" folders  ") +
 			HelpKeyStyle.Render("/") + HelpDescStyle.Render(" commands  ") +
 			HelpKeyStyle.Render("q") + HelpDescStyle.Render(" quit")
 	} else {

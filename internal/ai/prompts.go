@@ -4,14 +4,26 @@ import "fmt"
 
 // SummarizePrompt builds a prompt for email summarization
 func SummarizePrompt(from, subject, body string) string {
-	return fmt.Sprintf(`Summarize this email concisely (2-4 sentences). Include key points and any action items.
+	return fmt.Sprintf(`Summarize this email as bullet points.
 
 From: %s
 Subject: %s
 
 %s
 
-Respond with only the summary, no preamble.`, from, subject, body)
+Format your response exactly like this (skip sections if not applicable):
+
+• Summary: <one sentence summary>
+• Key points:
+  - <point 1>
+  - <point 2>
+• Action items:
+  - <action 1>
+  - <action 2>
+• Dates/Deadlines:
+  - <date/deadline if mentioned>
+
+Keep it brief. No preamble, just the bullet points.`, from, subject, body)
 }
 
 // ExtractEventsPrompt builds a prompt for extracting calendar events from email

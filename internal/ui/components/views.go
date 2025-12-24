@@ -25,6 +25,7 @@ type StatusBarData struct {
 	SearchMode     bool
 	IsSearchResult bool
 	IsListView     bool
+	IsComposeView    bool
 	AccountCount   int
 	SelectionCount int
 }
@@ -87,13 +88,15 @@ func RenderHeader(data HeaderData) string {
 func RenderStatusBar(data StatusBarData) string {
 	var help string
 	tabHint := ""
-	if data.AccountCount > 1 && !data.IsSearchResult {
+	if data.AccountCount > 1 && !data.IsSearchResult && !data.IsComposeView {
 		tabHint = HelpKeyStyle.Render("tab") + HelpDescStyle.Render(" switch  ")
 	}
 
 	if data.SearchMode {
 		help = HelpKeyStyle.Render("enter") + HelpDescStyle.Render(" search  ") +
 			HelpKeyStyle.Render("esc") + HelpDescStyle.Render(" cancel")
+	} else if data.IsComposeView {
+		help = HelpKeyStyle.Render("Tab") + HelpDescStyle.Render(" next field")
 	} else if data.IsSearchResult {
 		help = HelpKeyStyle.Render("space") + HelpDescStyle.Render(" select  ") +
 			HelpKeyStyle.Render("a") + HelpDescStyle.Render(" all  ") +
@@ -103,17 +106,21 @@ func RenderStatusBar(data StatusBarData) string {
 			HelpKeyStyle.Render("q") + HelpDescStyle.Render(" quit")
 	} else if data.IsListView {
 		help = tabHint +
-			HelpKeyStyle.Render("g") + HelpDescStyle.Render(" labels  ") +
 			HelpKeyStyle.Render("j/k") + HelpDescStyle.Render(" navigate  ") +
 			HelpKeyStyle.Render("enter") + HelpDescStyle.Render(" open  ") +
-			HelpKeyStyle.Render("/") + HelpDescStyle.Render(" search  ") +
-			HelpKeyStyle.Render("r") + HelpDescStyle.Render(" refresh  ") +
-			HelpKeyStyle.Render("d") + HelpDescStyle.Render(" delete  ") +
+			HelpKeyStyle.Render("c") + HelpDescStyle.Render(" compose  ") +
+			HelpKeyStyle.Render("r") + HelpDescStyle.Render(" reply  ") +
+			HelpKeyStyle.Render("s") + HelpDescStyle.Render(" search  ") +
+			HelpKeyStyle.Render("/") + HelpDescStyle.Render(" commands  ") +
 			HelpKeyStyle.Render("q") + HelpDescStyle.Render(" quit")
 	} else {
+		// Read view
 		help = tabHint +
+			HelpKeyStyle.Render("r") + HelpDescStyle.Render(" reply  ") +
+			HelpKeyStyle.Render("s") + HelpDescStyle.Render(" summarize  ") +
+			HelpKeyStyle.Render("e") + HelpDescStyle.Render(" extract  ") +
+			HelpKeyStyle.Render("/") + HelpDescStyle.Render(" commands  ") +
 			HelpKeyStyle.Render("esc") + HelpDescStyle.Render(" back  ") +
-			HelpKeyStyle.Render("j/k") + HelpDescStyle.Render(" scroll  ") +
 			HelpKeyStyle.Render("q") + HelpDescStyle.Render(" quit")
 	}
 

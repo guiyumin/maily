@@ -20,14 +20,17 @@ type IMAPClient struct {
 }
 
 type Email struct {
-	UID     imap.UID
-	From    string
-	To      string
-	Subject string
-	Date    time.Time
-	Snippet string
-	Body    string
-	Unread  bool
+	UID        imap.UID
+	MessageID  string
+	From       string
+	ReplyTo    string // Reply-To address (if different from From)
+	To         string
+	Subject    string
+	Date       time.Time
+	Snippet    string
+	Body       string
+	Unread     bool
+	References string // For threading
 }
 
 func NewIMAPClient(creds *auth.Credentials) (*IMAPClient, error) {
@@ -122,6 +125,10 @@ func (c *IMAPClient) parseMessage(msg *imapclient.FetchMessageBuffer) Email {
 	if env := msg.Envelope; env != nil {
 		email.Subject = env.Subject
 		email.Date = env.Date
+		email.MessageID = env.MessageID
+		if len(env.InReplyTo) > 0 {
+			email.References = strings.Join(env.InReplyTo, " ")
+		}
 
 		if len(env.From) > 0 {
 			from := env.From[0]
@@ -130,6 +137,12 @@ func (c *IMAPClient) parseMessage(msg *imapclient.FetchMessageBuffer) Email {
 			} else {
 				email.From = fmt.Sprintf("%s@%s", from.Mailbox, from.Host)
 			}
+		}
+
+		// ReplyTo field (use if different from From)
+		if len(env.ReplyTo) > 0 {
+			replyTo := env.ReplyTo[0]
+			email.ReplyTo = fmt.Sprintf("%s@%s", replyTo.Mailbox, replyTo.Host)
 		}
 
 		if len(env.To) > 0 {
@@ -371,6 +384,28 @@ func (c *IMAPClient) MarkMessagesAsRead(uids []imap.UID) error {
 	return c.client.Store(uidSet, storeFlags, nil).Close()
 }
 
+// SaveDraft saves an email to the Drafts folder
+func (c *IMAPClient) SaveDraft(to, subject, body string) error {
+	// Build the email message
+	msg := fmt.Sprintf("From: %s\r\n"+
+		"To: %s\r\n"+
+		"Subject: %s\r\n"+
+		"MIME-Version: 1.0\r\n"+
+		"Content-Type: text/plain; charset=\"utf-8\"\r\n"+
+		"\r\n"+
+		"%s", c.creds.Email, to, subject, body)
+
+	// Append to Drafts folder with Draft flag
+	appendCmd := c.client.Append("[Gmail]/Drafts", int64(len(msg)), nil)
+	if _, err := appendCmd.Write([]byte(msg)); err != nil {
+		return fmt.Errorf("failed to write draft: %w", err)
+	}
+	if err := appendCmd.Close(); err != nil {
+		return fmt.Errorf("failed to save draft: %w", err)
+	}
+	return nil
+}
+
 // SearchMessages searches for emails using Gmail's X-GM-RAW extension
 // This supports Gmail's full search syntax (from:, has:attachment, category:, etc.)
 func (c *IMAPClient) SearchMessages(mailbox string, query string) ([]Email, error) {
@@ -433,6 +468,10 @@ func (c *IMAPClient) parseMessageHeader(msg *imapclient.FetchMessageBuffer) Emai
 	if env := msg.Envelope; env != nil {
 		email.Subject = env.Subject
 		email.Date = env.Date
+		email.MessageID = env.MessageID
+		if len(env.InReplyTo) > 0 {
+			email.References = strings.Join(env.InReplyTo, " ")
+		}
 
 		if len(env.From) > 0 {
 			from := env.From[0]
@@ -441,6 +480,11 @@ func (c *IMAPClient) parseMessageHeader(msg *imapclient.FetchMessageBuffer) Emai
 			} else {
 				email.From = fmt.Sprintf("%s@%s", from.Mailbox, from.Host)
 			}
+		}
+
+		if len(env.ReplyTo) > 0 {
+			replyTo := env.ReplyTo[0]
+			email.ReplyTo = fmt.Sprintf("%s@%s", replyTo.Mailbox, replyTo.Host)
 		}
 
 		if len(env.To) > 0 {

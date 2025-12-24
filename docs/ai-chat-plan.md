@@ -231,6 +231,7 @@ internal/
 - Claude Code: `claude -p "prompt" --output-format json`
 - Codex: `codex exec "prompt" --json`
 - Gemini: `gemini -p "prompt" --output-format json`
+- Mistral Vibe: `vibe --prompt "prompt"`
 - Ollama: `ollama run llama3.2:3b "prompt"`
 
 Auto-detect which CLI is available, just use it for everything.
@@ -315,9 +316,9 @@ For summarization, build context from:
 - [ ] Build split-panel today view
 - [ ] Add event CRUD (add/edit/delete) via keyboard
 - [ ] Tab or arrow keys to switch between panels
-- [ ] Reply feature (`r` shortcut, compose view with quoted original)
-- [ ] Slash command palette (`/` to open, fuzzy search, context-aware)
-- [ ] Context-aware `s` key (search in list view, summarize in content/today view)
+- [x] Reply feature (`r` shortcut, compose view with quoted original)
+- [x] Slash command palette (`/` to open, fuzzy search, context-aware)
+- [x] Context-aware `s` key (search in list view, summarize in content/today view)
 
 ### Phase 1: AI Integration (single phase for all AI features)
 - [ ] Auto-detect available AI CLI (claude, codex, gemini, ollama)
@@ -335,15 +336,15 @@ Add to `~/.config/maily/config.yml`:
 
 ```yaml
 ai:
-  provider: auto  # auto-detect, or: claude, codex, gemini, ollama
+  provider: auto  # auto-detect, or: claude, codex, gemini, vibe, ollama
 ```
 
-**Auto-detection order:** claude → codex → gemini → ollama
+**Auto-detection order:** claude → codex → gemini → vibe → ollama
 
 **Implementation:**
 ```go
 func detectAI() string {
-    for _, cli := range []string{"claude", "codex", "gemini", "ollama"} {
+    for _, cli := range []string{"claude", "codex", "gemini", "vibe", "ollama"} {
         if commandExists(cli) { return cli }
     }
     return "" // no AI available
@@ -357,14 +358,16 @@ func callAI(prompt string) (string, error) {
         return exec.Command("codex", "exec", prompt, "--json").Output()
     case "gemini":
         return exec.Command("gemini", "-p", prompt, "--output-format", "json").Output()
+    case "vibe":
+        return exec.Command("vibe", "--prompt", prompt).Output()
     case "ollama":
         return exec.Command("ollama", "run", "llama3.2:3b", prompt).Output()
     }
-    return "", errors.New("no AI CLI found - install claude, codex, gemini, or ollama")
+    return "", errors.New("no AI CLI found - install claude, codex, gemini, vibe, or ollama")
 }
 ```
 
 ## Dependencies
 
 - Existing Google Calendar API (from calendar feature)
-- One of: Claude Code CLI, Codex CLI, Gemini CLI, or Ollama
+- One of: Claude Code CLI, Codex CLI, Gemini CLI, Mistral Vibe CLI, or Ollama

@@ -39,6 +39,7 @@ type App struct {
 	store         *auth.AccountStore
 	accountIdx    int
 	imap          *gmail.IMAPClient
+	smtp          *gmail.SMTPClient
 	imapCache     map[int]*gmail.IMAPClient
 	emailCache    map[string][]gmail.Email // key: "accountIdx:label"
 	mailList      components.MailList
@@ -70,6 +71,13 @@ type App struct {
 
 	// Scroll throttling (count-based)
 	scrollCount int
+
+	// Reply/Compose
+	compose ComposeModel
+
+	// Command palette
+	commandPalette     components.CommandPalette
+	showCommandPalette bool
 }
 
 type emailsLoadedMsg struct {
@@ -97,6 +105,12 @@ type labelSwitchedMsg struct {
 	label string
 }
 
+type replySentMsg struct{}
+
+type replySendErrorMsg struct {
+	err error
+}
+
 func NewApp(store *auth.AccountStore) App {
 	s := spinner.New()
 	s.Spinner = spinner.Dot
@@ -111,20 +125,21 @@ func NewApp(store *auth.AccountStore) App {
 	vp.Style = lipgloss.NewStyle().Padding(1, 4, 3, 4)
 
 	return App{
-		store:        store,
-		accountIdx:   0,
-		imapCache:    make(map[int]*gmail.IMAPClient),
-		emailCache:   make(map[string][]gmail.Email),
-		mailList:     components.NewMailList(),
-		viewport:     vp,
-		spinner:      s,
-		state:        stateLoading,
-		view:         listView,
-		emailLimit:   50,
-		labelPicker:  components.NewLabelPicker(),
-		currentLabel: "INBOX",
-		searchInput:  si,
-		selected:     make(map[imap.UID]bool),
+		store:          store,
+		accountIdx:     0,
+		imapCache:      make(map[int]*gmail.IMAPClient),
+		emailCache:     make(map[string][]gmail.Email),
+		mailList:       components.NewMailList(),
+		viewport:       vp,
+		spinner:        s,
+		state:          stateLoading,
+		view:           listView,
+		emailLimit:     50,
+		labelPicker:    components.NewLabelPicker(),
+		currentLabel:   "INBOX",
+		searchInput:    si,
+		selected:       make(map[imap.UID]bool),
+		commandPalette: components.NewCommandPalette(),
 	}
 }
 
@@ -147,6 +162,26 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
+		// Handle command palette input
+		if a.showCommandPalette {
+			switch msg.String() {
+			case "esc":
+				a.showCommandPalette = false
+				return a, nil
+			default:
+				var cmd tea.Cmd
+				a.commandPalette, cmd = a.commandPalette.Update(msg)
+				return a, cmd
+			}
+		}
+
+		// Handle compose view input
+		if a.view == composeView {
+			var cmd tea.Cmd
+			a.compose, cmd = a.compose.Update(msg)
+			return a, cmd
+		}
+
 		// Handle search mode input
 		if a.searchMode {
 			switch msg.String() {
@@ -241,10 +276,16 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return a, tea.Batch(a.spinner.Tick, a.loadEmails())
 			}
 		case "/":
-			if a.view == listView && a.state == stateReady && !a.confirmDelete {
-				a.searchMode = true
-				a.searchInput.Focus()
-				return a, textinput.Blink
+			// Open command palette
+			if a.state == stateReady && !a.confirmDelete && !a.searchMode {
+				viewName := "list"
+				if a.view == readView {
+					viewName = "read"
+				}
+				a.commandPalette.SetView(viewName)
+				a.commandPalette.SetSize(a.width, a.height)
+				a.showCommandPalette = true
+				return a, a.commandPalette.Init()
 			}
 		case "enter":
 			if a.view == listView && a.state == stateReady {
@@ -260,11 +301,58 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					}
 				}
 			}
+		case "c":
+			// Compose new email
+			if a.state == stateReady && !a.confirmDelete && a.view == listView {
+				account := a.currentAccount()
+				if account != nil {
+					a.compose = NewComposeModel(account.Credentials.Email)
+					a.compose.width = a.width
+					a.compose.height = a.height
+					a.view = composeView
+					return a, a.compose.Init()
+				}
+			}
 		case "r":
-			if a.state == stateReady && !a.isSearchResult {
+			// Reply to email (in list or read view)
+			if a.state == stateReady && !a.confirmDelete && (a.view == listView || a.view == readView) {
+				if email := a.mailList.SelectedEmail(); email != nil {
+					account := a.currentAccount()
+					if account != nil {
+						a.compose = NewReplyModel(account.Credentials.Email, email)
+						a.compose.width = a.width
+						a.compose.height = a.height
+						a.view = composeView
+						return a, a.compose.Init()
+					}
+				}
+			}
+		case "R":
+			// Shift+R for refresh (uppercase R)
+			if a.state == stateReady && !a.isSearchResult && a.view == listView {
 				a.state = stateLoading
 				a.statusMsg = "Refreshing..."
 				return a, tea.Batch(a.spinner.Tick, a.loadEmails())
+			}
+		case "s":
+			// Context-aware: search in list view, summarize in read view
+			if a.state == stateReady && !a.confirmDelete {
+				if a.view == listView && !a.isSearchResult {
+					// Search mode
+					a.searchMode = true
+					a.searchInput.Focus()
+					return a, textinput.Blink
+				} else if a.view == readView {
+					// Summarize (AI placeholder)
+					a.statusMsg = "Summarize: AI not configured yet"
+					return a, nil
+				}
+			}
+		case "e":
+			// Extract event to calendar (read view only)
+			if a.state == stateReady && a.view == readView && !a.confirmDelete {
+				a.statusMsg = "Extract: AI not configured yet"
+				return a, nil
 			}
 		case "d":
 			if a.state == stateReady && !a.confirmDelete {
@@ -425,6 +513,12 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.labelPicker.SetSize(msg.Width, msg.Height)
 		a.viewport.Width = msg.Width - 8
 		a.viewport.Height = msg.Height - 8
+		// Update compose model size
+		if a.view == composeView {
+			a.compose.width = msg.Width
+			a.compose.height = msg.Height
+			a.compose, _ = a.compose.Update(msg)
+		}
 
 	case spinner.TickMsg:
 		var cmd tea.Cmd
@@ -478,6 +572,54 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			a.state = stateLoading
 			return a, tea.Batch(a.spinner.Tick, a.executeSearch(a.searchQuery))
 		}
+
+	case replySentMsg:
+		a.state = stateReady
+		a.view = listView
+		a.statusMsg = "Reply sent!"
+
+	case replySendErrorMsg:
+		a.state = stateReady
+		a.view = composeView
+		a.statusMsg = fmt.Sprintf("Send failed: %v", msg.err)
+
+	case components.CommandSelectedMsg:
+		a.showCommandPalette = false
+		return a.executeCommand(msg.Command)
+
+	case SendMsg:
+		// Send button pressed in compose view
+		a.state = stateLoading
+		a.statusMsg = "Sending..."
+		return a, tea.Batch(a.spinner.Tick, a.sendReply())
+
+	case SaveDraftMsg:
+		// Save Draft button pressed
+		a.state = stateLoading
+		a.statusMsg = "Saving draft..."
+		return a, tea.Batch(a.spinner.Tick, a.saveDraft())
+
+	case draftSavedMsg:
+		a.state = stateReady
+		if a.compose.isReply {
+			a.view = readView
+		} else {
+			a.view = listView
+		}
+		a.statusMsg = "Draft saved!"
+
+	case draftSaveErrorMsg:
+		a.state = stateReady
+		a.statusMsg = fmt.Sprintf("Failed to save draft: %v", msg.err)
+
+	case CancelMsg:
+		// Cancel button pressed in compose view
+		if a.compose.isReply {
+			a.view = readView
+		} else {
+			a.view = listView
+		}
+		a.statusMsg = "Cancelled"
 	}
 
 	if a.view == listView && a.state == stateReady {
@@ -521,6 +663,14 @@ func (a App) View() string {
 				}
 				content = components.RenderReadView(emailData, a.width, a.viewport.View())
 			}
+		case composeView:
+			content = lipgloss.Place(
+				a.width,
+				a.height-6,
+				lipgloss.Center,
+				lipgloss.Center,
+				a.compose.View(),
+			)
 		default:
 			content = components.RenderListView(a.width, a.height, a.mailList.View())
 		}
@@ -545,6 +695,11 @@ func (a App) View() string {
 		content = a.labelPicker.View()
 	}
 
+	// Show command palette overlay
+	if a.showCommandPalette {
+		content = components.RenderCentered(a.width, a.height, a.commandPalette.View())
+	}
+
 	// Build header data
 	var accounts []string
 	for _, acc := range a.store.Accounts {
@@ -566,6 +721,7 @@ func (a App) View() string {
 		SearchMode:     a.searchMode,
 		IsSearchResult: a.isSearchResult,
 		IsListView:     a.view == listView,
+		IsComposeView:  a.view == composeView,
 		AccountCount:   len(a.store.Accounts),
 		SelectionCount: a.selectedCount(),
 	}

@@ -118,16 +118,37 @@ func (a *App) deleteSelectedEmails() tea.Cmd {
 		if len(uids) == 0 {
 			return bulkActionCompleteMsg{action: "deleted", count: 0}
 		}
-		if err := a.imap.DeleteMessages(uids); err != nil {
-			return errorMsg{err: err}
+		err := a.imap.DeleteMessages(uids)
+		if err != nil {
+			return errorMsg{err: fmt.Errorf("failed to delete: %w", err)}
 		}
-		// Also remove from disk cache
+
+		// Only remove from disk cache if server delete succeeded
 		if diskCache != nil && account != nil {
 			for _, uid := range uids {
 				diskCache.DeleteEmail(account.Credentials.Email, mailbox, uid)
 			}
 		}
 		return bulkActionCompleteMsg{action: "deleted", count: len(uids)}
+	}
+}
+
+func (a *App) deleteSingleEmail(uid imap.UID) tea.Cmd {
+	account := a.currentAccount()
+	mailbox := a.currentLabel
+	diskCache := a.diskCache
+
+	return func() tea.Msg {
+		err := a.imap.DeleteMessage(uid)
+		if err != nil {
+			return errorMsg{err: fmt.Errorf("failed to delete: %w", err)}
+		}
+
+		// Only remove from disk cache if server delete succeeded
+		if diskCache != nil && account != nil {
+			diskCache.DeleteEmail(account.Credentials.Email, mailbox, uid)
+		}
+		return singleDeleteCompleteMsg{uid: uid}
 	}
 }
 

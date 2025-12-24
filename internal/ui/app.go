@@ -133,6 +133,10 @@ type cachedEmailsLoadedMsg struct {
 	emails []gmail.Email
 }
 
+type singleDeleteCompleteMsg struct {
+	uid imap.UID
+}
+
 func NewApp(store *auth.AccountStore) App {
 	s := spinner.New()
 	s.Spinner = spinner.Dot
@@ -419,17 +423,11 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					return a, tea.Batch(a.spinner.Tick, a.deleteSelectedEmails())
 				} else if email := a.mailList.SelectedEmail(); email != nil {
 					uid := email.UID
-					a.mailList.RemoveCurrent()
 					a.view = listView
-					// Delete from server and cache
-					account := a.currentAccount()
-					go func() {
-						a.imap.DeleteMessage(uid)
-						// Also remove from disk cache
-						if a.diskCache != nil && account != nil {
-							a.diskCache.DeleteEmail(account.Credentials.Email, a.currentLabel, uid)
-						}
-					}()
+					a.state = stateLoading
+					a.statusMsg = "Deleting..."
+					a.confirmDelete = false
+					return a, tea.Batch(a.spinner.Tick, a.deleteSingleEmail(uid))
 				}
 				a.confirmDelete = false
 				a.statusMsg = ""
@@ -633,6 +631,11 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			a.state = stateLoading
 			return a, tea.Batch(a.spinner.Tick, a.executeSearch(a.searchQuery))
 		}
+
+	case singleDeleteCompleteMsg:
+		a.state = stateReady
+		a.mailList.RemoveByUID(msg.uid)
+		a.statusMsg = "Successfully deleted 1 email"
 
 	case replySentMsg:
 		a.state = stateReady

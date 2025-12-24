@@ -93,6 +93,18 @@ func (m *MailList) RemoveCurrent() {
 	}
 }
 
+func (m *MailList) RemoveByUID(uid imap.UID) {
+	for i, email := range m.emails {
+		if email.UID == uid {
+			m.emails = append(m.emails[:i], m.emails[i+1:]...)
+			if m.cursor >= len(m.emails) && m.cursor > 0 {
+				m.cursor--
+			}
+			return
+		}
+	}
+}
+
 func (m *MailList) ScrollUp() {
 	if m.cursor > 0 {
 		m.cursor--

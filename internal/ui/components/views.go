@@ -245,3 +245,49 @@ func RenderCentered(width, height int, content string) string {
 		content,
 	)
 }
+
+func RenderSummaryDialog(width, height int, summary string, provider string) string {
+	dialogWidth := min(width-20, 70)
+
+	titleStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(Primary).
+		MarginBottom(1)
+
+	contentStyle := lipgloss.NewStyle().
+		Width(dialogWidth - 8).
+		Foreground(Text)
+
+	providerStyle := lipgloss.NewStyle().
+		Foreground(Muted).
+		Italic(true)
+
+	hintStyle := lipgloss.NewStyle().
+		Foreground(Muted).
+		MarginTop(1)
+
+	content := lipgloss.JoinVertical(
+		lipgloss.Left,
+		titleStyle.Render("Summary"),
+		"",
+		contentStyle.Render(summary),
+		"",
+		providerStyle.Render("via "+provider),
+		"",
+		hintStyle.Render("Press Esc to close"),
+	)
+
+	dialogStyle := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(Primary).
+		Padding(1, 3).
+		Width(dialogWidth)
+
+	return lipgloss.Place(
+		width,
+		height-4,
+		lipgloss.Center,
+		lipgloss.Center,
+		dialogStyle.Render(content),
+	)
+}

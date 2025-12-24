@@ -6,6 +6,7 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/emersion/go-imap/v2"
+	"maily/internal/ai"
 	"maily/internal/gmail"
 )
 
@@ -152,6 +153,24 @@ func (a *App) saveDraft() tea.Cmd {
 	}
 }
 
+func (a *App) summarizeEmail(email *gmail.Email) tea.Cmd {
+	client := a.aiClient
+	body := email.Body
+	if body == "" {
+		body = email.Snippet
+	}
+	prompt := ai.SummarizePrompt(email.From, email.Subject, body)
+	provider := client.Provider()
+
+	return func() tea.Msg {
+		summary, err := client.Call(prompt)
+		if err != nil {
+			return summaryErrorMsg{err: err}
+		}
+		return summaryResultMsg{summary: summary, provider: provider}
+	}
+}
+
 // executeCommand handles slash command execution
 func (a App) executeCommand(command string) (tea.Model, tea.Cmd) {
 	switch command {
@@ -207,8 +226,18 @@ func (a App) executeCommand(command string) (tea.Model, tea.Cmd) {
 		}
 
 	case "summarize":
-		// AI summarize (placeholder - will be implemented in Phase 1)
-		a.statusMsg = "Summarize: AI not configured yet"
+		// AI summarize
+		if a.view == readView {
+			if !a.aiClient.Available() {
+				a.statusMsg = "No AI CLI found (install claude, codex, gemini, vibe, or ollama)"
+				return a, nil
+			}
+			if email := a.mailList.SelectedEmail(); email != nil {
+				a.state = stateLoading
+				a.statusMsg = "Summarizing with " + a.aiClient.Provider() + "..."
+				return a, tea.Batch(a.spinner.Tick, a.summarizeEmail(email))
+			}
+		}
 
 	case "extract":
 		// AI extract event (placeholder - will be implemented in Phase 1)

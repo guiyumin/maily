@@ -10,6 +10,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/emersion/go-imap/v2"
 
+	"maily/internal/ai"
 	"maily/internal/auth"
 	"maily/internal/gmail"
 	"maily/internal/ui/components"
@@ -78,6 +79,12 @@ type App struct {
 	// Command palette
 	commandPalette     components.CommandPalette
 	showCommandPalette bool
+
+	// AI
+	aiClient      *ai.Client
+	showSummary   bool
+	summaryText   string
+	summarySource string // which AI provider was used
 }
 
 type emailsLoadedMsg struct {
@@ -111,6 +118,15 @@ type replySendErrorMsg struct {
 	err error
 }
 
+type summaryResultMsg struct {
+	summary  string
+	provider string
+}
+
+type summaryErrorMsg struct {
+	err error
+}
+
 func NewApp(store *auth.AccountStore) App {
 	s := spinner.New()
 	s.Spinner = spinner.Dot
@@ -140,6 +156,7 @@ func NewApp(store *auth.AccountStore) App {
 		searchInput:    si,
 		selected:       make(map[imap.UID]bool),
 		commandPalette: components.NewCommandPalette(),
+		aiClient:       ai.NewClient(),
 	}
 }
 
@@ -258,7 +275,11 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return a, nil
 			}
 		case "esc":
-			if a.confirmDelete {
+			if a.showSummary {
+				a.showSummary = false
+				a.summaryText = ""
+				a.summarySource = ""
+			} else if a.confirmDelete {
 				a.confirmDelete = false
 				a.statusMsg = ""
 			} else if a.view == readView {
@@ -336,16 +357,24 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		case "s":
 			// Context-aware: search in list view, summarize in read view
-			if a.state == stateReady && !a.confirmDelete {
+			if a.state == stateReady && !a.confirmDelete && !a.showSummary {
 				if a.view == listView && !a.isSearchResult {
 					// Search mode
 					a.searchMode = true
 					a.searchInput.Focus()
 					return a, textinput.Blink
 				} else if a.view == readView {
-					// Summarize (AI placeholder)
-					a.statusMsg = "Summarize: AI not configured yet"
-					return a, nil
+					// Summarize with AI
+					if !a.aiClient.Available() {
+						a.statusMsg = "No AI CLI found (install claude, codex, gemini, vibe, or ollama)"
+						return a, nil
+					}
+					email := a.mailList.SelectedEmail()
+					if email != nil {
+						a.state = stateLoading
+						a.statusMsg = "Summarizing with " + a.aiClient.Provider() + "..."
+						return a, tea.Batch(a.spinner.Tick, a.summarizeEmail(email))
+					}
 				}
 			}
 		case "e":
@@ -620,6 +649,17 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			a.view = listView
 		}
 		a.statusMsg = "Cancelled"
+
+	case summaryResultMsg:
+		a.state = stateReady
+		a.showSummary = true
+		a.summaryText = msg.summary
+		a.summarySource = msg.provider
+		a.statusMsg = ""
+
+	case summaryErrorMsg:
+		a.state = stateReady
+		a.statusMsg = fmt.Sprintf("Summarize failed: %v", msg.err)
 	}
 
 	if a.view == listView && a.state == stateReady {
@@ -698,6 +738,11 @@ func (a App) View() string {
 	// Show command palette overlay
 	if a.showCommandPalette {
 		content = components.RenderCentered(a.width, a.height, a.commandPalette.View())
+	}
+
+	// Show summary dialog overlay
+	if a.showSummary {
+		content = components.RenderSummaryDialog(a.width, a.height, a.summaryText, a.summarySource)
 	}
 
 	// Build header data

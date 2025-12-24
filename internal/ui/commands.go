@@ -314,11 +314,11 @@ func (a App) executeCommand(command string) (tea.Model, tea.Cmd) {
 		return a, textinput.Blink
 
 	case "refresh":
-		// Refresh from disk cache (daemon keeps cache updated)
-		if !a.isSearchResult {
+		// Refresh from IMAP server
+		if !a.isSearchResult && a.view == listView {
 			a.state = stateLoading
 			a.statusMsg = "Refreshing..."
-			return a, tea.Batch(a.spinner.Tick, a.reloadFromCache())
+			return a, tea.Batch(a.spinner.Tick, a.loadEmails())
 		}
 
 	case "labels":

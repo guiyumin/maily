@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+
 // Data structs for render functions
 
 type HeaderData struct {
@@ -105,15 +106,17 @@ func RenderStatusBar(data StatusBarData) string {
 			HelpKeyStyle.Render("esc") + HelpDescStyle.Render(" back  ") +
 			HelpKeyStyle.Render("q") + HelpDescStyle.Render(" quit")
 	} else if data.IsListView {
-		help = tabHint +
+		row1 := tabHint +
 			HelpKeyStyle.Render("enter") + HelpDescStyle.Render(" open  ") +
 			HelpKeyStyle.Render("c") + HelpDescStyle.Render(" compose  ") +
 			HelpKeyStyle.Render("r") + HelpDescStyle.Render(" reply  ") +
+			HelpKeyStyle.Render("R") + HelpDescStyle.Render(" refresh  ") +
 			HelpKeyStyle.Render("s") + HelpDescStyle.Render(" search  ") +
-			HelpKeyStyle.Render("l") + HelpDescStyle.Render(" more  ") +
-			HelpKeyStyle.Render("g") + HelpDescStyle.Render(" folders  ") +
-			HelpKeyStyle.Render("/") + HelpDescStyle.Render(" commands  ") +
 			HelpKeyStyle.Render("q") + HelpDescStyle.Render(" quit")
+		row2 := HelpKeyStyle.Render("l") + HelpDescStyle.Render(" more  ") +
+			HelpKeyStyle.Render("g") + HelpDescStyle.Render(" folders  ") +
+			HelpKeyStyle.Render("/") + HelpDescStyle.Render(" commands")
+		help = row1 + "\n" + row2
 	} else {
 		// Read view
 		help = tabHint +
@@ -146,7 +149,7 @@ func RenderStatusBar(data StatusBarData) string {
 func RenderListView(width, height int, listContent string) string {
 	return lipgloss.NewStyle().
 		Width(width).
-		Height(height - 6).
+		Height(height - 7).
 		Render(listContent)
 }
 

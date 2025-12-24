@@ -366,11 +366,11 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 		case "R":
-			// Shift+R for refresh from disk cache (daemon keeps cache updated)
+			// Shift+R for refresh from IMAP server
 			if a.state == stateReady && !a.isSearchResult && a.view == listView {
 				a.state = stateLoading
 				a.statusMsg = "Refreshing..."
-				return a, tea.Batch(a.spinner.Tick, a.reloadFromCache())
+				return a, tea.Batch(a.spinner.Tick, a.loadEmails())
 			}
 		case "s":
 			// Context-aware: search in list view, summarize in read view

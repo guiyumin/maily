@@ -528,6 +528,72 @@ func (c *IMAPClient) DeleteMessages(uids []imap.UID) error {
 	return c.client.Expunge().Close()
 }
 
+func (c *IMAPClient) MoveToTrash(uids []imap.UID) error {
+	if len(uids) == 0 {
+		return nil
+	}
+
+	// Find trash folder
+	trashFolder, err := c.findTrashFolder()
+	if err != nil {
+		return fmt.Errorf("failed to find trash folder: %w", err)
+	}
+
+	uidSet := imap.UIDSet{}
+	for _, uid := range uids {
+		uidSet.AddNum(uid)
+	}
+
+	// Move to trash
+	if _, err := c.client.Move(uidSet, trashFolder).Wait(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *IMAPClient) findTrashFolder() (string, error) {
+	// Try Gmail-specific trash folder first
+	gmailTrash := "[Gmail]/Trash"
+	if c.mailboxExists(gmailTrash) {
+		return gmailTrash, nil
+	}
+
+	// Try to find folder with \Trash special-use attribute
+	listCmd := c.client.List("", "*", &imap.ListOptions{
+		ReturnStatus: &imap.StatusOptions{},
+	})
+	defer listCmd.Close()
+
+	for {
+		mbox := listCmd.Next()
+		if mbox == nil {
+			break
+		}
+		for _, attr := range mbox.Attrs {
+			if attr == imap.MailboxAttrTrash {
+				return mbox.Mailbox, nil
+			}
+		}
+	}
+
+	// Fallback to common trash folder names
+	fallbacks := []string{"Trash", "Deleted", "Deleted Items", "Deleted Messages"}
+	for _, name := range fallbacks {
+		if c.mailboxExists(name) {
+			return name, nil
+		}
+	}
+
+	return "", fmt.Errorf("trash folder not found")
+}
+
+func (c *IMAPClient) mailboxExists(name string) bool {
+	listCmd := c.client.List("", name, nil)
+	defer listCmd.Close()
+	return listCmd.Next() != nil
+}
+
 func (c *IMAPClient) ArchiveMessages(uids []imap.UID) error {
 	if len(uids) == 0 {
 		return nil

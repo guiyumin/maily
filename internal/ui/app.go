@@ -55,6 +55,7 @@ type App struct {
 	err           error
 	statusMsg     string
 	confirmDelete bool
+	deleteOption  components.DeleteOption // selected option in delete dialog
 	emailLimit    uint32
 
 	// Labels
@@ -324,6 +325,46 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return a, a.commandPalette.Init()
 			}
 		case "enter":
+			// Handle delete confirmation dialog
+			if a.confirmDelete {
+				switch a.deleteOption {
+				case components.DeleteOptionTrash:
+					// Move to trash
+					if a.isSearchResult && a.selectedCount() > 0 {
+						a.state = stateLoading
+						a.statusMsg = "Moving to trash..."
+						a.confirmDelete = false
+						return a, tea.Batch(a.spinner.Tick, a.moveSelectedToTrash())
+					} else if email := a.mailList.SelectedEmail(); email != nil {
+						uid := email.UID
+						a.view = listView
+						a.state = stateLoading
+						a.statusMsg = "Moving to trash..."
+						a.confirmDelete = false
+						return a, tea.Batch(a.spinner.Tick, a.moveSingleToTrash(uid))
+					}
+				case components.DeleteOptionPermanent:
+					// Permanent delete
+					if a.isSearchResult && a.selectedCount() > 0 {
+						a.state = stateLoading
+						a.statusMsg = "Deleting permanently..."
+						a.confirmDelete = false
+						return a, tea.Batch(a.spinner.Tick, a.deleteSelectedEmails())
+					} else if email := a.mailList.SelectedEmail(); email != nil {
+						uid := email.UID
+						a.view = listView
+						a.state = stateLoading
+						a.statusMsg = "Deleting permanently..."
+						a.confirmDelete = false
+						return a, tea.Batch(a.spinner.Tick, a.deleteSingleEmail(uid))
+					}
+				case components.DeleteOptionCancel:
+					a.confirmDelete = false
+					a.statusMsg = ""
+				}
+				return a, nil
+			}
+			// Normal enter - open email
 			if a.view == listView && a.state == stateReady {
 				if email := a.mailList.SelectedEmail(); email != nil {
 					a.view = readView
@@ -409,33 +450,23 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				// In search mode with selections, delete selected emails
 				if a.isSearchResult && a.selectedCount() > 0 {
 					a.confirmDelete = true
+					a.deleteOption = components.DeleteOptionTrash // default to Trash
 				} else if a.mailList.SelectedEmail() != nil {
 					a.confirmDelete = true
+					a.deleteOption = components.DeleteOptionTrash // default to Trash
 				}
 			}
-		case "y":
+		case "left", "h":
 			if a.confirmDelete {
-				// In search mode with selections, delete selected emails
-				if a.isSearchResult && a.selectedCount() > 0 {
-					a.state = stateLoading
-					a.statusMsg = "Deleting..."
-					a.confirmDelete = false
-					return a, tea.Batch(a.spinner.Tick, a.deleteSelectedEmails())
-				} else if email := a.mailList.SelectedEmail(); email != nil {
-					uid := email.UID
-					a.view = listView
-					a.state = stateLoading
-					a.statusMsg = "Deleting..."
-					a.confirmDelete = false
-					return a, tea.Batch(a.spinner.Tick, a.deleteSingleEmail(uid))
+				if a.deleteOption > 0 {
+					a.deleteOption--
 				}
-				a.confirmDelete = false
-				a.statusMsg = ""
 			}
-		case "n":
+		case "right":
 			if a.confirmDelete {
-				a.confirmDelete = false
-				a.statusMsg = ""
+				if a.deleteOption < components.DeleteOptionCancel {
+					a.deleteOption++
+				}
 			}
 		case "l":
 			if a.view == listView && a.state == stateReady && !a.confirmDelete && !a.isSearchResult {
@@ -757,7 +788,7 @@ func (a App) View() string {
 		if a.isSearchResult && a.selectedCount() > 0 {
 			deleteCount = a.selectedCount()
 		}
-		content = components.RenderCentered(a.width, a.height, components.RenderConfirmDialog(deleteCount))
+		content = components.RenderCentered(a.width, a.height, components.RenderConfirmDialog(deleteCount, a.deleteOption))
 	}
 
 	// Show search input overlay

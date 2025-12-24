@@ -152,6 +152,57 @@ func (a *App) deleteSingleEmail(uid imap.UID) tea.Cmd {
 	}
 }
 
+func (a *App) moveSelectedToTrash() tea.Cmd {
+	// Collect UIDs of selected emails
+	var uids []imap.UID
+	for uid, selected := range a.selected {
+		if selected {
+			uids = append(uids, uid)
+		}
+	}
+
+	account := a.currentAccount()
+	mailbox := a.currentLabel
+	diskCache := a.diskCache
+
+	return func() tea.Msg {
+		if len(uids) == 0 {
+			return bulkActionCompleteMsg{action: "moved to trash", count: 0}
+		}
+		err := a.imap.MoveToTrash(uids)
+		if err != nil {
+			return errorMsg{err: fmt.Errorf("failed to move to trash: %w", err)}
+		}
+
+		// Only remove from disk cache if server move succeeded
+		if diskCache != nil && account != nil {
+			for _, uid := range uids {
+				diskCache.DeleteEmail(account.Credentials.Email, mailbox, uid)
+			}
+		}
+		return bulkActionCompleteMsg{action: "moved to trash", count: len(uids)}
+	}
+}
+
+func (a *App) moveSingleToTrash(uid imap.UID) tea.Cmd {
+	account := a.currentAccount()
+	mailbox := a.currentLabel
+	diskCache := a.diskCache
+
+	return func() tea.Msg {
+		err := a.imap.MoveToTrash([]imap.UID{uid})
+		if err != nil {
+			return errorMsg{err: fmt.Errorf("failed to move to trash: %w", err)}
+		}
+
+		// Only remove from disk cache if server move succeeded
+		if diskCache != nil && account != nil {
+			diskCache.DeleteEmail(account.Credentials.Email, mailbox, uid)
+		}
+		return singleDeleteCompleteMsg{uid: uid}
+	}
+}
+
 func (a *App) sendReply() tea.Cmd {
 	account := a.currentAccount()
 	if account == nil {

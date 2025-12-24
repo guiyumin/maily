@@ -176,8 +176,17 @@ func RenderReadView(email EmailViewData, width int, viewportContent string) stri
 	)
 }
 
-func RenderConfirmDialog(count int) string {
-	dialogStyle := DialogStyle.BorderForeground(Danger)
+// DeleteOption represents the selected delete action
+type DeleteOption int
+
+const (
+	DeleteOptionTrash DeleteOption = iota
+	DeleteOptionPermanent
+	DeleteOptionCancel
+)
+
+func RenderConfirmDialog(count int, selected DeleteOption) string {
+	dialogStyle := DialogStyle.BorderForeground(Warning)
 
 	titleText := "Delete Email?"
 	if count > 1 {
@@ -185,15 +194,54 @@ func RenderConfirmDialog(count int) string {
 	}
 
 	title := DialogTitleStyle.
-		Foreground(Danger).
+		Foreground(Warning).
 		Render(titleText)
 
-	hint := DialogHintStyle.Render("press y to confirm, n to cancel")
+	// Button styles
+	selectedStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(Bg).
+		Background(Primary).
+		Padding(0, 2)
+
+	unselectedStyle := lipgloss.NewStyle().
+		Foreground(Text).
+		Padding(0, 2)
+
+	dangerSelectedStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(Bg).
+		Background(Danger).
+		Padding(0, 2)
+
+	// Render buttons
+	var trashBtn, permBtn, cancelBtn string
+	if selected == DeleteOptionTrash {
+		trashBtn = selectedStyle.Render("Move to Trash")
+	} else {
+		trashBtn = unselectedStyle.Render("Move to Trash")
+	}
+	if selected == DeleteOptionPermanent {
+		permBtn = dangerSelectedStyle.Render("Permanent Delete")
+	} else {
+		permBtn = unselectedStyle.Render("Permanent Delete")
+	}
+	if selected == DeleteOptionCancel {
+		cancelBtn = selectedStyle.Render("Cancel")
+	} else {
+		cancelBtn = unselectedStyle.Render("Cancel")
+	}
+
+	buttons := lipgloss.JoinHorizontal(lipgloss.Center, trashBtn, "  ", permBtn, "  ", cancelBtn)
+
+	hint := DialogHintStyle.Render("← → to select, enter to confirm, esc to cancel")
 
 	return dialogStyle.Render(
 		lipgloss.JoinVertical(
 			lipgloss.Center,
 			title,
+			"",
+			buttons,
 			"",
 			hint,
 		),

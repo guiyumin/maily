@@ -1,56 +1,61 @@
 # TODO
 
-## 1. Support Gmail Labels
+## Completed
 
-- [ ] List all Gmail labels via IMAP (exposed as mailboxes)
-- [ ] Display labels in the UI
-- [ ] Allow filtering/viewing emails by label
-- [ ] Support adding/removing labels from emails
+### Gmail Labels & Folders
+- [x] List all Gmail labels via IMAP (exposed as mailboxes)
+- [x] Display labels in the UI
+- [x] Allow filtering/viewing emails by label (`g` key)
+- [x] Support special Gmail folders (Sent, Spam, Trash, Drafts, All Mail, Starred)
+- [x] Display current folder in header
 
-## 2. Support Gmail Directories
+### Multiple Select and Bulk Actions (Search Mode)
+- [x] Multi-select mode in search results (`space` to toggle, `a` to select all)
+- [x] Bulk delete for selected emails
+- [x] Bulk mark as read for selected emails (`m` key)
+- [x] Show selection count in status bar
 
-- [ ] Support special Gmail folders:
-  - `[Gmail]/Sent Mail`
-  - `[Gmail]/Spam`
-  - `[Gmail]/Trash`
-  - `[Gmail]/Drafts`
-  - `[Gmail]/All Mail`
-  - `[Gmail]/Starred`
-- [ ] Add folder navigation in the UI
-- [ ] Display current folder in the interface
+### AI Summarization
+- [x] Integrate AI CLI tools (Claude, Codex, Gemini, Ollama)
+- [x] Add summarize shortcut (`s` in read view)
+- [x] Display summary in modal dialog
 
-## 3. Multiple Select and Bulk Actions
+### Core Features
+- [x] Local email cache for fast startup
+- [x] Background sync daemon
+- [x] Self-update functionality
+- [x] No optimistic UI - wait for server confirmation on delete
 
-- [ ] Add multi-select mode (e.g., Shift+Space or visual mode)
-- [ ] Support bulk delete for selected emails
-- [ ] Support bulk mark as read/unread for selected emails
-- [ ] Show selection count in UI
+### Better Delete UX
+- [x] Delete dialog with 3 options: Move to Trash (default), Permanent Delete, Cancel
+- [x] Trash folder discovery (Gmail `[Gmail]/Trash`, standard IMAP `\Trash` attribute, fallbacks)
+- [x] Arrow keys to select option, Enter to confirm
 
-## 4. AI Summarization
+---
 
-- [ ] Integrate AI model for email summarization
-- [ ] Add summarize command/shortcut for selected email
-- [ ] Display summary in preview pane or modal
-- [ ] Consider batch summarization for email threads
+## Future
 
-## 5. CLI Bulk Processing Commands
+### CLI Bulk Processing Commands
 
-Non-interactive CLI commands for quick bulk mail operations (useful for scripting/automation).
+Non-interactive CLI commands for scripting/automation.
 
-- [ ] `maily search --from=<account> --query="<query>"` - Interactive search with selection and actions
-  - `--from` flag to specify which account to search (required if multiple accounts)
-  - Uses Gmail's native query syntax (via X-GM-RAW): `from:`, `has:attachment`, `is:unread`, `older_than:`, `category:promotions`, `larger:5M`, `filename:pdf`, `subject:`, etc.
-  - Display search results in a list (sender, subject, date)
-  - Multi-select: toggle individual emails, select all, deselect all
-  - After selection, choose action: delete, archive, mark-read
-  - Confirmation before destructive actions (show count of affected emails)
+- [ ] `maily search --from=<account> --query="<query>"` - CLI search with actions
+  - Uses Gmail's native query syntax (X-GM-RAW)
+  - Output results as JSON or table
+  - Pipe to other commands for batch operations
 
-## 6. Support OAuth Login (Future)
+### Support OAuth Login
 
-For when the project has more traction. Unverified OAuth apps show scary warnings to users.
+For when the project has more traction. Unverified OAuth apps show scary warnings.
 
 - [ ] Set up Google Cloud OAuth credentials
 - [ ] Implement OAuth 2.0 flow with browser redirect
 - [ ] Handle token storage and refresh
 - [ ] Add `maily login gmail --oauth` option
-- [ ] Consider Google app verification for wider distribution
+
+### Other Ideas
+- [ ] Thread view (group emails by conversation)
+- [ ] Attachment preview/download
+- [ ] Email templates
+- [ ] Vim-style navigation (j/k)
+- [ ] Custom keybindings config

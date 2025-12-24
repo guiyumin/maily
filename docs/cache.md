@@ -23,7 +23,7 @@
 ### 1. maily (TUI)
 - Reads from local cache only
 - Fast startup (no server wait)
-- Can trigger manual sync: `r` to refresh
+- Can trigger manual refresh: `R` (Shift+R) to fetch from server
 - First run (empty cache): auto-triggers sync, user waits once
 - Auto-reloads after sync completes:
   - Watches metadata.json for changes (updated at end of sync)
@@ -38,16 +38,10 @@
 - User starts with: `maily daemon start`
 - User stops with: `maily daemon stop`
 
-### 3. Manual refresh (`r` in TUI)
-- Quick refresh: fetches latest 50 UIDs + FLAGS from server
-- Compares with cache:
-  - New UIDs → fetch full email
-  - Changed flags → update cache
-- Does NOT delete (can't distinguish "deleted" from "pushed out of top 50")
-- Does NOT update older cached emails beyond the 50
-- Faster than full sync
-- Uses same lock as full sync
-- If lock exists, shows "Sync in progress, try again later"
+### 3. Manual refresh (`R` in TUI)
+- Fetches emails from IMAP server directly
+- Shows "Refreshing..." spinner while loading
+- Updates UI with fresh data from server
 
 ### 4. Full sync (`maily sync` from terminal)
 - Same logic as daemon sync (full 14 days)
@@ -117,12 +111,25 @@ This handles:
 
 ## Delete Flow
 
+**No optimistic UI.** Wait for server confirmation before updating local state.
+
 ```
 User presses 'd'
-  → Move to Trash on server (provider-specific)
-  → Delete from cache
-  → Update UI
+  → Show confirmation dialog
+User presses 'y'
+  → Show "Deleting..." spinner
+  → Send delete request to IMAP server
+  → Wait for server response
+  → If success:
+      → Delete from local cache
+      → Remove from UI
+      → Show "Successfully deleted"
+  → If error (connection issue, etc.):
+      → Show error message
+      → Email stays in UI (no data loss)
 ```
+
+This ensures consistency: if you see it deleted, it's deleted on server.
 
 ### Trash Discovery
 - Gmail: `[Gmail]/Trash`
@@ -179,4 +186,5 @@ Safe because we use atomic writes - interrupted sync just means incomplete sync,
 No complex foreground/background sync.
 No dedup logic.
 No write queues.
+No optimistic UI - wait for server confirmation.
 Daemon handles everything.

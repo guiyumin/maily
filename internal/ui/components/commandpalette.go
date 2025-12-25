@@ -28,7 +28,7 @@ var AllCommands = []Command{
 	{Name: "delete", Description: "Delete this email", Shortcut: "d", Views: []string{"list", "read", "today"}},
 	{Name: "search", Description: "Search emails", Shortcut: "s", Views: []string{"list"}},
 	{Name: "refresh", Description: "Refresh inbox", Shortcut: "R", Views: []string{"list"}},
-	{Name: "labels", Description: "Switch label/folder", Shortcut: "g", Views: []string{"list"}},
+	{Name: "labels", Description: "Switch label/folder", Shortcut: "f", Views: []string{"list"}},
 	{Name: "summarize", Description: "Summarize this email (AI)", Shortcut: "s", Views: []string{"read", "today"}},
 	{Name: "extract", Description: "Extract event to calendar (AI)", Shortcut: "e", Views: []string{"read", "today"}},
 	{Name: "add", Description: "Add calendar event", Shortcut: "a", Views: []string{"today"}},

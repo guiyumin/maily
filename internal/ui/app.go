@@ -285,7 +285,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				a.imap.Close()
 			}
 			return a, tea.Quit
-		case "g":
+		case "f":
 			// Show label picker (when not in search/confirm mode)
 			if a.state == stateReady && !a.confirmDelete && !a.searchMode && !a.isSearchResult && a.view == listView {
 				a.labelPicker.SetSelected(a.currentLabel)

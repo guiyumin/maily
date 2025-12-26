@@ -20,6 +20,18 @@
 - [x] Add summarize shortcut (`s` in read view)
 - [x] Display summary in modal dialog
 
+### Calendar Integration (macOS)
+- [x] macOS EventKit integration via CGO
+- [x] Calendar TUI (`maily c` / `maily calendar`)
+- [x] Natural language event creation (`maily c add "tomorrow 9am meeting with Jerry"`)
+- [x] AI-powered date/time parsing (prompt-based JSON extraction)
+- [x] Alarm/notification support (macOS handles notifications automatically)
+- [x] Prompt for reminder if not specified in natural language
+- [x] Confirmation before creating event
+- [x] `--debug` flag to show raw AI response
+- [x] Interactive calendar selection (prompts user to pick from list)
+- [x] `maily c list` to list available calendars
+
 ### Core Features
 - [x] Local email cache for fast startup
 - [x] Background sync daemon
@@ -52,6 +64,11 @@ For when the project has more traction. Unverified OAuth apps show scary warning
 - [ ] Implement OAuth 2.0 flow with browser redirect
 - [ ] Handle token storage and refresh
 - [ ] Add `maily login gmail --oauth` option
+
+### Calendar Features (Future)
+- [ ] TUI quick-add with NLP (hybrid: quick add vs form)
+- [ ] Extract events from email (`e` key)
+- [ ] Today view (split panel: emails + events)
 
 ### Other Ideas
 - [ ] Thread view (group emails by conversation)

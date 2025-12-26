@@ -367,13 +367,17 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					if email.Unread {
 						uid := email.UID
 						account := a.currentAccount()
+						imapClient := a.imap
+						label := a.currentLabel
 						// Update in-memory state immediately for responsive UI
 						a.mailList.MarkAsRead(uid)
 						go func() {
-							a.imap.MarkAsRead(uid)
+							if imapClient != nil {
+								imapClient.MarkAsRead(uid)
+							}
 							// Update disk cache
 							if a.diskCache != nil && account != nil {
-								a.diskCache.UpdateEmailFlags(account.Credentials.Email, a.currentLabel, uid, false)
+								a.diskCache.UpdateEmailFlags(account.Credentials.Email, label, uid, false)
 							}
 						}()
 					}

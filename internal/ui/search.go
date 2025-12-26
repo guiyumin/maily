@@ -315,8 +315,10 @@ func (a SearchApp) handleReadyKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 			// Mark as read in background
 			if email.Unread && a.imap != nil {
+				imapClient := a.imap
+				uid := email.UID
 				go func() {
-					a.imap.MarkAsRead(email.UID)
+					imapClient.MarkAsRead(uid)
 				}()
 			}
 		}
@@ -403,8 +405,10 @@ func (a SearchApp) handleReadViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				}
 				// Delete in background
 				if a.imap != nil {
+					imapClient := a.imap
+					uid := email.UID
 					go func() {
-						a.imap.DeleteMessage(email.UID)
+						imapClient.DeleteMessage(uid)
 					}()
 				}
 				// Go back to list view

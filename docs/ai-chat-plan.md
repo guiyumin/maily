@@ -288,17 +288,58 @@ For `maily c add`, we need to parse natural language into structured event data:
 
 ```go
 type ParsedEvent struct {
-    Title     string
-    StartTime time.Time
-    EndTime   time.Time    // Optional, default 1 hour
-    Recurrence string      // Optional: daily, weekly, etc.
+    Title              string
+    StartTime          time.Time
+    EndTime            time.Time  // Optional, default 1 hour
+    Location           string
+    AlarmMinutesBefore int        // 0 = no alarm
+    AlarmSpecified     bool       // true if user mentioned reminder
 }
 ```
 
-**Approach:**
-1. Send to AI: "Parse this into event details: tomorrow 9am talk to Jerry"
-2. AI returns structured JSON
-3. Create Google Calendar event via API
+**Approach: Prompt-Based JSON Extraction**
+
+We use a prompt-based approach rather than relying on CLI-specific flags like `--json-schema`:
+
+1. **Prompt defines the schema** - Tell AI exactly what JSON structure to return
+2. **Strip markdown fences** - AI often wraps JSON in \`\`\`json...\`\`\`, so we strip it
+3. **Parse and validate** - Unmarshal JSON into Go struct
+4. **Create event via EventKit** - Use macOS native calendar API
+
+**Why this approach?**
+
+| Approach | Pros | Cons |
+|----------|------|------|
+| **Prompt + strip fences** | Portable across all AI CLIs, won't break if CLI changes, we control the schema | Must handle markdown wrapping |
+| **CLI `--json-schema`** | Cleaner output | CLI-specific, may change, ties us to CLI internals |
+
+The prompt-based approach is more stable because:
+- We control the prompt and parsing logic
+- Works identically across Claude, Codex, Gemini, Ollama
+- If CLI flags change tomorrow, our code still works
+- Simple 10-line function handles all edge cases
+
+**Implementation:**
+```go
+// Prompt tells AI what JSON to return
+prompt := `Parse this into a calendar event. Respond with ONLY JSON:
+{"title":"...", "start_time":"2024-12-25T10:00:00-08:00", ...}`
+
+response, _ := aiClient.Call(prompt)
+
+// Strip markdown fences (AI habit of formatting code)
+response = stripMarkdownCodeFences(response)
+
+// Parse into struct
+var event ParsedEvent
+json.Unmarshal([]byte(response), &event)
+```
+
+**Alarm Prompt Flow:**
+If user doesn't specify "remind me X minutes before", we prompt:
+```
+How many minutes before to remind you? (0 = no reminder):
+```
 
 ### Email Context Building
 
@@ -321,10 +362,11 @@ For summarization, build context from:
 - [x] Context-aware `s` key (search in list view, summarize in content/today view)
 
 ### Phase 1: AI Integration (single phase for all AI features)
-- [ ] Auto-detect available AI CLI (claude, codex, gemini, ollama)
-- [ ] Implement `callAI(prompt) -> response` helper
-- [ ] Create confirmation dialog component (show AI result, allow edit/confirm/cancel)
-- [ ] `maily c add "tomorrow 9am meeting"` - NLP event creation with confirmation
+- [x] Auto-detect available AI CLI (claude, codex, gemini, ollama)
+- [x] Implement `callAI(prompt) -> response` helper
+- [x] Create confirmation dialog component (show AI result, allow edit/confirm/cancel)
+- [x] `maily c add "tomorrow 9am meeting"` - NLP event creation with confirmation
+- [x] Alarm prompt if user doesn't specify reminder time
 - [ ] TUI quick-add with NLP (hybrid: quick add vs form)
 - [ ] `e` key to extract events from email → confirm before adding
 - [ ] `s` key to summarize email (in email content view and today view, read-only)
@@ -369,5 +411,5 @@ func callAI(prompt string) (string, error) {
 
 ## Dependencies
 
-- Existing Google Calendar API (from calendar feature)
+- macOS EventKit (native calendar integration, macOS only)
 - One of: Claude Code CLI, Codex CLI, Gemini CLI, Mistral Vibe CLI, or Ollama

@@ -488,35 +488,6 @@ func (m *CalendarApp) updateFormFocus() {
 	}
 }
 
-// initAddForm initializes the form for adding a new event
-func (m *CalendarApp) initAddForm() {
-	m.form = eventForm{
-		title:    textinput.New(),
-		date:     components.NewDatePicker(),
-		start:    components.NewTimePicker(),
-		end:      components.NewTimePicker(),
-		location: textinput.New(),
-	}
-
-	m.form.title.Placeholder = "Event title"
-	m.form.title.Focus()
-	m.form.title.CharLimit = 100
-	m.form.title.Width = 40
-
-	m.form.date.SetDate(m.selectedDate)
-
-	// Default start time to 9:00 AM, end to 10:00 AM
-	m.form.start.SetTime24("09:00")
-	m.form.end.SetTime24("10:00")
-
-	m.form.location.Placeholder = "Location (optional)"
-	m.form.location.CharLimit = 100
-	m.form.location.Width = 40
-
-	m.formFocusIdx = 0
-	m.err = nil
-}
-
 // NLP Quick-Add functions
 func (m *CalendarApp) initNLPInput() {
 	m.nlpInput = textinput.New()

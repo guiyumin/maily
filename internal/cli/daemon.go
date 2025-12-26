@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -181,25 +182,33 @@ func checkDaemonStatus() {
 	fmt.Println("Log file:", logFile)
 
 	// Show recent logs
-	if logData, err := os.ReadFile(logFile); err == nil && len(logData) > 0 {
-		lines := strings.Split(string(logData), "\n")
-		start := len(lines) - 10
-		if start < 0 {
-			start = 0
-		}
-		if len(lines[start:]) > 0 {
-			fmt.Println()
-			fmt.Println("Recent logs:")
-			for _, line := range lines[start:] {
-				if line != "" {
-					fmt.Println(" ", line)
-				}
-			}
+	logData, err := os.ReadFile(logFile)
+	if err != nil {
+		fmt.Println("\nNo logs available (log file not found)")
+		fmt.Println("Restart the daemon to create the log file: maily daemon stop && maily daemon start")
+		return
+	}
+
+	if len(logData) == 0 {
+		fmt.Println("\nNo logs available (log file is empty)")
+		return
+	}
+
+	lines := strings.Split(string(logData), "\n")
+	start := len(lines) - 10
+	if start < 0 {
+		start = 0
+	}
+	fmt.Println()
+	fmt.Println("Recent logs:")
+	for _, line := range lines[start:] {
+		if line != "" {
+			fmt.Println(" ", line)
 		}
 	}
 }
 
-func setupLogging(logFile string) {
+func setupLogging(logFile string, alsoToTerminal bool) {
 	// Rotate if log exceeds max size
 	if info, err := os.Stat(logFile); err == nil && info.Size() > maxLogSize {
 		os.Rename(logFile, logFile+".old")
@@ -210,19 +219,43 @@ func setupLogging(logFile string) {
 		return
 	}
 
-	os.Stdout = f
-	os.Stderr = f
+	if alsoToTerminal {
+		// Write to both terminal and log file
+		mw := io.MultiWriter(os.Stdout, f)
+		// Create a pipe to capture writes
+		r, w, err := os.Pipe()
+		if err != nil {
+			os.Stdout = f
+			os.Stderr = f
+			return
+		}
+		os.Stdout = w
+		os.Stderr = w
+		go func() {
+			buf := make([]byte, 4096)
+			for {
+				n, err := r.Read(buf)
+				if n > 0 {
+					mw.Write(buf[:n])
+				}
+				if err != nil {
+					break
+				}
+			}
+		}()
+	} else {
+		os.Stdout = f
+		os.Stderr = f
+	}
 }
 
 func runDaemon() {
 	isTerminal := term.IsTerminal(int(os.Stdin.Fd()))
 
-	// Redirect to log file when not in terminal
-	if !isTerminal {
-		logFile := getDaemonLogFile()
-		if err := os.MkdirAll(filepath.Dir(logFile), 0700); err == nil {
-			setupLogging(logFile)
-		}
+	// Always set up log file
+	logFile := getDaemonLogFile()
+	if err := os.MkdirAll(filepath.Dir(logFile), 0700); err == nil {
+		setupLogging(logFile, isTerminal)
 	}
 
 	// Write PID file

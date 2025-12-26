@@ -18,6 +18,7 @@ import (
 	"maily/internal/auth"
 	"maily/internal/cache"
 	"maily/internal/sync"
+	"maily/internal/version"
 )
 
 const (
@@ -72,22 +73,41 @@ func getDaemonLogFile() string {
 	return filepath.Join(homeDir, ".config", "maily", "daemon.log")
 }
 
-// isDaemonRunning checks if the daemon is currently running
-func isDaemonRunning() bool {
+// parsePidFile reads the PID file and returns the PID and version
+// PID file format: "PID:VERSION" (e.g., "12345:0.6.5")
+// For backwards compatibility, also handles plain PID format
+func parsePidFile() (pid int, ver string, err error) {
 	pidFile := getDaemonPidFile()
 	data, err := os.ReadFile(pidFile)
 	if err != nil {
-		return false
+		return 0, "", err
 	}
 
-	pid, err := strconv.Atoi(strings.TrimSpace(string(data)))
+	content := strings.TrimSpace(string(data))
+	parts := strings.SplitN(content, ":", 2)
+
+	pid, err = strconv.Atoi(parts[0])
 	if err != nil || pid <= 0 {
+		return 0, "", fmt.Errorf("invalid PID")
+	}
+
+	if len(parts) == 2 {
+		ver = parts[1]
+	}
+
+	return pid, ver, nil
+}
+
+// isDaemonRunning checks if the daemon is currently running
+func isDaemonRunning() bool {
+	pid, _, err := parsePidFile()
+	if err != nil {
 		return false
 	}
 
 	// Check if process exists and is maily
 	if !isMailyProcess(pid) {
-		os.Remove(pidFile)
+		os.Remove(getDaemonPidFile())
 		return false
 	}
 
@@ -106,9 +126,20 @@ func isMailyProcess(pid int) bool {
 }
 
 // startDaemonBackground starts the daemon in the background
+// If a daemon is running with a different version, it will be restarted
 func startDaemonBackground() {
-	if isDaemonRunning() {
-		return // Already running
+	pid, daemonVer, err := parsePidFile()
+	if err == nil && isMailyProcess(pid) {
+		// Daemon is running - check if version matches
+		if daemonVer == version.Version {
+			return // Already running with correct version
+		}
+		// Version mismatch - stop old daemon and start new one
+		if process, err := os.FindProcess(pid); err == nil {
+			process.Signal(syscall.SIGTERM)
+			time.Sleep(500 * time.Millisecond)
+		}
+		os.Remove(getDaemonPidFile())
 	}
 
 	executable, err := os.Executable()
@@ -171,10 +202,13 @@ func stopDaemon() {
 func checkDaemonStatus() {
 	logFile := getDaemonLogFile()
 
-	if isDaemonRunning() {
-		data, _ := os.ReadFile(getDaemonPidFile())
-		pid, _ := strconv.Atoi(strings.TrimSpace(string(data)))
-		fmt.Println("Daemon is running (PID:", pid, ")")
+	pid, daemonVer, err := parsePidFile()
+	if err == nil && isMailyProcess(pid) {
+		if daemonVer != "" {
+			fmt.Printf("Daemon is running (PID: %d, version: %s)\n", pid, daemonVer)
+		} else {
+			fmt.Printf("Daemon is running (PID: %d)\n", pid)
+		}
 	} else {
 		fmt.Println("Daemon is not running")
 	}
@@ -258,10 +292,11 @@ func runDaemon() {
 		setupLogging(logFile, isTerminal)
 	}
 
-	// Write PID file
+	// Write PID file with version (format: "PID:VERSION")
 	pidFile := getDaemonPidFile()
 	if err := os.MkdirAll(filepath.Dir(pidFile), 0700); err == nil {
-		os.WriteFile(pidFile, []byte(strconv.Itoa(os.Getpid())), 0600)
+		pidContent := fmt.Sprintf("%d:%s", os.Getpid(), version.Version)
+		os.WriteFile(pidFile, []byte(pidContent), 0600)
 	}
 	defer os.Remove(pidFile)
 

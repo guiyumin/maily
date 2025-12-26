@@ -424,33 +424,6 @@ func (m *CalendarApp) handleDeleteKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m *CalendarApp) initAddForm() {
-	m.form = eventForm{
-		title:    textinput.New(),
-		date:     textinput.New(),
-		start:    textinput.New(),
-		end:      textinput.New(),
-		location: textinput.New(),
-		calendar: 0,
-	}
-
-	m.form.title.Placeholder = "Event title"
-	m.form.title.Focus()
-
-	m.form.date.Placeholder = "YYYY-MM-DD"
-	m.form.date.SetValue(m.selectedDate.Format("2006-01-02"))
-
-	m.form.start.Placeholder = "HH:MM"
-	m.form.start.SetValue("09:00")
-
-	m.form.end.Placeholder = "HH:MM"
-	m.form.end.SetValue("10:00")
-
-	m.form.location.Placeholder = "Location (optional)"
-
-	m.formFocusIdx = 0
-}
-
 func (m *CalendarApp) initEditForm(event calendar.Event) {
 	m.form = eventForm{
 		title:    textinput.New(),

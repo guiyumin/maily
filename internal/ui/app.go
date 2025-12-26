@@ -13,7 +13,7 @@ import (
 	"maily/internal/ai"
 	"maily/internal/auth"
 	"maily/internal/cache"
-	"maily/internal/gmail"
+	"maily/internal/mail"
 	"maily/internal/ui/components"
 )
 
@@ -36,9 +36,9 @@ const (
 type App struct {
 	store         *auth.AccountStore
 	accountIdx    int
-	imap          *gmail.IMAPClient
-	imapCache     map[int]*gmail.IMAPClient
-	emailCache    map[string][]gmail.Email // key: "accountIdx:label"
+	imap          *mail.IMAPClient
+	imapCache     map[int]*mail.IMAPClient
+	emailCache    map[string][]mail.Email // key: "accountIdx:label"
 	diskCache     *cache.Cache             // persistent disk cache
 	mailList      components.MailList
 	viewport      viewport.Model
@@ -64,7 +64,7 @@ type App struct {
 	searchMode     bool // typing search query
 	isSearchResult bool // showing search results
 	searchQuery    string
-	inboxCache     []gmail.Email
+	inboxCache     []mail.Email
 
 	// Multi-select (search mode only)
 	selected map[imap.UID]bool
@@ -87,7 +87,7 @@ type App struct {
 }
 
 type emailsLoadedMsg struct {
-	emails []gmail.Email
+	emails []mail.Email
 }
 
 type errorMsg struct {
@@ -96,11 +96,11 @@ type errorMsg struct {
 }
 
 type clientReadyMsg struct {
-	imap *gmail.IMAPClient
+	imap *mail.IMAPClient
 }
 
 type appSearchResultsMsg struct {
-	emails []gmail.Email
+	emails []mail.Email
 	query  string
 }
 
@@ -124,7 +124,7 @@ type summaryErrorMsg struct {
 }
 
 type cachedEmailsLoadedMsg struct {
-	emails []gmail.Email
+	emails []mail.Email
 }
 
 type singleDeleteCompleteMsg struct {
@@ -150,8 +150,8 @@ func NewApp(store *auth.AccountStore) App {
 	return App{
 		store:          store,
 		accountIdx:     0,
-		imapCache:      make(map[int]*gmail.IMAPClient),
-		emailCache:     make(map[string][]gmail.Email),
+		imapCache:      make(map[int]*mail.IMAPClient),
+		emailCache:     make(map[string][]mail.Email),
 		diskCache:      diskCache,
 		mailList:       components.NewMailList(),
 		viewport:       vp,
@@ -855,7 +855,7 @@ func (a App) View() string {
 	)
 }
 
-func (a App) renderEmailContent(email gmail.Email) string {
+func (a App) renderEmailContent(email mail.Email) string {
 	body := email.Body
 	if body == "" {
 		body = email.Snippet

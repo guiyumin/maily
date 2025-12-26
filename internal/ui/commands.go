@@ -8,7 +8,7 @@ import (
 	"github.com/emersion/go-imap/v2"
 	"maily/internal/ai"
 	"maily/internal/cache"
-	"maily/internal/gmail"
+	"maily/internal/mail"
 )
 
 type bulkActionCompleteMsg struct {
@@ -32,7 +32,7 @@ func (a App) initClient() tea.Cmd {
 	creds := &account.Credentials
 	accountEmail := creds.Email // capture for closure
 	return func() tea.Msg {
-		client, err := gmail.NewIMAPClient(creds)
+		client, err := mail.NewIMAPClient(creds)
 		if err != nil {
 			return errorMsg{err: err, accountEmail: accountEmail}
 		}
@@ -250,7 +250,7 @@ func (a *App) sendReply() tea.Cmd {
 	original := a.compose.GetOriginalEmail()
 
 	return func() tea.Msg {
-		smtp := gmail.NewSMTPClient(&account.Credentials)
+		smtp := mail.NewSMTPClient(&account.Credentials)
 
 		var err error
 		if original != nil {
@@ -279,7 +279,7 @@ func (a *App) saveDraft() tea.Cmd {
 	}
 }
 
-func (a *App) summarizeEmail(email *gmail.Email) tea.Cmd {
+func (a *App) summarizeEmail(email *mail.Email) tea.Cmd {
 	client := a.aiClient
 	body := email.Body
 	if body == "" {
@@ -313,8 +313,8 @@ func (a App) loadCachedEmails() tea.Cmd {
 			return cachedEmailsLoadedMsg{emails: nil}
 		}
 
-		// Convert cached emails to gmail.Email format
-		emails := make([]gmail.Email, len(cached))
+		// Convert cached emails to mail.Email format
+		emails := make([]mail.Email, len(cached))
 		for i, c := range cached {
 			emails[i] = cachedToGmail(c)
 		}
@@ -341,8 +341,8 @@ func (a App) reloadFromCache() tea.Cmd {
 			return errorMsg{err: err, accountEmail: accountEmail}
 		}
 
-		// Convert cached emails to gmail.Email format
-		emails := make([]gmail.Email, len(cached))
+		// Convert cached emails to mail.Email format
+		emails := make([]mail.Email, len(cached))
 		for i, c := range cached {
 			emails[i] = cachedToGmail(c)
 		}
@@ -350,11 +350,11 @@ func (a App) reloadFromCache() tea.Cmd {
 	}
 }
 
-// cachedToGmail converts a cache.CachedEmail to gmail.Email
-func cachedToGmail(c cache.CachedEmail) gmail.Email {
-	attachments := make([]gmail.Attachment, len(c.Attachments))
+// cachedToGmail converts a cache.CachedEmail to mail.Email
+func cachedToGmail(c cache.CachedEmail) mail.Email {
+	attachments := make([]mail.Attachment, len(c.Attachments))
 	for i, a := range c.Attachments {
-		attachments[i] = gmail.Attachment{
+		attachments[i] = mail.Attachment{
 			PartID:      a.PartID,
 			Filename:    a.Filename,
 			ContentType: a.ContentType,
@@ -362,7 +362,7 @@ func cachedToGmail(c cache.CachedEmail) gmail.Email {
 		}
 	}
 
-	return gmail.Email{
+	return mail.Email{
 		UID:          c.UID,
 		MessageID:    c.MessageID,
 		InternalDate: c.InternalDate,

@@ -14,7 +14,7 @@ import (
 	"github.com/emersion/go-imap/v2"
 	"maily/internal/auth"
 	"maily/internal/calendar"
-	"maily/internal/gmail"
+	"maily/internal/mail"
 	"maily/internal/ui/components"
 )
 
@@ -39,14 +39,14 @@ const (
 // AccountEmails holds emails for a single account
 type AccountEmails struct {
 	Email  string // account email address
-	Emails []gmail.Email
+	Emails []mail.Email
 }
 
 // TodayApp is the main today dashboard TUI model
 type TodayApp struct {
 	store        *auth.AccountStore
 	calClient    calendar.Client
-	imapClients  map[int]*gmail.IMAPClient
+	imapClients  map[int]*mail.IMAPClient
 	width        int
 	height       int
 	activePanel  panel
@@ -57,7 +57,7 @@ type TodayApp struct {
 
 	// Email state (per account)
 	accountEmails []AccountEmails
-	emails        []gmail.Email // flattened list for navigation
+	emails        []mail.Email // flattened list for navigation
 	emailCursor   int
 
 	// Event state
@@ -82,7 +82,7 @@ type TodayApp struct {
 type todayEmailsLoadedMsg struct {
 	accountIdx int
 	email      string // account email
-	emails     []gmail.Email
+	emails     []mail.Email
 }
 
 type todayEventsLoadedMsg struct {
@@ -91,7 +91,7 @@ type todayEventsLoadedMsg struct {
 
 type todayClientReadyMsg struct {
 	accountIdx int
-	imap       *gmail.IMAPClient
+	imap       *mail.IMAPClient
 }
 
 type todayErrMsg struct {
@@ -114,7 +114,7 @@ func NewTodayApp(store *auth.AccountStore, calClient calendar.Client) *TodayApp 
 	return &TodayApp{
 		store:         store,
 		calClient:     calClient,
-		imapClients:   make(map[int]*gmail.IMAPClient),
+		imapClients:   make(map[int]*mail.IMAPClient),
 		activePanel:   emailPanel,
 		view:          todayDashboard,
 		loading:       true,
@@ -146,7 +146,7 @@ func (m *TodayApp) initEmailClient(accountIdx int) tea.Cmd {
 		}
 
 		account := m.store.Accounts[accountIdx]
-		client, err := gmail.NewIMAPClient(&account.Credentials)
+		client, err := mail.NewIMAPClient(&account.Credentials)
 		if err != nil {
 			return todayErrMsg{err}
 		}
@@ -174,7 +174,7 @@ func (m *TodayApp) loadTodayEmails(accountIdx int) tea.Cmd {
 		today := time.Now()
 		todayStart := time.Date(today.Year(), today.Month(), today.Day(), 0, 0, 0, 0, today.Location())
 
-		var todayEmails []gmail.Email
+		var todayEmails []mail.Email
 		for _, email := range emails {
 			if email.Date.After(todayStart) || email.Date.Equal(todayStart) {
 				todayEmails = append(todayEmails, email)
@@ -630,7 +630,7 @@ func (m *TodayApp) renderEmailPanel(width, height int) string {
 	return panelStyle.Render(b.String())
 }
 
-func (m *TodayApp) renderCompactEmailLine(email gmail.Email, isCursor bool, maxWidth int) string {
+func (m *TodayApp) renderCompactEmailLine(email mail.Email, isCursor bool, maxWidth int) string {
 	// Format: [●] Subject (truncated)
 	var prefix string
 	if email.Unread {
@@ -803,7 +803,7 @@ func (m *TodayApp) renderEmailView() string {
 	)
 }
 
-func (m *TodayApp) renderEmailContent(email gmail.Email) string {
+func (m *TodayApp) renderEmailContent(email mail.Email) string {
 	body := email.Body
 	if body == "" {
 		body = email.Snippet

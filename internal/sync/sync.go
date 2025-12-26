@@ -8,7 +8,7 @@ import (
 
 	"maily/internal/auth"
 	"maily/internal/cache"
-	"maily/internal/gmail"
+	"maily/internal/mail"
 )
 
 const (
@@ -47,7 +47,7 @@ func (s *Syncer) FullSync(mailbox string) error {
 	defer s.cache.ReleaseLock(email)
 
 	// Connect to IMAP
-	client, err := gmail.NewIMAPClient(&s.account.Credentials)
+	client, err := mail.NewIMAPClient(&s.account.Credentials)
 	if err != nil {
 		return fmt.Errorf("failed to connect: %w", err)
 	}
@@ -162,7 +162,7 @@ func (s *Syncer) QuickRefresh(mailbox string) error {
 	defer s.cache.ReleaseLock(email)
 
 	// Connect to IMAP
-	client, err := gmail.NewIMAPClient(&s.account.Credentials)
+	client, err := mail.NewIMAPClient(&s.account.Credentials)
 	if err != nil {
 		return fmt.Errorf("failed to connect: %w", err)
 	}
@@ -196,8 +196,8 @@ func (s *Syncer) QuickRefresh(mailbox string) error {
 	return nil
 }
 
-// emailToCached converts a gmail.Email to cache.CachedEmail
-func emailToCached(e gmail.Email) cache.CachedEmail {
+// emailToCached converts a mail.Email to cache.CachedEmail
+func emailToCached(e mail.Email) cache.CachedEmail {
 	attachments := make([]cache.Attachment, len(e.Attachments))
 	for i, a := range e.Attachments {
 		attachments[i] = cache.Attachment{

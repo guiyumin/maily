@@ -10,7 +10,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
-	"maily/internal/gmail"
+	"maily/internal/mail"
 	"maily/internal/ui/components"
 )
 
@@ -42,7 +42,7 @@ type ComposeModel struct {
 	height       int
 	focused      int
 	isReply      bool
-	replyEmail   *gmail.Email // Original email being replied to
+	replyEmail   *mail.Email // Original email being replied to
 	confirming   int          // confirmNone, confirmSend, or confirmCancel
 }
 
@@ -75,7 +75,7 @@ func NewComposeModel(from string) ComposeModel {
 }
 
 // NewReplyModel creates a compose model for replying to an email
-func NewReplyModel(from string, original *gmail.Email) ComposeModel {
+func NewReplyModel(from string, original *mail.Email) ComposeModel {
 	// Determine who to reply to
 	replyTo := original.From
 	if original.ReplyTo != "" {
@@ -132,7 +132,7 @@ func extractEmail(s string) string {
 }
 
 // buildQuotedBody creates the quoted original email content
-func buildQuotedBody(email *gmail.Email) string {
+func buildQuotedBody(email *mail.Email) string {
 	var sb strings.Builder
 
 	// Quote header
@@ -411,7 +411,7 @@ func (m ComposeModel) GetSubject() string {
 }
 
 // GetOriginalEmail returns the original email being replied to
-func (m ComposeModel) GetOriginalEmail() *gmail.Email {
+func (m ComposeModel) GetOriginalEmail() *mail.Email {
 	return m.replyEmail
 }
 

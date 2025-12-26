@@ -11,7 +11,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 
 	"maily/internal/auth"
-	"maily/internal/gmail"
+	"maily/internal/mail"
 	"maily/internal/ui/components"
 )
 
@@ -63,7 +63,7 @@ func NewLoginApp(provider string) LoginApp {
 	case "yahoo":
 		emailInput.Placeholder = "you@yahoo.com"
 	default:
-		emailInput.Placeholder = "you@gmail.com"
+		emailInput.Placeholder = "you@mail.com"
 	}
 
 	passwordInput := textinput.New()
@@ -212,7 +212,7 @@ func (a LoginApp) verifyCredentials() tea.Cmd {
 		}
 
 		// Test connection
-		client, err := gmail.NewIMAPClient(&creds)
+		client, err := mail.NewIMAPClient(&creds)
 		if err != nil {
 			return verifyErrorMsg{err: err}
 		}

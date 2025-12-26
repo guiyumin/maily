@@ -9,7 +9,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/emersion/go-imap/v2"
 
-	"maily/internal/gmail"
+	"maily/internal/mail"
 )
 
 type MailListKeyMap struct {
@@ -49,7 +49,7 @@ var DefaultMailListKeyMap = MailListKeyMap{
 }
 
 type MailList struct {
-	emails        []gmail.Email
+	emails        []mail.Email
 	cursor        int
 	width         int
 	height        int
@@ -60,20 +60,20 @@ type MailList struct {
 
 func NewMailList() MailList {
 	return MailList{
-		emails: []gmail.Email{},
+		emails: []mail.Email{},
 		cursor: 0,
 		keyMap: DefaultMailListKeyMap,
 	}
 }
 
-func (m *MailList) SetEmails(emails []gmail.Email) {
+func (m *MailList) SetEmails(emails []mail.Email) {
 	m.emails = emails
 	if m.cursor >= len(emails) {
 		m.cursor = max(0, len(emails)-1)
 	}
 }
 
-func (m MailList) Emails() []gmail.Email {
+func (m MailList) Emails() []mail.Email {
 	return m.emails
 }
 
@@ -125,7 +125,7 @@ func (m *MailList) ScrollDown() {
 	}
 }
 
-func (m MailList) SelectedEmail() *gmail.Email {
+func (m MailList) SelectedEmail() *mail.Email {
 	if len(m.emails) == 0 || m.cursor < 0 || m.cursor >= len(m.emails) {
 		return nil
 	}
@@ -201,7 +201,7 @@ func (m MailList) View() string {
 	return b.String()
 }
 
-func (m MailList) renderEmailLine(email gmail.Email, isCursor bool) string {
+func (m MailList) renderEmailLine(email mail.Email, isCursor bool) string {
 	dateWidth := 12
 	fromWidth := 20
 	statusWidth := 5

@@ -12,7 +12,7 @@ import (
 	"github.com/emersion/go-imap/v2"
 
 	"maily/internal/auth"
-	"maily/internal/gmail"
+	"maily/internal/mail"
 	"maily/internal/ui/components"
 )
 
@@ -46,8 +46,8 @@ const (
 type SearchApp struct {
 	account           *auth.Account
 	query             string
-	imap              *gmail.IMAPClient
-	emails            []gmail.Email
+	imap              *mail.IMAPClient
+	emails            []mail.Email
 	selected          map[int]bool
 	cursor            int
 	state             searchState
@@ -64,7 +64,7 @@ type SearchApp struct {
 }
 
 type searchResultsMsg struct {
-	emails []gmail.Email
+	emails []mail.Email
 }
 
 type searchErrorMsg struct {
@@ -103,7 +103,7 @@ func (a SearchApp) Init() tea.Cmd {
 
 func (a SearchApp) connect() tea.Cmd {
 	return func() tea.Msg {
-		client, err := gmail.NewIMAPClient(&a.account.Credentials)
+		client, err := mail.NewIMAPClient(&a.account.Credentials)
 		if err != nil {
 			return searchErrorMsg{err: err}
 		}
@@ -216,7 +216,7 @@ func (a SearchApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			a.state = searchStateDone
 		}
 		// Store the IMAP client for later actions
-		client, _ := gmail.NewIMAPClient(&a.account.Credentials)
+		client, _ := mail.NewIMAPClient(&a.account.Credentials)
 		if client != nil {
 			client.SelectMailbox("INBOX")
 		}
@@ -232,7 +232,7 @@ func (a SearchApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case actionDelete:
 			actionName = "deleted"
 			// Remove deleted emails from the list
-			var remaining []gmail.Email
+			var remaining []mail.Email
 			for i, email := range a.emails {
 				if !a.selected[i] {
 					remaining = append(remaining, email)
@@ -242,7 +242,7 @@ func (a SearchApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case actionArchive:
 			actionName = "archived"
 			// Remove archived emails from the list
-			var remaining []gmail.Email
+			var remaining []mail.Email
 			for i, email := range a.emails {
 				if !a.selected[i] {
 					remaining = append(remaining, email)
@@ -434,7 +434,7 @@ func (a SearchApp) handleReadViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return a, nil
 }
 
-func (a SearchApp) renderEmailContent(email gmail.Email) string {
+func (a SearchApp) renderEmailContent(email mail.Email) string {
 	body := email.Body
 	if body == "" {
 		body = email.Snippet
@@ -629,7 +629,7 @@ func (a SearchApp) renderReadView() string {
 	)
 }
 
-func (a SearchApp) renderEmailLine(email gmail.Email, cursor bool, selected bool) string {
+func (a SearchApp) renderEmailLine(email mail.Email, cursor bool, selected bool) string {
 	maxWidth := a.width - 14
 	if maxWidth < 40 {
 		maxWidth = 80

@@ -295,7 +295,7 @@ func (m *CalendarApp) handleCalendarKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.selectedDate = time.Now()
 		m.selectedIdx = 0
 		return m, m.loadEvents()
-	case "a":
+	case "n":
 		// Check if AI CLI is available
 		aiClient := ai.NewClient()
 		if aiClient.Available() {
@@ -1087,7 +1087,7 @@ func (m *CalendarApp) renderHelpBar() string {
 
 	// Row 2: Actions
 	row2 := []string{
-		keyStyle.Render("a") + " new event",
+		keyStyle.Render("n") + " new event",
 		keyStyle.Render("e") + " edit",
 		keyStyle.Render("x") + " delete",
 		keyStyle.Render("q") + " quit",

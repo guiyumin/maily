@@ -62,7 +62,7 @@ The UI follows Elm architecture with `Init()`, `Update()`, `View()` methods:
 - `m` - Month mode
 - `y` - Year mode
 - `t` - Jump to today
-- `a` - Add event (NLP if AI CLI available, otherwise interactive form)
+- `n` - New event (NLP if AI CLI available, otherwise interactive form)
 - `e` - Edit event
 - `x/d` - Delete event
 - `q` - Quit

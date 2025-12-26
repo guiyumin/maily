@@ -62,9 +62,9 @@ type CalendarApp struct {
 
 	// Interactive form fields (fallback when no AI CLI)
 	formTitleInput    textinput.Model
-	formDateInput     textinput.Model
-	formStartInput    textinput.Model
-	formEndInput      textinput.Model
+	formDateInput     components.DatePicker
+	formStartInput    components.TimePicker
+	formEndInput      components.TimePicker
 	formLocationInput textinput.Model
 	formCalendarIdx   int
 	formReminderIdx   int
@@ -76,9 +76,9 @@ type CalendarApp struct {
 
 type eventForm struct {
 	title    textinput.Model
-	date     textinput.Model
-	start    textinput.Model
-	end      textinput.Model
+	date     components.DatePicker
+	start    components.TimePicker
+	end      components.TimePicker
 	location textinput.Model
 	calendar int // index into calendars slice
 	editID   string
@@ -324,7 +324,25 @@ func (m *CalendarApp) handleCalendarKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m *CalendarApp) handleFormInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	switch msg.String() {
+	key := msg.String()
+
+	// Handle date/time picker navigation (up/down/left/right when focused on date or time fields)
+	if m.formFocusIdx >= 1 && m.formFocusIdx <= 3 {
+		switch key {
+		case "up", "down", "left", "right":
+			switch m.formFocusIdx {
+			case 1:
+				m.form.date, _ = m.form.date.Update(msg)
+			case 2:
+				m.form.start, _ = m.form.start.Update(msg)
+			case 3:
+				m.form.end, _ = m.form.end.Update(msg)
+			}
+			return m, nil
+		}
+	}
+
+	switch key {
 	case "esc":
 		m.view = viewCalendar
 		return m, nil
@@ -356,10 +374,10 @@ func (m *CalendarApp) handleFormInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	case "cmd+s", "ctrl+s":
 		// cmd+s for macOS, ctrl+s for Windows/Linux
-		if msg.String() == "cmd+s" && runtime.GOOS == "darwin" {
+		if key == "cmd+s" && runtime.GOOS == "darwin" {
 			return m, m.saveEvent()
 		}
-		if msg.String() == "ctrl+s" && runtime.GOOS != "darwin" {
+		if key == "ctrl+s" && runtime.GOOS != "darwin" {
 			return m, m.saveEvent()
 		}
 		return m, nil
@@ -377,17 +395,13 @@ func (m *CalendarApp) handleFormInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 	}
 
-	// Pass keystrokes to the focused text input
+	// Pass keystrokes to the focused text input (title, date, location only)
 	var cmd tea.Cmd
 	switch m.formFocusIdx {
 	case 0:
 		m.form.title, cmd = m.form.title.Update(msg)
 	case 1:
 		m.form.date, cmd = m.form.date.Update(msg)
-	case 2:
-		m.form.start, cmd = m.form.start.Update(msg)
-	case 3:
-		m.form.end, cmd = m.form.end.Update(msg)
 	case 4:
 		m.form.location, cmd = m.form.location.Update(msg)
 	}
@@ -427,9 +441,9 @@ func (m *CalendarApp) handleDeleteKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 func (m *CalendarApp) initEditForm(event calendar.Event) {
 	m.form = eventForm{
 		title:    textinput.New(),
-		date:     textinput.New(),
-		start:    textinput.New(),
-		end:      textinput.New(),
+		date:     components.NewDatePicker(),
+		start:    components.NewTimePicker(),
+		end:      components.NewTimePicker(),
 		location: textinput.New(),
 		editID:   event.ID,
 	}
@@ -437,9 +451,9 @@ func (m *CalendarApp) initEditForm(event calendar.Event) {
 	m.form.title.SetValue(event.Title)
 	m.form.title.Focus()
 
-	m.form.date.SetValue(event.StartTime.Format("2006-01-02"))
-	m.form.start.SetValue(event.StartTime.Format("15:04"))
-	m.form.end.SetValue(event.EndTime.Format("15:04"))
+	m.form.date.SetDate(event.StartTime)
+	m.form.start.SetTime24(event.StartTime.Format("15:04"))
+	m.form.end.SetTime24(event.EndTime.Format("15:04"))
 	m.form.location.SetValue(event.Location)
 
 	// Find calendar index
@@ -472,6 +486,35 @@ func (m *CalendarApp) updateFormFocus() {
 	case 4:
 		m.form.location.Focus()
 	}
+}
+
+// initAddForm initializes the form for adding a new event
+func (m *CalendarApp) initAddForm() {
+	m.form = eventForm{
+		title:    textinput.New(),
+		date:     components.NewDatePicker(),
+		start:    components.NewTimePicker(),
+		end:      components.NewTimePicker(),
+		location: textinput.New(),
+	}
+
+	m.form.title.Placeholder = "Event title"
+	m.form.title.Focus()
+	m.form.title.CharLimit = 100
+	m.form.title.Width = 40
+
+	m.form.date.SetDate(m.selectedDate)
+
+	// Default start time to 9:00 AM, end to 10:00 AM
+	m.form.start.SetTime24("09:00")
+	m.form.end.SetTime24("10:00")
+
+	m.form.location.Placeholder = "Location (optional)"
+	m.form.location.CharLimit = 100
+	m.form.location.Width = 40
+
+	m.formFocusIdx = 0
+	m.err = nil
 }
 
 // NLP Quick-Add functions
@@ -614,19 +657,21 @@ func (m *CalendarApp) createNLPEvent() tea.Cmd {
 
 func (m *CalendarApp) saveEvent() tea.Cmd {
 	return func() tea.Msg {
-		date, err := time.Parse("2006-01-02", m.form.date.Value())
-		if err != nil {
-			return errMsg{fmt.Errorf("invalid date: %v", err)}
-		}
+		date := m.form.date.Value()
 
-		startTime, err := time.Parse("15:04", m.form.start.Value())
+		startTime, err := time.Parse("15:04", m.form.start.Value24())
 		if err != nil {
 			return errMsg{fmt.Errorf("invalid start time: %v", err)}
 		}
 
-		endTime, err := time.Parse("15:04", m.form.end.Value())
+		endTime, err := time.Parse("15:04", m.form.end.Value24())
 		if err != nil {
 			return errMsg{fmt.Errorf("invalid end time: %v", err)}
+		}
+
+		// Validate end time is after start time
+		if !endTime.After(startTime) {
+			return errMsg{fmt.Errorf("end time must be after start time")}
 		}
 
 		start := time.Date(date.Year(), date.Month(), date.Day(),
@@ -902,59 +947,70 @@ func (m *CalendarApp) renderForm(title string) string {
 	b.WriteString("\n\n")
 
 	labelStyle := lipgloss.NewStyle().Width(12).Foreground(components.Muted)
-	focusedStyle := lipgloss.NewStyle().Foreground(components.Primary)
+	focusedLabelStyle := lipgloss.NewStyle().Width(12).Foreground(components.Primary).Bold(true)
 
 	// Title
-	label := "Title:"
 	if m.formFocusIdx == 0 {
-		label = focusedStyle.Render(label)
+		b.WriteString(focusedLabelStyle.Render("Title:"))
+	} else {
+		b.WriteString(labelStyle.Render("Title:"))
 	}
-	b.WriteString(labelStyle.Render(label))
 	b.WriteString(m.form.title.View())
 	b.WriteString("\n")
 
+	hintStyle := lipgloss.NewStyle().Foreground(components.Muted)
+
 	// Date
-	label = "Date:"
 	if m.formFocusIdx == 1 {
-		label = focusedStyle.Render(label)
+		b.WriteString(focusedLabelStyle.Render("Date:"))
+	} else {
+		b.WriteString(labelStyle.Render("Date:"))
 	}
-	b.WriteString(labelStyle.Render(label))
 	b.WriteString(m.form.date.View())
+	if m.formFocusIdx == 1 {
+		b.WriteString(hintStyle.Render("  (↑↓ scroll, ←→ switch)"))
+	}
 	b.WriteString("\n")
 
-	// Start time
-	label = "Start:"
+	// Start time (with hint for scrolling)
 	if m.formFocusIdx == 2 {
-		label = focusedStyle.Render(label)
+		b.WriteString(focusedLabelStyle.Render("Start:"))
+	} else {
+		b.WriteString(labelStyle.Render("Start:"))
 	}
-	b.WriteString(labelStyle.Render(label))
 	b.WriteString(m.form.start.View())
+	if m.formFocusIdx == 2 {
+		b.WriteString(hintStyle.Render("  (↑↓ scroll, ←→ switch)"))
+	}
 	b.WriteString("\n")
 
 	// End time
-	label = "End:"
 	if m.formFocusIdx == 3 {
-		label = focusedStyle.Render(label)
+		b.WriteString(focusedLabelStyle.Render("End:"))
+	} else {
+		b.WriteString(labelStyle.Render("End:"))
 	}
-	b.WriteString(labelStyle.Render(label))
 	b.WriteString(m.form.end.View())
+	if m.formFocusIdx == 3 {
+		b.WriteString(hintStyle.Render("  (↑↓ scroll, ←→ switch)"))
+	}
 	b.WriteString("\n")
 
 	// Location
-	label = "Location:"
 	if m.formFocusIdx == 4 {
-		label = focusedStyle.Render(label)
+		b.WriteString(focusedLabelStyle.Render("Location:"))
+	} else {
+		b.WriteString(labelStyle.Render("Location:"))
 	}
-	b.WriteString(labelStyle.Render(label))
 	b.WriteString(m.form.location.View())
 	b.WriteString("\n")
 
 	// Calendar selector
-	label = "Calendar:"
 	if m.formFocusIdx == 5 {
-		label = focusedStyle.Render(label)
+		b.WriteString(focusedLabelStyle.Render("Calendar:"))
+	} else {
+		b.WriteString(labelStyle.Render("Calendar:"))
 	}
-	b.WriteString(labelStyle.Render(label))
 
 	calName := "Default"
 	if len(m.calendars) > 0 && m.form.calendar < len(m.calendars) {
@@ -1232,23 +1288,14 @@ func (m *CalendarApp) initInteractiveForm() {
 	m.formTitleInput.CharLimit = 100
 	m.formTitleInput.Width = 50
 
-	m.formDateInput = textinput.New()
-	m.formDateInput.Placeholder = "YYYY-MM-DD"
-	m.formDateInput.SetValue(m.selectedDate.Format("2006-01-02"))
-	m.formDateInput.CharLimit = 10
-	m.formDateInput.Width = 15
+	m.formDateInput = components.NewDatePicker()
+	m.formDateInput.SetDate(m.selectedDate)
 
-	m.formStartInput = textinput.New()
-	m.formStartInput.Placeholder = "HH:MM"
-	m.formStartInput.SetValue("09:00")
-	m.formStartInput.CharLimit = 5
-	m.formStartInput.Width = 10
+	m.formStartInput = components.NewTimePicker()
+	m.formStartInput.SetTime24("09:00")
 
-	m.formEndInput = textinput.New()
-	m.formEndInput.Placeholder = "HH:MM"
-	m.formEndInput.SetValue("10:00")
-	m.formEndInput.CharLimit = 5
-	m.formEndInput.Width = 10
+	m.formEndInput = components.NewTimePicker()
+	m.formEndInput.SetTime24("10:00")
 
 	m.formLocationInput = textinput.New()
 	m.formLocationInput.Placeholder = "Location (optional)"
@@ -1284,7 +1331,25 @@ func (m *CalendarApp) handleFormTitleKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m *CalendarApp) handleFormDateTimeKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	switch msg.String() {
+	key := msg.String()
+
+	// Handle date/time picker navigation (up/down/left/right when focused on date or time fields)
+	if m.formFocusField >= 0 && m.formFocusField <= 2 {
+		switch key {
+		case "up", "down", "left", "right":
+			switch m.formFocusField {
+			case 0:
+				m.formDateInput, _ = m.formDateInput.Update(msg)
+			case 1:
+				m.formStartInput, _ = m.formStartInput.Update(msg)
+			case 2:
+				m.formEndInput, _ = m.formEndInput.Update(msg)
+			}
+			return m, nil
+		}
+	}
+
+	switch key {
 	case "esc":
 		m.view = viewCalendar
 		return m, nil
@@ -1304,16 +1369,9 @@ func (m *CalendarApp) handleFormDateTimeKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd
 		return m, nil
 	}
 
-	// Pass keystrokes to the focused input
+	// Pass keystrokes to location input only
 	var cmd tea.Cmd
-	switch m.formFocusField {
-	case 0:
-		m.formDateInput, cmd = m.formDateInput.Update(msg)
-	case 1:
-		m.formStartInput, cmd = m.formStartInput.Update(msg)
-	case 2:
-		m.formEndInput, cmd = m.formEndInput.Update(msg)
-	case 3:
+	if m.formFocusField == 3 {
 		m.formLocationInput, cmd = m.formLocationInput.Update(msg)
 	}
 	return m, cmd
@@ -1338,21 +1396,13 @@ func (m *CalendarApp) updateFormDateTimeFocus() {
 }
 
 func (m *CalendarApp) validateFormDateTime() bool {
-	_, err := time.Parse("2006-01-02", m.formDateInput.Value())
-	if err != nil {
-		m.err = fmt.Errorf("invalid date format (use YYYY-MM-DD)")
-		return false
-	}
+	// DatePicker always has valid date values, no need to validate
 
-	_, err = time.Parse("15:04", m.formStartInput.Value())
-	if err != nil {
-		m.err = fmt.Errorf("invalid start time (use HH:MM)")
-		return false
-	}
-
-	_, err = time.Parse("15:04", m.formEndInput.Value())
-	if err != nil {
-		m.err = fmt.Errorf("invalid end time (use HH:MM)")
+	// Validate end time is after start time
+	startTime, _ := time.Parse("15:04", m.formStartInput.Value24())
+	endTime, _ := time.Parse("15:04", m.formEndInput.Value24())
+	if !endTime.After(startTime) {
+		m.err = fmt.Errorf("end time must be after start time")
 		return false
 	}
 
@@ -1409,15 +1459,15 @@ func (m *CalendarApp) getFormReminderMinutes() int {
 }
 
 func (m *CalendarApp) getFormStartTime() time.Time {
-	date, _ := time.Parse("2006-01-02", m.formDateInput.Value())
-	startTime, _ := time.Parse("15:04", m.formStartInput.Value())
+	date := m.formDateInput.Value()
+	startTime, _ := time.Parse("15:04", m.formStartInput.Value24())
 	return time.Date(date.Year(), date.Month(), date.Day(),
 		startTime.Hour(), startTime.Minute(), 0, 0, time.Local)
 }
 
 func (m *CalendarApp) getFormEndTime() time.Time {
-	date, _ := time.Parse("2006-01-02", m.formDateInput.Value())
-	endTime, _ := time.Parse("15:04", m.formEndInput.Value())
+	date := m.formDateInput.Value()
+	endTime, _ := time.Parse("15:04", m.formEndInput.Value24())
 	return time.Date(date.Year(), date.Month(), date.Day(),
 		endTime.Hour(), endTime.Minute(), 0, 0, time.Local)
 }
@@ -1491,35 +1541,34 @@ func (m *CalendarApp) renderFormDateTime() string {
 	b.WriteString("  When is it?\n\n")
 
 	// Date
-	label := "Date:"
 	if m.formFocusField == 0 {
-		b.WriteString("    " + focusedLabel.Render(label) + m.formDateInput.View() + "\n")
+		b.WriteString("    " + focusedLabel.Render("Date:") + m.formDateInput.View())
+		b.WriteString(hintStyle.Render("  (↑↓ scroll, ←→ switch)") + "\n")
 	} else {
-		b.WriteString("    " + labelStyle.Render(label) + m.formDateInput.View() + "\n")
+		b.WriteString("    " + labelStyle.Render("Date:") + m.formDateInput.View() + "\n")
 	}
 
 	// Start time
-	label = "Start:"
 	if m.formFocusField == 1 {
-		b.WriteString("    " + focusedLabel.Render(label) + m.formStartInput.View() + "\n")
+		b.WriteString("    " + focusedLabel.Render("Start:") + m.formStartInput.View())
+		b.WriteString(hintStyle.Render("  (↑↓ scroll, ←→ switch)") + "\n")
 	} else {
-		b.WriteString("    " + labelStyle.Render(label) + m.formStartInput.View() + "\n")
+		b.WriteString("    " + labelStyle.Render("Start:") + m.formStartInput.View() + "\n")
 	}
 
 	// End time
-	label = "End:"
 	if m.formFocusField == 2 {
-		b.WriteString("    " + focusedLabel.Render(label) + m.formEndInput.View() + "\n")
+		b.WriteString("    " + focusedLabel.Render("End:") + m.formEndInput.View())
+		b.WriteString(hintStyle.Render("  (↑↓ scroll, ←→ switch)") + "\n")
 	} else {
-		b.WriteString("    " + labelStyle.Render(label) + m.formEndInput.View() + "\n")
+		b.WriteString("    " + labelStyle.Render("End:") + m.formEndInput.View() + "\n")
 	}
 
 	// Location
-	label = "Location:"
 	if m.formFocusField == 3 {
-		b.WriteString("    " + focusedLabel.Render(label) + m.formLocationInput.View() + "\n")
+		b.WriteString("    " + focusedLabel.Render("Location:") + m.formLocationInput.View() + "\n")
 	} else {
-		b.WriteString("    " + labelStyle.Render(label) + m.formLocationInput.View() + "\n")
+		b.WriteString("    " + labelStyle.Render("Location:") + m.formLocationInput.View() + "\n")
 	}
 
 	// Error

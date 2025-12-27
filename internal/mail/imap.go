@@ -239,6 +239,55 @@ func (c *IMAPClient) FetchMessages(mailbox string, limit uint32) ([]Email, error
 	return emails, nil
 }
 
+// FetchMessagesSince fetches emails since the given date, up to limit
+func (c *IMAPClient) FetchMessagesSince(mailbox string, since time.Time, limit uint32) ([]Email, error) {
+	// First get UIDs for emails since the date
+	uidMap, err := c.FetchUIDsAndFlags(mailbox, since)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(uidMap) == 0 {
+		return []Email{}, nil
+	}
+
+	// Convert map keys to slice
+	uids := make([]imap.UID, 0, len(uidMap))
+	for uid := range uidMap {
+		uids = append(uids, uid)
+	}
+
+	// Apply limit if needed
+	if uint32(len(uids)) > limit {
+		// Sort UIDs descending (higher UID = newer) and take top N
+		for i := 0; i < len(uids)-1; i++ {
+			for j := i + 1; j < len(uids); j++ {
+				if uids[j] > uids[i] {
+					uids[i], uids[j] = uids[j], uids[i]
+				}
+			}
+		}
+		uids = uids[:limit]
+	}
+
+	// Fetch full messages for these UIDs
+	emails, err := c.FetchMessagesByUIDs(mailbox, uids)
+	if err != nil {
+		return nil, err
+	}
+
+	// Sort by InternalDate descending (newest first)
+	for i := 0; i < len(emails)-1; i++ {
+		for j := i + 1; j < len(emails); j++ {
+			if emails[j].InternalDate.After(emails[i].InternalDate) {
+				emails[i], emails[j] = emails[j], emails[i]
+			}
+		}
+	}
+
+	return emails, nil
+}
+
 func (c *IMAPClient) parseMessage(msg *imapclient.FetchMessageBuffer) Email {
 	email := Email{}
 

@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
@@ -9,6 +10,11 @@ import (
 	"maily/internal/ai"
 	"maily/internal/cache"
 	"maily/internal/mail"
+)
+
+const (
+	// SyncDays matches the sync window in internal/sync
+	SyncDays = 14
 )
 
 type bulkActionCompleteMsg struct {
@@ -46,8 +52,9 @@ func (a *App) loadEmails() tea.Cmd {
 	if account := a.currentAccount(); account != nil {
 		accountEmail = account.Credentials.Email
 	}
+	since := time.Now().AddDate(0, 0, -SyncDays)
 	return func() tea.Msg {
-		emails, err := a.imap.FetchMessages(label, a.emailLimit)
+		emails, err := a.imap.FetchMessagesSince(label, since, a.emailLimit)
 		if err != nil {
 			return errorMsg{err: err, accountEmail: accountEmail}
 		}

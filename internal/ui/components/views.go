@@ -142,7 +142,7 @@ func RenderStatusBar(data StatusBarData) string {
 
 	gap := max(0, data.Width-lipgloss.Width(help)-lipgloss.Width(status)-lipgloss.Width(selectionInfo)-12)
 
-	return StatusBarStyle.Width(data.Width).PaddingLeft(4).PaddingRight(4).Render(
+	return StatusBarStyle.Width(data.Width).PaddingLeft(4).PaddingRight(4).MarginTop(1).Render(
 		help + strings.Repeat(" ", gap) + selectionInfo + status,
 	)
 }

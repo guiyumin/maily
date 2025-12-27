@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/textinput"
@@ -131,6 +132,16 @@ type singleDeleteCompleteMsg struct {
 	uid imap.UID
 }
 
+type autoRefreshTickMsg struct{}
+
+const autoRefreshInterval = 5 * time.Minute
+
+func scheduleAutoRefresh() tea.Cmd {
+	return tea.Tick(autoRefreshInterval, func(t time.Time) tea.Msg {
+		return autoRefreshTickMsg{}
+	})
+}
+
 func NewApp(store *auth.AccountStore) App {
 	s := spinner.New()
 	s.Spinner = spinner.Dot
@@ -180,6 +191,7 @@ func (a App) Init() tea.Cmd {
 		a.spinner.Tick,
 		a.loadCachedEmails(),
 		a.initClient(),
+		scheduleAutoRefresh(),
 	)
 }
 
@@ -636,6 +648,17 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.state = stateReady
 		labelName := components.GetLabelDisplayName(a.currentLabel)
 		a.statusMsg = fmt.Sprintf("%s: %d emails", labelName, len(msg.emails))
+
+	case autoRefreshTickMsg:
+		// Schedule next tick
+		cmds = append(cmds, scheduleAutoRefresh())
+		// Only refresh if in list view, ready state, and not in any dialog
+		if a.view == listView && a.state == stateReady && !a.confirmDelete && !a.searchMode && !a.showLabelPicker && !a.showCommandPalette && !a.isSearchResult {
+			a.state = stateLoading
+			a.statusMsg = "Auto-refreshing..."
+			cmds = append(cmds, a.spinner.Tick, a.loadEmails())
+		}
+		return a, tea.Batch(cmds...)
 
 	case errorMsg:
 		// Ignore errors from other accounts (stale errors after switching)

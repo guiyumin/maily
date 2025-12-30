@@ -205,7 +205,7 @@ func (a *App) moveSelectedToTrash() tea.Cmd {
 		if len(uids) == 0 {
 			return bulkActionCompleteMsg{action: "moved to trash", count: 0}
 		}
-		err := a.imap.MoveToTrash(uids)
+		err := a.imap.MoveToTrashFromMailbox(uids, mailbox)
 		if err != nil {
 			return errorMsg{err: fmt.Errorf("failed to move to trash: %w", err), accountEmail: accountEmail}
 		}
@@ -230,7 +230,7 @@ func (a *App) moveSingleToTrash(uid imap.UID) tea.Cmd {
 	diskCache := a.diskCache
 
 	return func() tea.Msg {
-		err := a.imap.MoveToTrash([]imap.UID{uid})
+		err := a.imap.MoveToTrashFromMailbox([]imap.UID{uid}, mailbox)
 		if err != nil {
 			return errorMsg{err: fmt.Errorf("failed to move to trash: %w", err), accountEmail: accountEmail}
 		}

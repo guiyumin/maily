@@ -578,14 +578,23 @@ func (c *IMAPClient) DeleteMessages(uids []imap.UID) error {
 }
 
 func (c *IMAPClient) MoveToTrash(uids []imap.UID) error {
+	return c.MoveToTrashFromMailbox(uids, "INBOX")
+}
+
+func (c *IMAPClient) MoveToTrashFromMailbox(uids []imap.UID, mailbox string) error {
 	if len(uids) == 0 {
 		return nil
 	}
 
-	// Find trash folder
+	// Find trash folder (this may invalidate mailbox selection on some servers like Yahoo)
 	trashFolder, err := c.findTrashFolder()
 	if err != nil {
 		return fmt.Errorf("failed to find trash folder: %w", err)
+	}
+
+	// Re-select mailbox before Move (required after List on some servers)
+	if err := c.SelectMailbox(mailbox); err != nil {
+		return fmt.Errorf("failed to select mailbox: %w", err)
 	}
 
 	uidSet := imap.UIDSet{}

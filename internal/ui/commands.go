@@ -42,7 +42,7 @@ func (a App) initClient() tea.Cmd {
 		if err != nil {
 			return errorMsg{err: err, accountEmail: accountEmail}
 		}
-		return clientReadyMsg{imap: client}
+		return clientReadyMsg{imap: client, accountEmail: accountEmail}
 	}
 }
 
@@ -72,7 +72,7 @@ func (a *App) loadLabels() tea.Cmd {
 		if err != nil {
 			return errorMsg{err: err, accountEmail: accountEmail}
 		}
-		return labelsLoadedMsg{labels: labels}
+		return labelsLoadedMsg{labels: labels, accountEmail: accountEmail}
 	}
 }
 

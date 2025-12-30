@@ -324,3 +324,12 @@ func (c *Cache) UpdateEmailFlags(account, mailbox string, uid imap.UID, unread b
 	email.Unread = unread
 	return c.SaveEmail(account, mailbox, *email)
 }
+
+// IsFresh returns true if the cache was synced within the given duration
+func (c *Cache) IsFresh(account, mailbox string, maxAge time.Duration) bool {
+	meta, err := c.LoadMetadata(account, mailbox)
+	if err != nil || meta == nil {
+		return false
+	}
+	return time.Since(meta.LastSync) < maxAge
+}

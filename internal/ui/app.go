@@ -98,7 +98,8 @@ type errorMsg struct {
 }
 
 type clientReadyMsg struct {
-	imap *mail.IMAPClient
+	imap         *mail.IMAPClient
+	accountEmail string // which account this belongs to
 }
 
 type appSearchResultsMsg struct {
@@ -107,7 +108,8 @@ type appSearchResultsMsg struct {
 }
 
 type labelsLoadedMsg struct {
-	labels []string
+	labels       []string
+	accountEmail string // which account this belongs to
 }
 
 type replySentMsg struct{}
@@ -624,13 +626,54 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, cmd)
 
 	case clientReadyMsg:
+		// Ignore messages from other accounts (stale messages after switching)
+		currentAccount := a.currentAccount()
+		currentEmail := ""
+		if currentAccount != nil {
+			currentEmail = currentAccount.Credentials.Email
+		}
+		if msg.accountEmail != "" && msg.accountEmail != currentEmail {
+			return a, nil
+		}
 		a.imap = msg.imap
 		a.imapCache[a.accountIdx] = msg.imap
+		// If cache is fresh and we have emails, load labels silently
+		if len(a.mailList.Emails()) > 0 && a.diskCache != nil {
+			if a.diskCache.IsFresh(currentEmail, a.currentLabel, 5*time.Minute) {
+				// Don't change status, just load labels in background for label picker
+				return a, a.loadLabels()
+			}
+		}
 		a.statusMsg = "Loading labels..."
 		return a, a.loadLabels()
 
 	case labelsLoadedMsg:
+		// Ignore messages from other accounts (stale messages after switching)
+		currentAccount := a.currentAccount()
+		currentEmail := ""
+		if currentAccount != nil {
+			currentEmail = currentAccount.Credentials.Email
+		}
+		if msg.accountEmail != "" && msg.accountEmail != currentEmail {
+			return a, nil
+		}
 		a.labelPicker.SetLabels(msg.labels)
+		// Skip server fetch if we have cached emails and cache is fresh (synced within 5 minutes)
+		if len(a.mailList.Emails()) > 0 && a.diskCache != nil {
+			if a.diskCache.IsFresh(currentEmail, a.currentLabel, 5*time.Minute) {
+				// Cache is fresh, no need to fetch from server
+				a.state = stateReady
+				labelName := components.GetLabelDisplayName(a.currentLabel)
+				a.statusMsg = fmt.Sprintf("%s: %d emails", labelName, len(a.mailList.Emails()))
+				return a, nil
+			}
+		}
+		// Cache is stale or empty - fetch from server
+		// If we have cached emails, UI is already usable, fetch silently
+		if len(a.mailList.Emails()) > 0 {
+			// Don't show "Loading..." - UI is already usable
+			return a, a.loadEmails()
+		}
 		a.statusMsg = "Loading emails..."
 		return a, a.loadEmails()
 
@@ -647,9 +690,16 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Only use cached emails if we haven't loaded from server yet
 		if len(msg.emails) > 0 && len(a.mailList.Emails()) == 0 {
 			a.mailList.SetEmails(msg.emails)
-			a.state = stateReady
 			labelName := components.GetLabelDisplayName(a.currentLabel)
-			a.statusMsg = fmt.Sprintf("%s: %d cached emails (connecting...)", labelName, len(msg.emails))
+			// Check if cache is fresh - if so, we're done (no need to fetch from server)
+			if a.diskCache != nil && a.diskCache.IsFresh(currentEmail, a.currentLabel, 5*time.Minute) {
+				a.state = stateReady
+				a.statusMsg = fmt.Sprintf("%s: %d emails", labelName, len(msg.emails))
+			} else {
+				// Cache is stale, show emails but keep loading state for background fetch
+				a.state = stateReady
+				a.statusMsg = fmt.Sprintf("%s: %d emails", labelName, len(msg.emails))
+			}
 		}
 
 	case emailsLoadedMsg:
@@ -668,6 +718,13 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.state = stateReady
 		labelName := components.GetLabelDisplayName(a.currentLabel)
 		a.statusMsg = fmt.Sprintf("%s: %d emails", labelName, len(msg.emails))
+		// Update cache metadata so future runs know cache is fresh
+		if a.diskCache != nil && currentEmail != "" {
+			go func() {
+				meta := &cache.Metadata{LastSync: time.Now()}
+				a.diskCache.SaveMetadata(currentEmail, a.currentLabel, meta)
+			}()
+		}
 
 	case autoRefreshTickMsg:
 		// Schedule next tick

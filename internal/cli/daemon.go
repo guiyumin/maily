@@ -161,15 +161,8 @@ func startDaemonBackground() {
 // stopDaemon stops the daemon if running
 func stopDaemon() {
 	pidFile := getDaemonPidFile()
-	data, err := os.ReadFile(pidFile)
+	pid, _, err := parsePidFile()
 	if err != nil {
-		fmt.Println("Daemon is not running.")
-		return
-	}
-
-	pid, err := strconv.Atoi(strings.TrimSpace(string(data)))
-	if err != nil || pid <= 0 {
-		os.Remove(pidFile)
 		fmt.Println("Daemon is not running.")
 		return
 	}

@@ -53,12 +53,21 @@ func (a *App) loadEmails() tea.Cmd {
 		accountEmail = account.Credentials.Email
 	}
 	since := time.Now().AddDate(0, 0, -SyncDays)
+	imapClient := a.imap // capture for nil check in closure
 	return func() tea.Msg {
-		emails, err := a.imap.FetchMessagesSince(label, since, a.emailLimit)
+		if imapClient == nil {
+			return errorMsg{err: fmt.Errorf("connecting to server..."), accountEmail: accountEmail}
+		}
+		// Get UIDValidity for cache consistency with daemon
+		mailboxInfo, err := imapClient.SelectMailboxWithInfo(label)
 		if err != nil {
 			return errorMsg{err: err, accountEmail: accountEmail}
 		}
-		return emailsLoadedMsg{emails: emails, accountEmail: accountEmail}
+		emails, err := imapClient.FetchMessagesSince(label, since, a.emailLimit)
+		if err != nil {
+			return errorMsg{err: err, accountEmail: accountEmail}
+		}
+		return emailsLoadedMsg{emails: emails, accountEmail: accountEmail, uidValidity: mailboxInfo.UIDValidity}
 	}
 }
 
@@ -67,8 +76,12 @@ func (a *App) loadLabels() tea.Cmd {
 	if account := a.currentAccount(); account != nil {
 		accountEmail = account.Credentials.Email
 	}
+	imap := a.imap // capture for nil check in closure
 	return func() tea.Msg {
-		labels, err := a.imap.ListMailboxes()
+		if imap == nil {
+			return errorMsg{err: fmt.Errorf("connecting to server..."), accountEmail: accountEmail}
+		}
+		labels, err := imap.ListMailboxes()
 		if err != nil {
 			return errorMsg{err: err, accountEmail: accountEmail}
 		}
@@ -82,12 +95,16 @@ func (a *App) executeSearch(query string) tea.Cmd {
 	if account := a.currentAccount(); account != nil {
 		accountEmail = account.Credentials.Email
 	}
+	imap := a.imap // capture for nil check in closure
 	return func() tea.Msg {
-		emails, err := a.imap.SearchMessages(label, query)
+		if imap == nil {
+			return errorMsg{err: fmt.Errorf("connecting to server..."), accountEmail: accountEmail}
+		}
+		emails, err := imap.SearchMessages(label, query)
 		if err != nil {
 			return errorMsg{err: err, accountEmail: accountEmail}
 		}
-		return appSearchResultsMsg{emails: emails, query: query}
+		return appSearchResultsMsg{emails: emails, query: query, accountEmail: accountEmail}
 	}
 }
 
@@ -107,12 +124,16 @@ func (a *App) markSelectedAsRead() tea.Cmd {
 	}
 	mailbox := a.currentLabel
 	diskCache := a.diskCache
+	imapClient := a.imap // capture for nil check in closure
 
 	return func() tea.Msg {
 		if len(uids) == 0 {
 			return bulkActionCompleteMsg{action: "marked as read", count: 0}
 		}
-		if err := a.imap.MarkMessagesAsRead(uids); err != nil {
+		if imapClient == nil {
+			return errorMsg{err: fmt.Errorf("connecting to server..."), accountEmail: accountEmail}
+		}
+		if err := imapClient.MarkMessagesAsRead(uids); err != nil {
 			return errorMsg{err: err, accountEmail: accountEmail}
 		}
 		// Update disk cache
@@ -141,12 +162,16 @@ func (a *App) deleteSelectedEmails() tea.Cmd {
 	}
 	mailbox := a.currentLabel
 	diskCache := a.diskCache
+	imapClient := a.imap // capture for nil check in closure
 
 	return func() tea.Msg {
 		if len(uids) == 0 {
 			return bulkActionCompleteMsg{action: "deleted", count: 0}
 		}
-		err := a.imap.DeleteMessages(uids)
+		if imapClient == nil {
+			return errorMsg{err: fmt.Errorf("connecting to server..."), accountEmail: accountEmail}
+		}
+		err := imapClient.DeleteMessages(uids)
 		if err != nil {
 			return errorMsg{err: fmt.Errorf("failed to delete: %w", err), accountEmail: accountEmail}
 		}
@@ -169,9 +194,13 @@ func (a *App) deleteSingleEmail(uid imap.UID) tea.Cmd {
 	}
 	mailbox := a.currentLabel
 	diskCache := a.diskCache
+	imapClient := a.imap // capture for nil check in closure
 
 	return func() tea.Msg {
-		err := a.imap.DeleteMessage(uid)
+		if imapClient == nil {
+			return errorMsg{err: fmt.Errorf("connecting to server..."), accountEmail: accountEmail}
+		}
+		err := imapClient.DeleteMessage(uid)
 		if err != nil {
 			return errorMsg{err: fmt.Errorf("failed to delete: %w", err), accountEmail: accountEmail}
 		}
@@ -200,12 +229,16 @@ func (a *App) moveSelectedToTrash() tea.Cmd {
 	}
 	mailbox := a.currentLabel
 	diskCache := a.diskCache
+	imapClient := a.imap // capture for nil check in closure
 
 	return func() tea.Msg {
 		if len(uids) == 0 {
 			return bulkActionCompleteMsg{action: "moved to trash", count: 0}
 		}
-		err := a.imap.MoveToTrashFromMailbox(uids, mailbox)
+		if imapClient == nil {
+			return errorMsg{err: fmt.Errorf("connecting to server..."), accountEmail: accountEmail}
+		}
+		err := imapClient.MoveToTrashFromMailbox(uids, mailbox)
 		if err != nil {
 			return errorMsg{err: fmt.Errorf("failed to move to trash: %w", err), accountEmail: accountEmail}
 		}
@@ -228,9 +261,13 @@ func (a *App) moveSingleToTrash(uid imap.UID) tea.Cmd {
 	}
 	mailbox := a.currentLabel
 	diskCache := a.diskCache
+	imapClient := a.imap // capture for nil check in closure
 
 	return func() tea.Msg {
-		err := a.imap.MoveToTrashFromMailbox([]imap.UID{uid}, mailbox)
+		if imapClient == nil {
+			return errorMsg{err: fmt.Errorf("connecting to server..."), accountEmail: accountEmail}
+		}
+		err := imapClient.MoveToTrashFromMailbox([]imap.UID{uid}, mailbox)
 		if err != nil {
 			return errorMsg{err: fmt.Errorf("failed to move to trash: %w", err), accountEmail: accountEmail}
 		}
@@ -277,9 +314,13 @@ func (a *App) saveDraft() tea.Cmd {
 	to := a.compose.GetTo()
 	subject := a.compose.GetSubject()
 	body := a.compose.GetBody()
+	imapClient := a.imap // capture for nil check in closure
 
 	return func() tea.Msg {
-		if err := a.imap.SaveDraft(to, subject, body); err != nil {
+		if imapClient == nil {
+			return draftSaveErrorMsg{err: fmt.Errorf("connecting to server...")}
+		}
+		if err := imapClient.SaveDraft(to, subject, body); err != nil {
 			return draftSaveErrorMsg{err: err}
 		}
 		return draftSavedMsg{}

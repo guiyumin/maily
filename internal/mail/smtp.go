@@ -3,9 +3,18 @@ package mail
 import (
 	"fmt"
 	"net/smtp"
+	"strings"
 
 	"maily/internal/auth"
 )
+
+// sanitizeHeader removes CRLF sequences to prevent header injection attacks
+func sanitizeHeader(s string) string {
+	s = strings.ReplaceAll(s, "\r\n", " ")
+	s = strings.ReplaceAll(s, "\r", " ")
+	s = strings.ReplaceAll(s, "\n", " ")
+	return s
+}
 
 type SMTPClient struct {
 	creds *auth.Credentials
@@ -19,6 +28,10 @@ func (c *SMTPClient) Send(to, subject, body string) error {
 	addr := fmt.Sprintf("%s:%d", c.creds.SMTPHost, c.creds.SMTPPort)
 
 	auth := smtp.PlainAuth("", c.creds.Email, c.creds.Password, c.creds.SMTPHost)
+
+	// Sanitize headers to prevent CRLF injection
+	to = sanitizeHeader(to)
+	subject = sanitizeHeader(subject)
 
 	msg := fmt.Sprintf("From: %s\r\n"+
 		"To: %s\r\n"+
@@ -35,6 +48,12 @@ func (c *SMTPClient) Reply(to, subject, body, inReplyTo, references string) erro
 	addr := fmt.Sprintf("%s:%d", c.creds.SMTPHost, c.creds.SMTPPort)
 
 	auth := smtp.PlainAuth("", c.creds.Email, c.creds.Password, c.creds.SMTPHost)
+
+	// Sanitize headers to prevent CRLF injection
+	to = sanitizeHeader(to)
+	subject = sanitizeHeader(subject)
+	inReplyTo = sanitizeHeader(inReplyTo)
+	references = sanitizeHeader(references)
 
 	if references == "" {
 		references = inReplyTo

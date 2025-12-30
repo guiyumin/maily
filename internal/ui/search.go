@@ -109,8 +109,8 @@ func (a SearchApp) connect() tea.Cmd {
 		}
 
 		emails, err := client.SearchMessages("INBOX", a.query)
+		client.Close() // Close search client - a new one will be created for actions
 		if err != nil {
-			client.Close()
 			return searchErrorMsg{err: err}
 		}
 
@@ -214,12 +214,16 @@ func (a SearchApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if len(a.emails) == 0 {
 			a.message = "No emails found matching your query."
 			a.state = searchStateDone
+			return a, nil
 		}
-		// Store the IMAP client for later actions
-		client, _ := mail.NewIMAPClient(&a.account.Credentials)
-		if client != nil {
-			client.SelectMailbox("INBOX")
+		// Create IMAP client for later actions (only if we have results)
+		client, err := mail.NewIMAPClient(&a.account.Credentials)
+		if err != nil {
+			a.state = searchStateError
+			a.err = fmt.Errorf("failed to connect for actions: %w", err)
+			return a, nil
 		}
+		client.SelectMailbox("INBOX")
 		a.imap = client
 
 	case searchErrorMsg:

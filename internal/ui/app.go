@@ -90,6 +90,7 @@ type App struct {
 type emailsLoadedMsg struct {
 	emails       []mail.Email
 	accountEmail string // which account this belongs to
+	uidValidity  uint32 // for cache consistency with daemon
 }
 
 type errorMsg struct {
@@ -103,8 +104,9 @@ type clientReadyMsg struct {
 }
 
 type appSearchResultsMsg struct {
-	emails []mail.Email
-	query  string
+	emails       []mail.Email
+	query        string
+	accountEmail string // which account this belongs to
 }
 
 type labelsLoadedMsg struct {
@@ -720,9 +722,11 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.statusMsg = fmt.Sprintf("%s: %d emails", labelName, len(msg.emails))
 		// Update cache metadata so future runs know cache is fresh
 		if a.diskCache != nil && currentEmail != "" {
+			uidValidity := msg.uidValidity
+			label := a.currentLabel
 			go func() {
-				meta := &cache.Metadata{LastSync: time.Now()}
-				a.diskCache.SaveMetadata(currentEmail, a.currentLabel, meta)
+				meta := &cache.Metadata{UIDValidity: uidValidity, LastSync: time.Now()}
+				a.diskCache.SaveMetadata(currentEmail, label, meta)
 			}()
 		}
 
@@ -752,6 +756,15 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.errAccountEmail = msg.accountEmail
 
 	case appSearchResultsMsg:
+		// Ignore messages from other accounts (stale messages after switching)
+		currentAccount := a.currentAccount()
+		currentEmail := ""
+		if currentAccount != nil {
+			currentEmail = currentAccount.Credentials.Email
+		}
+		if msg.accountEmail != "" && msg.accountEmail != currentEmail {
+			return a, nil
+		}
 		a.mailList.SetEmails(msg.emails)
 		a.mailList.SetSelectionMode(true)
 		a.mailList.SetSelections(a.selected)

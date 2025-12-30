@@ -35,25 +35,25 @@ const (
 )
 
 type App struct {
-	store         *auth.AccountStore
-	accountIdx    int
-	imap          *mail.IMAPClient
-	imapCache     map[int]*mail.IMAPClient
-	emailCache    map[string][]mail.Email // key: "accountIdx:label"
-	diskCache     *cache.Cache             // persistent disk cache
-	mailList      components.MailList
-	viewport      viewport.Model
-	spinner       spinner.Model
-	state         state
-	view          view
-	width         int
-	height        int
-	err            error
+	store           *auth.AccountStore
+	accountIdx      int
+	imap            *mail.IMAPClient
+	imapCache       map[int]*mail.IMAPClient
+	emailCache      map[string][]mail.Email // key: "accountIdx:label"
+	diskCache       *cache.Cache            // persistent disk cache
+	mailList        components.MailList
+	viewport        viewport.Model
+	spinner         spinner.Model
+	state           state
+	view            view
+	width           int
+	height          int
+	err             error
 	errAccountEmail string // which account the error belongs to
-	statusMsg      string
-	confirmDelete bool
-	deleteOption  components.DeleteOption // selected option in delete dialog
-	emailLimit    uint32
+	statusMsg       string
+	confirmDelete   bool
+	deleteOption    components.DeleteOption // selected option in delete dialog
+	emailLimit      uint32
 
 	// Labels
 	labelPicker     components.LabelPicker
@@ -721,7 +721,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		labelName := components.GetLabelDisplayName(a.currentLabel)
 		a.statusMsg = fmt.Sprintf("%s: %d emails", labelName, len(msg.emails))
 		// Update cache metadata so future runs know cache is fresh
-		if a.diskCache != nil && currentEmail != "" {
+		if a.diskCache != nil && currentEmail != "" && msg.uidValidity != 0 {
 			uidValidity := msg.uidValidity
 			label := a.currentLabel
 			go func() {

@@ -24,6 +24,20 @@ type Syncer struct {
 	account *auth.Account
 }
 
+type imapClient interface {
+	SelectMailboxWithInfo(string) (*mail.MailboxInfo, error)
+	FetchUIDsAndFlags(string, time.Time) (map[imap.UID]bool, error)
+	FetchMessagesByUIDs(string, []imap.UID) ([]mail.Email, error)
+	FetchMessages(string, uint32) ([]mail.Email, error)
+	Close() error
+}
+
+type imapClientFactory func(*auth.Credentials) (imapClient, error)
+
+var newIMAPClient imapClientFactory = func(creds *auth.Credentials) (imapClient, error) {
+	return mail.NewIMAPClient(creds)
+}
+
 // NewSyncer creates a new syncer for an account
 func NewSyncer(c *cache.Cache, account *auth.Account) *Syncer {
 	return &Syncer{
@@ -47,7 +61,7 @@ func (s *Syncer) FullSync(mailbox string) error {
 	defer s.cache.ReleaseLock(email)
 
 	// Connect to IMAP
-	client, err := mail.NewIMAPClient(&s.account.Credentials)
+	client, err := newIMAPClient(&s.account.Credentials)
 	if err != nil {
 		return fmt.Errorf("failed to connect: %w", err)
 	}
@@ -162,7 +176,7 @@ func (s *Syncer) QuickRefresh(mailbox string) error {
 	defer s.cache.ReleaseLock(email)
 
 	// Connect to IMAP
-	client, err := mail.NewIMAPClient(&s.account.Credentials)
+	client, err := newIMAPClient(&s.account.Credentials)
 	if err != nil {
 		return fmt.Errorf("failed to connect: %w", err)
 	}

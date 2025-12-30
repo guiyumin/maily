@@ -17,6 +17,7 @@ import (
 
 	"maily/internal/auth"
 	"maily/internal/cache"
+	"maily/internal/proc"
 	"maily/internal/sync"
 	"maily/internal/version"
 )
@@ -106,7 +107,7 @@ func isDaemonRunning() bool {
 	}
 
 	// Check if process exists and is maily
-	if !isMailyProcess(pid) {
+	if !proc.IsMailyProcess(pid) {
 		os.Remove(getDaemonPidFile())
 		return false
 	}
@@ -114,22 +115,11 @@ func isDaemonRunning() bool {
 	return true
 }
 
-// isMailyProcess checks if the given PID is a maily process
-func isMailyProcess(pid int) bool {
-	cmd := exec.Command("ps", "-p", strconv.Itoa(pid), "-o", "comm=")
-	output, err := cmd.Output()
-	if err != nil {
-		return false
-	}
-	comm := strings.TrimSpace(string(output))
-	return comm == "maily" || strings.HasSuffix(comm, "/maily")
-}
-
 // startDaemonBackground starts the daemon in the background
 // If a daemon is running with a different version, it will be restarted
 func startDaemonBackground() {
 	pid, daemonVer, err := parsePidFile()
-	if err == nil && isMailyProcess(pid) {
+	if err == nil && proc.IsMailyProcess(pid) {
 		// Daemon is running - check if version matches
 		if daemonVer == version.Version {
 			return // Already running with correct version
@@ -167,7 +157,7 @@ func stopDaemon() {
 		return
 	}
 
-	if !isMailyProcess(pid) {
+	if !proc.IsMailyProcess(pid) {
 		os.Remove(pidFile)
 		fmt.Println("Daemon is not running.")
 		return
@@ -196,7 +186,7 @@ func checkDaemonStatus() {
 	logFile := getDaemonLogFile()
 
 	pid, daemonVer, err := parsePidFile()
-	if err == nil && isMailyProcess(pid) {
+	if err == nil && proc.IsMailyProcess(pid) {
 		if daemonVer != "" {
 			fmt.Printf("Daemon is running (PID: %d, version: %s)\n", pid, daemonVer)
 		} else {

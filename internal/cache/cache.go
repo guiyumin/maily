@@ -9,10 +9,11 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/emersion/go-imap/v2"
+
+	"maily/internal/proc"
 )
 
 // Attachment represents email attachment metadata
@@ -76,6 +77,25 @@ func (c *Cache) getLockPath(account string) string {
 	return filepath.Join(c.baseDir, account, ".sync.lock")
 }
 
+func lockActive(info proc.LockInfo) bool {
+	if info.PID <= 0 {
+		return false
+	}
+
+	if info.Start != "" {
+		start, err := proc.StartTime(info.PID)
+		if err == nil && start != "" {
+			return start == info.Start
+		}
+		return proc.Exists(info.PID)
+	}
+
+	if proc.IsMailyProcess(info.PID) {
+		return true
+	}
+	return proc.Exists(info.PID)
+}
+
 // AcquireLock tries to acquire the sync lock for an account
 // Returns true if lock acquired, false if already locked
 func (c *Cache) AcquireLock(account string) (bool, error) {
@@ -89,27 +109,21 @@ func (c *Cache) AcquireLock(account string) (bool, error) {
 	// Check if lock exists
 	data, err := os.ReadFile(lockPath)
 	if err == nil {
-		// Lock exists, check if PID is still running
-		pid, _ := strconv.Atoi(strings.TrimSpace(string(data)))
-		if pid > 0 {
-			// Check if process is still running
-			process, err := os.FindProcess(pid)
-			if err == nil && process != nil {
-				// On Unix, FindProcess always succeeds, so we try to signal
-				// Signal 0 doesn't send anything but checks if process exists
-				if err := process.Signal(syscall.Signal(0)); err == nil {
-					// Process is still running
-					return false, nil
-				}
-			}
+		info, err := proc.ParseLockInfo(data)
+		if err == nil && lockActive(info) {
+			return false, nil
 		}
-		// Stale lock, remove it
+		// Stale or invalid lock, remove it
 		os.Remove(lockPath)
 	}
 
 	// Create lock file with our PID
 	pid := os.Getpid()
-	if err := os.WriteFile(lockPath, []byte(fmt.Sprintf("%d", pid)), 0600); err != nil {
+	content := fmt.Sprintf("%d", pid)
+	if start, err := proc.StartTime(pid); err == nil && start != "" {
+		content = fmt.Sprintf("%d:%s", pid, start)
+	}
+	if err := os.WriteFile(lockPath, []byte(content), 0600); err != nil {
 		return false, err
 	}
 

@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"syscall"
 	"time"
 
 	"github.com/spf13/cobra"
+	"maily/internal/proc"
 	"maily/internal/updater"
 )
 
@@ -122,19 +122,23 @@ func findSyncPIDs(cacheDir string) []int {
 			continue
 		}
 
-		pid, err := strconv.Atoi(strings.TrimSpace(string(data)))
-		if err != nil || pid <= 0 {
-			continue
-		}
-
-		process, err := os.FindProcess(pid)
+		info, err := proc.ParseLockInfo(data)
 		if err != nil {
 			continue
 		}
 
-		if err := process.Signal(syscall.Signal(0)); err == nil {
-			pids = append(pids, pid)
+		if !proc.IsMailyProcess(info.PID) {
+			continue
 		}
+
+		if info.Start != "" {
+			start, err := proc.StartTime(info.PID)
+			if err != nil || start == "" || start != info.Start {
+				continue
+			}
+		}
+
+		pids = append(pids, info.PID)
 	}
 
 	return pids
@@ -158,21 +162,25 @@ func cleanupStaleLocks(cacheDir string) {
 			continue
 		}
 
-		pid, err := strconv.Atoi(strings.TrimSpace(string(data)))
-		if err != nil || pid <= 0 {
-			os.Remove(lockPath)
-			continue
-		}
-
-		process, err := os.FindProcess(pid)
+		info, err := proc.ParseLockInfo(data)
 		if err != nil {
 			os.Remove(lockPath)
 			continue
 		}
 
-		if err := process.Signal(syscall.Signal(0)); err != nil {
+		if !proc.IsMailyProcess(info.PID) {
 			os.Remove(lockPath)
+			continue
+		}
+
+		if info.Start != "" {
+			start, err := proc.StartTime(info.PID)
+			if err != nil || start == "" {
+				continue
+			}
+			if start != info.Start {
+				os.Remove(lockPath)
+			}
 		}
 	}
 }
-

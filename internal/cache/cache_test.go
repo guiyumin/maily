@@ -1,11 +1,15 @@
 package cache
 
 import (
+	"fmt"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/emersion/go-imap/v2"
+
+	"maily/internal/proc"
 )
 
 func setTempHome(t *testing.T) {
@@ -174,5 +178,44 @@ func TestCacheAcquireLock(t *testing.T) {
 
 	if err := c.ReleaseLock(account); err != nil && !os.IsNotExist(err) {
 		t.Fatalf("ReleaseLock final error: %v", err)
+	}
+}
+
+func TestCacheAcquireLockMismatchedStart(t *testing.T) {
+	setTempHome(t)
+
+	c, err := New()
+	if err != nil {
+		t.Fatalf("New() error: %v", err)
+	}
+
+	account := "user@example.com"
+	lockPath := filepath.Join(c.baseDir, account, ".sync.lock")
+	if err := os.MkdirAll(filepath.Dir(lockPath), 0700); err != nil {
+		t.Fatalf("MkdirAll error: %v", err)
+	}
+
+	if err := os.WriteFile(lockPath, []byte(fmt.Sprintf("%d:bogus", os.Getpid())), 0600); err != nil {
+		t.Fatalf("WriteFile error: %v", err)
+	}
+
+	originalStartTime := proc.StartTime
+	proc.StartTime = func(int) (string, error) {
+		return "actual", nil
+	}
+	defer func() {
+		proc.StartTime = originalStartTime
+	}()
+
+	acquired, err := c.AcquireLock(account)
+	if err != nil {
+		t.Fatalf("AcquireLock error: %v", err)
+	}
+	if !acquired {
+		t.Fatalf("expected lock to be acquired after mismatched start")
+	}
+
+	if err := c.ReleaseLock(account); err != nil && !os.IsNotExist(err) {
+		t.Fatalf("ReleaseLock error: %v", err)
 	}
 }

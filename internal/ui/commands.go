@@ -58,7 +58,7 @@ func (a *App) loadEmails() tea.Cmd {
 		if err != nil {
 			return errorMsg{err: err, accountEmail: accountEmail}
 		}
-		return emailsLoadedMsg{emails: emails}
+		return emailsLoadedMsg{emails: emails, accountEmail: accountEmail}
 	}
 }
 
@@ -311,13 +311,13 @@ func (a App) loadCachedEmails() tea.Cmd {
 		return nil
 	}
 
-	email := account.Credentials.Email
+	accountEmail := account.Credentials.Email
 	mailbox := a.currentLabel
 
 	return func() tea.Msg {
-		cached, err := a.diskCache.LoadEmailsLimit(email, mailbox, 50)
+		cached, err := a.diskCache.LoadEmailsLimit(accountEmail, mailbox, 50)
 		if err != nil || len(cached) == 0 {
-			return cachedEmailsLoadedMsg{emails: nil}
+			return cachedEmailsLoadedMsg{emails: nil, accountEmail: accountEmail}
 		}
 
 		// Convert cached emails to mail.Email format
@@ -325,7 +325,7 @@ func (a App) loadCachedEmails() tea.Cmd {
 		for i, c := range cached {
 			emails[i] = cachedToGmail(c)
 		}
-		return cachedEmailsLoadedMsg{emails: emails}
+		return cachedEmailsLoadedMsg{emails: emails, accountEmail: accountEmail}
 	}
 }
 
@@ -334,7 +334,7 @@ func (a App) reloadFromCache() tea.Cmd {
 	account := a.currentAccount()
 	if account == nil || a.diskCache == nil {
 		return func() tea.Msg {
-			return emailsLoadedMsg{emails: nil}
+			return emailsLoadedMsg{emails: nil, accountEmail: ""}
 		}
 	}
 
@@ -353,7 +353,7 @@ func (a App) reloadFromCache() tea.Cmd {
 		for i, c := range cached {
 			emails[i] = cachedToGmail(c)
 		}
-		return emailsLoadedMsg{emails: emails}
+		return emailsLoadedMsg{emails: emails, accountEmail: accountEmail}
 	}
 }
 

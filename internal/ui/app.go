@@ -88,7 +88,8 @@ type App struct {
 }
 
 type emailsLoadedMsg struct {
-	emails []mail.Email
+	emails       []mail.Email
+	accountEmail string // which account this belongs to
 }
 
 type errorMsg struct {
@@ -125,7 +126,8 @@ type summaryErrorMsg struct {
 }
 
 type cachedEmailsLoadedMsg struct {
-	emails []mail.Email
+	emails       []mail.Email
+	accountEmail string // which account this belongs to
 }
 
 type singleDeleteCompleteMsg struct {
@@ -633,6 +635,15 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, a.loadEmails()
 
 	case cachedEmailsLoadedMsg:
+		// Ignore messages from other accounts (stale messages after switching)
+		currentAccount := a.currentAccount()
+		currentEmail := ""
+		if currentAccount != nil {
+			currentEmail = currentAccount.Credentials.Email
+		}
+		if msg.accountEmail != "" && msg.accountEmail != currentEmail {
+			return a, nil
+		}
 		// Only use cached emails if we haven't loaded from server yet
 		if len(msg.emails) > 0 && len(a.mailList.Emails()) == 0 {
 			a.mailList.SetEmails(msg.emails)
@@ -642,6 +653,15 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case emailsLoadedMsg:
+		// Ignore messages from other accounts (stale messages after switching)
+		currentAccount := a.currentAccount()
+		currentEmail := ""
+		if currentAccount != nil {
+			currentEmail = currentAccount.Credentials.Email
+		}
+		if msg.accountEmail != "" && msg.accountEmail != currentEmail {
+			return a, nil
+		}
 		a.mailList.SetEmails(msg.emails)
 		cacheKey := fmt.Sprintf("%d:%s", a.accountIdx, a.currentLabel)
 		a.emailCache[cacheKey] = msg.emails

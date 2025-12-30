@@ -378,12 +378,16 @@ func (m *TodayApp) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.viewport.SetContent(m.renderEmailContent(email))
 			m.viewport.GotoTop()
 
-			// Mark as read - find the right client
+			// Mark as read - find the right client and update local state
 			if email.Unread {
+				// Update local state immediately for responsive UI
+				m.markEmailAsRead(m.emailCursor)
+
 				accountIdx := m.findAccountForEmail(m.emailCursor)
 				if client, ok := m.imapClients[accountIdx]; ok && client != nil {
+					uid := email.UID
 					go func() {
-						client.MarkAsRead(email.UID)
+						client.MarkAsRead(uid)
 					}()
 				}
 			}
@@ -834,6 +838,25 @@ func (m *TodayApp) removeEmailByUID(uid imap.UID) {
 				}
 				return
 			}
+		}
+	}
+}
+
+func (m *TodayApp) markEmailAsRead(emailIdx int) {
+	// Update in the flattened list
+	if emailIdx >= 0 && emailIdx < len(m.emails) {
+		m.emails[emailIdx].Unread = false
+	}
+
+	// Also update in the per-account list
+	idx := 0
+	for i := range m.accountEmails {
+		for j := range m.accountEmails[i].Emails {
+			if idx == emailIdx {
+				m.accountEmails[i].Emails[j].Unread = false
+				return
+			}
+			idx++
 		}
 	}
 }

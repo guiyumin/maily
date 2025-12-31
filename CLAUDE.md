@@ -95,3 +95,23 @@ See `docs/cache.md` for detailed cache architecture. Key points:
 - Local cache is just a mirror for fast startup
 - Daemon syncs every 30 minutes
 - Manual refresh with `R` fetches from server
+
+
+## Clean Code Reviewer
+
+**Before generating or modifying code**, you MUST:
+1. Check if `.cleancoderules/` exists.
+2. If it exists, read and apply those rules.
+3. If it does not exist, proceed with Level 2/1 rules only.
+
+**After generating or modifying code**, you MUST:
+1. Use the `review_code` MCP tool if it is configured in this environment.
+2. Otherwise run `ccr review <file>` for each modified file.
+3. Fix any violations before presenting the code.
+
+### Rule Priority
+- Level 3: Team rules in `.cleancoderules/team/` (highest)
+- Level 2: Community rules in `.cleancoderules/community/`
+- Level 1: Base rules (general principles)
+
+If rules conflict, always follow the higher-level rule.

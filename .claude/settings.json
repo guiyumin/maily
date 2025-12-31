@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "ccr hooks handle --event after"
+            "command": "ccr hooks handle"
           }
         ]
       }

@@ -1,16 +1,5 @@
 {
   "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Edit|Write|NotebookEdit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "ccr hooks handle --event before"
-          }
-        ]
-      }
-    ],
     "PostToolUse": [
       {
         "matcher": "Edit|Write|NotebookEdit",

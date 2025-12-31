@@ -75,42 +75,58 @@ int GetAuthorizationStatus(void) {
 
 int RequestCalendarAccess(void) {
     @autoreleasepool {
-        // Check current status first
         int currentStatus = GetAuthorizationStatus();
-        if (currentStatus == EK_AUTH_AUTHORIZED) {
-            accessGranted = YES;
-            return EK_SUCCESS;
-        }
         if (currentStatus == EK_AUTH_DENIED || currentStatus == EK_AUTH_RESTRICTED) {
             accessGranted = NO;
             return EK_ERROR_ACCESS_DENIED;
         }
 
-        // Status is NotDetermined - request access (will show dialog)
         EKEventStore *store = getEventStore();
 
-        dispatch_semaphore_t semaphore = dispatch_semaphore_create(0);
-        __block BOOL granted = NO;
+        // If not yet determined, request permission first
+        if (currentStatus == EK_AUTH_NOT_DETERMINED) {
+            dispatch_semaphore_t semaphore = dispatch_semaphore_create(0);
+            __block BOOL granted = NO;
 
-        if (@available(macOS 14.0, *)) {
-            [store requestFullAccessToEventsWithCompletion:^(BOOL success, NSError *error) {
-                granted = success;
-                dispatch_semaphore_signal(semaphore);
-            }];
-        } else {
+            if (@available(macOS 14.0, *)) {
+                [store requestFullAccessToEventsWithCompletion:^(BOOL success, NSError *error) {
+                    granted = success;
+                    dispatch_semaphore_signal(semaphore);
+                }];
+            } else {
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
-            [store requestAccessToEntityType:EKEntityTypeEvent completion:^(BOOL success, NSError *error) {
-                granted = success;
-                dispatch_semaphore_signal(semaphore);
-            }];
+                [store requestAccessToEntityType:EKEntityTypeEvent completion:^(BOOL success, NSError *error) {
+                    granted = success;
+                    dispatch_semaphore_signal(semaphore);
+                }];
 #pragma clang diagnostic pop
+            }
+
+            dispatch_semaphore_wait(semaphore, DISPATCH_TIME_FOREVER);
+
+            if (!granted) {
+                accessGranted = NO;
+                return EK_ERROR_ACCESS_DENIED;
+            }
         }
 
-        dispatch_semaphore_wait(semaphore, DISPATCH_TIME_FOREVER);
-        accessGranted = granted;
+        // Warm up EventStore with retry - handles transient failures after
+        // permission grant or when accessing with a new binary after upgrade
+        for (int i = 0; i < 3; i++) {
+            NSArray<EKCalendar *> *calendars = [store calendarsForEntityType:EKEntityTypeEvent];
+            if (calendars != nil) {
+                accessGranted = YES;
+                return EK_SUCCESS;
+            }
+            if (i < 2) {
+                [NSThread sleepForTimeInterval:0.3];
+            }
+        }
 
-        return granted ? EK_SUCCESS : EK_ERROR_ACCESS_DENIED;
+        // Warm-up failed after retries
+        accessGranted = NO;
+        return EK_ERROR_ACCESS_DENIED;
     }
 }
 

@@ -634,12 +634,9 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		a.imap = msg.imap
 		a.imapCache[a.accountIdx] = msg.imap
-		// If cache is fresh and we have emails, load labels silently
-		if len(a.mailList.Emails()) > 0 && a.diskCache != nil {
-			if a.diskCache.IsFresh(currentEmail, a.currentLabel, 5*time.Minute) {
-				// Don't change status, just load labels in background for label picker
-				return a, a.loadLabels()
-			}
+		// If we have emails visible, load labels silently (user already has usable UI)
+		if len(a.mailList.Emails()) > 0 {
+			return a, a.loadLabels()
 		}
 		a.statusMsg = "Loading labels..."
 		return a, a.loadLabels()

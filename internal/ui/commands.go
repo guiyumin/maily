@@ -348,11 +348,16 @@ func (a *App) summarizeEmail(email *mail.Email) tea.Cmd {
 // loadCachedEmails loads emails from disk cache for instant display
 func (a App) loadCachedEmails() tea.Cmd {
 	account := a.currentAccount()
+	accountEmail := ""
+	if account != nil {
+		accountEmail = account.Credentials.Email
+	}
 	if account == nil || a.diskCache == nil {
-		return nil
+		return func() tea.Msg {
+			return cachedEmailsLoadedMsg{emails: nil, accountEmail: accountEmail}
+		}
 	}
 
-	accountEmail := account.Credentials.Email
 	mailbox := a.currentLabel
 
 	return func() tea.Msg {

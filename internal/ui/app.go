@@ -196,7 +196,6 @@ func (a App) Init() tea.Cmd {
 	return tea.Batch(
 		a.spinner.Tick,
 		a.loadCachedEmails(),
-		a.initClient(),
 		scheduleAutoRefresh(),
 	)
 }
@@ -562,13 +561,13 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					return a, nil
 				}
 
-				// Try disk cache first, then init IMAP in background
+				// Try disk cache first, then init IMAP after cache load
 				a.imap = a.imapCache[a.accountIdx]
 				a.state = stateLoading
 				a.emailLimit = 50
 				a.mailList.SetEmails(nil)
 				a.statusMsg = "Loading..."
-				return a, tea.Batch(a.spinner.Tick, a.loadCachedEmails(), a.initClient())
+				return a, tea.Batch(a.spinner.Tick, a.loadCachedEmails())
 			}
 		}
 
@@ -699,6 +698,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				a.statusMsg = fmt.Sprintf("%s: %d emails", labelName, len(msg.emails))
 			}
 		}
+		return a, a.initClient()
 
 	case emailsLoadedMsg:
 		// Ignore messages from other accounts (stale messages after switching)

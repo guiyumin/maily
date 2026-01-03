@@ -563,21 +563,7 @@ func (c *IMAPClient) FetchAttachment(mailbox string, uid imap.UID, partID string
 	// Decode based on encoding
 	switch strings.ToLower(encoding) {
 	case "base64":
-		decoded, err := base64.StdEncoding.DecodeString(strings.ReplaceAll(string(rawContent), "\r\n", ""))
-		if err != nil {
-			// Try with whitespace stripped
-			cleaned := strings.Map(func(r rune) rune {
-				if r == ' ' || r == '\t' || r == '\n' || r == '\r' {
-					return -1
-				}
-				return r
-			}, string(rawContent))
-			decoded, err = base64.StdEncoding.DecodeString(cleaned)
-			if err != nil {
-				return nil, fmt.Errorf("failed to decode base64: %w", err)
-			}
-		}
-		return decoded, nil
+		return decodeBase64(rawContent)
 	case "quoted-printable":
 		reader := quotedprintable.NewReader(strings.NewReader(string(rawContent)))
 		decoded, err := io.ReadAll(reader)
@@ -586,9 +572,56 @@ func (c *IMAPClient) FetchAttachment(mailbox string, uid imap.UID, partID string
 		}
 		return decoded, nil
 	default:
-		// No encoding or unknown encoding, return as-is
+		// No encoding specified - try to detect base64
+		// Base64 content typically only contains A-Za-z0-9+/= and whitespace
+		if looksLikeBase64(rawContent) {
+			decoded, err := decodeBase64(rawContent)
+			if err == nil {
+				return decoded, nil
+			}
+		}
+		// Return as-is
 		return rawContent, nil
 	}
+}
+
+// looksLikeBase64 checks if content appears to be base64 encoded
+func looksLikeBase64(content []byte) bool {
+	if len(content) < 20 {
+		return false
+	}
+	// Check first 100 non-whitespace chars for base64 alphabet
+	checked := 0
+	for _, b := range content {
+		if b == ' ' || b == '\t' || b == '\n' || b == '\r' {
+			continue
+		}
+		if !((b >= 'A' && b <= 'Z') || (b >= 'a' && b <= 'z') || (b >= '0' && b <= '9') || b == '+' || b == '/' || b == '=') {
+			return false
+		}
+		checked++
+		if checked >= 100 {
+			break
+		}
+	}
+	return checked >= 20
+}
+
+// decodeBase64 decodes base64 content with whitespace handling
+func decodeBase64(rawContent []byte) ([]byte, error) {
+	// Strip all whitespace
+	cleaned := strings.Map(func(r rune) rune {
+		if r == ' ' || r == '\t' || r == '\n' || r == '\r' {
+			return -1
+		}
+		return r
+	}, string(rawContent))
+
+	decoded, err := base64.StdEncoding.DecodeString(cleaned)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode base64: %w", err)
+	}
+	return decoded, nil
 }
 
 func (c *IMAPClient) MarkAsRead(uid imap.UID) error {

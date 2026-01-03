@@ -304,15 +304,15 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return a, nil
 			}
 			switch msg.String() {
-			case "up", "k":
-				if a.attachmentIdx > 0 {
-					a.attachmentIdx--
-				}
+			case "tab":
+				// Cycle through: 0 (Download All) -> 1..N (individual files) -> 0
+				totalItems := len(email.Attachments) + 1 // +1 for "Download All"
+				a.attachmentIdx = (a.attachmentIdx + 1) % totalItems
 				return a, nil
-			case "down", "j":
-				if a.attachmentIdx < len(email.Attachments)-1 {
-					a.attachmentIdx++
-				}
+			case "shift+tab":
+				// Cycle backwards
+				totalItems := len(email.Attachments) + 1
+				a.attachmentIdx = (a.attachmentIdx - 1 + totalItems) % totalItems
 				return a, nil
 			case "q":
 				return a, tea.Quit
@@ -379,11 +379,21 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// Handle attachment picker
 			if a.showAttachmentPicker {
 				email := a.mailList.SelectedEmail()
-				if email != nil && a.attachmentIdx < len(email.Attachments) {
+				if email != nil {
 					a.showAttachmentPicker = false
 					a.state = stateLoading
-					a.statusMsg = "Downloading " + email.Attachments[a.attachmentIdx].Filename + "..."
-					return a, tea.Batch(a.spinner.Tick, a.downloadAttachment(email, a.attachmentIdx))
+					if a.attachmentIdx == 0 {
+						// Download All
+						a.statusMsg = fmt.Sprintf("Downloading %d attachments...", len(email.Attachments))
+						return a, tea.Batch(a.spinner.Tick, a.downloadAllAttachments(email))
+					} else {
+						// Individual attachment (index shifted by 1)
+						attIdx := a.attachmentIdx - 1
+						if attIdx < len(email.Attachments) {
+							a.statusMsg = "Downloading " + email.Attachments[attIdx].Filename + "..."
+							return a, tea.Batch(a.spinner.Tick, a.downloadAttachment(email, attIdx))
+						}
+					}
 				}
 			}
 			// Handle delete confirmation dialog
@@ -518,28 +528,12 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					a.statusMsg = "No attachments"
 					return a, nil
 				}
-				if len(email.Attachments) == 1 {
-					// Download directly
-					a.state = stateLoading
-					a.statusMsg = "Downloading " + email.Attachments[0].Filename + "..."
-					return a, tea.Batch(a.spinner.Tick, a.downloadAttachment(email, 0))
-				}
-				// Multiple attachments - show picker
+				// Always show picker
 				a.showAttachmentPicker = true
 				a.attachmentIdx = 0
 				return a, nil
 			}
-			// Handle attachment picker - 'a' again downloads all
-			if a.showAttachmentPicker {
-				email := a.mailList.SelectedEmail()
-				if email != nil && len(email.Attachments) > 0 {
-					a.showAttachmentPicker = false
-					a.state = stateLoading
-					a.statusMsg = fmt.Sprintf("Downloading %d attachments...", len(email.Attachments))
-					return a, tea.Batch(a.spinner.Tick, a.downloadAllAttachments(email))
-				}
-			}
-			// Select/deselect all (search mode only)
+				// Select/deselect all (search mode only)
 			if a.isSearchResult && a.view == listView && a.state == stateReady {
 				emails := a.mailList.Emails()
 				allSelected := len(a.selected) == len(emails) && len(emails) > 0

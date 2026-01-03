@@ -129,7 +129,7 @@ func RenderStatusBar(data StatusBarData) string {
 		// Read view
 		help = tabHint +
 			HelpKeyStyle.Render("r") + HelpDescStyle.Render(" reply  ") +
-			HelpKeyStyle.Render("a") + HelpDescStyle.Render(" attach  ") +
+			HelpKeyStyle.Render("a") + HelpDescStyle.Render(" download attachments ") +
 			HelpKeyStyle.Render("s") + HelpDescStyle.Render(" summarize  ") +
 			HelpKeyStyle.Render("/") + HelpDescStyle.Render(" commands  ") +
 			HelpKeyStyle.Render("esc") + HelpDescStyle.Render(" back  ") +
@@ -439,9 +439,23 @@ func RenderAttachmentPicker(width, height int, attachments []AttachmentInfo, sel
 		MarginTop(1)
 
 	var items []string
+
+	// First item: Download All
+	totalSize := int64(0)
+	for _, att := range attachments {
+		totalSize += att.Size
+	}
+	downloadAllText := fmt.Sprintf("Download All (%d files, %s)", len(attachments), formatFileSize(totalSize))
+	if selectedIdx == 0 {
+		items = append(items, selectedStyle.Render("→ "+downloadAllText))
+	} else {
+		items = append(items, normalStyle.Render("  "+downloadAllText))
+	}
+
+	// Individual attachments (index shifted by 1)
 	for i, att := range attachments {
 		line := fmt.Sprintf("%s %s", att.Filename, sizeStyle.Render("("+formatFileSize(att.Size)+")"))
-		if i == selectedIdx {
+		if i+1 == selectedIdx {
 			items = append(items, selectedStyle.Render("→ "+line))
 		} else {
 			items = append(items, normalStyle.Render("  "+line))
@@ -450,11 +464,11 @@ func RenderAttachmentPicker(width, height int, attachments []AttachmentInfo, sel
 
 	content := lipgloss.JoinVertical(
 		lipgloss.Left,
-		titleStyle.Render("📎 Download Attachment"),
+		titleStyle.Render("📎 Download Attachments"),
 		"",
 		strings.Join(items, "\n"),
 		"",
-		hintStyle.Render("↑↓ select  enter download  a all  esc cancel"),
+		hintStyle.Render("tab select  enter download  esc cancel"),
 	)
 
 	dialogStyle := lipgloss.NewStyle().

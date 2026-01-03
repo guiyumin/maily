@@ -205,6 +205,7 @@ func (m MailList) renderEmailLine(email mail.Email, isCursor bool) string {
 	dateWidth := 12
 	fromWidth := 20
 	statusWidth := 5
+	attachWidth := 3 // for 📎 icon + space
 	checkboxWidth := 0
 	rightPadding := 4
 	spacing := 4 // spaces between columns
@@ -214,7 +215,7 @@ func (m MailList) renderEmailLine(email mail.Email, isCursor bool) string {
 		checkboxWidth = 5
 	}
 
-	availableWidth := m.width - statusWidth - checkboxWidth - fromWidth - dateWidth - spacing - rightPadding
+	availableWidth := m.width - statusWidth - attachWidth - checkboxWidth - fromWidth - dateWidth - spacing - rightPadding
 	if availableWidth < 20 {
 		availableWidth = 20
 	}
@@ -242,6 +243,14 @@ func (m MailList) renderEmailLine(email mail.Email, isCursor bool) string {
 		status = lipgloss.NewStyle().Foreground(lipgloss.Color("#6B7280")).Render("  ○  ")
 	}
 
+	// Attachment indicator
+	var attachIcon string
+	if len(email.Attachments) > 0 {
+		attachIcon = lipgloss.NewStyle().Foreground(lipgloss.Color("#F59E0B")).Render("📎 ")
+	} else {
+		attachIcon = "   "
+	}
+
 	fromStyle := lipgloss.NewStyle().Width(fromWidth)
 	subjectStyle := lipgloss.NewStyle().Width(availableWidth)
 	dateStyle := lipgloss.NewStyle().Width(dateWidth).Align(lipgloss.Right)
@@ -262,7 +271,7 @@ func (m MailList) renderEmailLine(email mail.Email, isCursor bool) string {
 		lineStyle = lineStyle.Bold(true)
 	}
 
-	return checkbox + status + lineStyle.Render(line)
+	return checkbox + status + attachIcon + lineStyle.Render(line)
 }
 
 func extractName(from string) string {

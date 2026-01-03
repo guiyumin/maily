@@ -22,6 +22,7 @@ type Attachment struct {
 	Filename    string `json:"filename"`
 	ContentType string `json:"content_type"`
 	Size        int64  `json:"size"`
+	Encoding    string `json:"encoding,omitempty"`
 }
 
 // CachedEmail represents an email stored in the cache

@@ -1,8 +1,10 @@
 package mail
 
 import (
+	"encoding/base64"
 	"fmt"
 	"io"
+	"mime/quotedprintable"
 	"strings"
 	"time"
 
@@ -25,6 +27,7 @@ type Attachment struct {
 	Filename    string
 	ContentType string
 	Size        int64
+	Encoding    string // e.g., "base64", "quoted-printable"
 }
 
 type Email struct {
@@ -495,6 +498,7 @@ func (c *IMAPClient) parseAttachments(bs imap.BodyStructure, partID string) []At
 				Filename:    filename,
 				ContentType: b.Type + "/" + b.Subtype,
 				Size:        int64(b.Size),
+				Encoding:    strings.ToLower(b.Encoding),
 			}
 			attachments = append(attachments, att)
 		}
@@ -511,6 +515,80 @@ func (c *IMAPClient) parseAttachments(bs imap.BodyStructure, partID string) []At
 	}
 
 	return attachments
+}
+
+// FetchAttachment fetches the content of an attachment by its part ID and decodes it
+func (c *IMAPClient) FetchAttachment(mailbox string, uid imap.UID, partID string, encoding string) ([]byte, error) {
+	_, err := c.client.Select(mailbox, nil).Wait()
+	if err != nil {
+		return nil, fmt.Errorf("failed to select mailbox: %w", err)
+	}
+
+	uidSet := imap.UIDSet{}
+	uidSet.AddNum(uid)
+
+	// Parse part ID into section path (e.g., "1.2" -> [1, 2])
+	var part []int
+	if partID != "" {
+		parts := strings.Split(partID, ".")
+		for _, p := range parts {
+			var num int
+			fmt.Sscanf(p, "%d", &num)
+			part = append(part, num)
+		}
+	}
+
+	fetchOptions := &imap.FetchOptions{
+		BodySection: []*imap.FetchItemBodySection{
+			{Part: part},
+		},
+	}
+
+	messages, err := c.client.Fetch(uidSet, fetchOptions).Collect()
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch attachment: %w", err)
+	}
+
+	if len(messages) == 0 {
+		return nil, fmt.Errorf("message not found")
+	}
+
+	msg := messages[0]
+	if len(msg.BodySection) == 0 {
+		return nil, fmt.Errorf("attachment not found")
+	}
+
+	rawContent := msg.BodySection[0].Bytes
+
+	// Decode based on encoding
+	switch strings.ToLower(encoding) {
+	case "base64":
+		decoded, err := base64.StdEncoding.DecodeString(strings.ReplaceAll(string(rawContent), "\r\n", ""))
+		if err != nil {
+			// Try with whitespace stripped
+			cleaned := strings.Map(func(r rune) rune {
+				if r == ' ' || r == '\t' || r == '\n' || r == '\r' {
+					return -1
+				}
+				return r
+			}, string(rawContent))
+			decoded, err = base64.StdEncoding.DecodeString(cleaned)
+			if err != nil {
+				return nil, fmt.Errorf("failed to decode base64: %w", err)
+			}
+		}
+		return decoded, nil
+	case "quoted-printable":
+		reader := quotedprintable.NewReader(strings.NewReader(string(rawContent)))
+		decoded, err := io.ReadAll(reader)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode quoted-printable: %w", err)
+		}
+		return decoded, nil
+	default:
+		// No encoding or unknown encoding, return as-is
+		return rawContent, nil
+	}
 }
 
 func (c *IMAPClient) MarkAsRead(uid imap.UID) error {

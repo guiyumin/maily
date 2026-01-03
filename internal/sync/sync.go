@@ -219,6 +219,7 @@ func emailToCached(e mail.Email) cache.CachedEmail {
 			Filename:    a.Filename,
 			ContentType: a.ContentType,
 			Size:        a.Size,
+			Encoding:    a.Encoding,
 		}
 	}
 

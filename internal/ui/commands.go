@@ -412,6 +412,7 @@ func cachedToGmail(c cache.CachedEmail) mail.Email {
 			Filename:    a.Filename,
 			ContentType: a.ContentType,
 			Size:        a.Size,
+			Encoding:    a.Encoding,
 		}
 	}
 

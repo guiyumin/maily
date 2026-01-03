@@ -2,6 +2,8 @@ package ui
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/charmbracelet/bubbles/spinner"
@@ -85,6 +87,10 @@ type App struct {
 	showSummary   bool
 	summaryText   string
 	summarySource string // which AI provider was used
+
+	// Attachments
+	showAttachmentPicker bool
+	attachmentIdx        int
 }
 
 type emailsLoadedMsg struct {
@@ -139,6 +145,15 @@ type singleDeleteCompleteMsg struct {
 }
 
 type autoRefreshTickMsg struct{}
+
+type attachmentDownloadedMsg struct {
+	filename string
+	path     string
+}
+
+type attachmentDownloadErrorMsg struct {
+	err error
+}
 
 const autoRefreshInterval = 5 * time.Minute
 
@@ -281,6 +296,29 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return a, nil
 		}
 
+		// Handle attachment picker navigation
+		if a.showAttachmentPicker {
+			email := a.mailList.SelectedEmail()
+			if email == nil {
+				a.showAttachmentPicker = false
+				return a, nil
+			}
+			switch msg.String() {
+			case "up", "k":
+				if a.attachmentIdx > 0 {
+					a.attachmentIdx--
+				}
+				return a, nil
+			case "down", "j":
+				if a.attachmentIdx < len(email.Attachments)-1 {
+					a.attachmentIdx++
+				}
+				return a, nil
+			case "q":
+				return a, tea.Quit
+			}
+		}
+
 		switch msg.String() {
 		case "ctrl+c", "q":
 			// Close all cached IMAP connections
@@ -301,7 +339,10 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return a, nil
 			}
 		case "esc":
-			if a.showSummary {
+			if a.showAttachmentPicker {
+				a.showAttachmentPicker = false
+				return a, nil
+			} else if a.showSummary {
 				a.showSummary = false
 				a.summaryText = ""
 				a.summarySource = ""
@@ -335,6 +376,16 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return a, a.commandPalette.Init()
 			}
 		case "enter":
+			// Handle attachment picker
+			if a.showAttachmentPicker {
+				email := a.mailList.SelectedEmail()
+				if email != nil && a.attachmentIdx < len(email.Attachments) {
+					a.showAttachmentPicker = false
+					a.state = stateLoading
+					a.statusMsg = "Downloading " + email.Attachments[a.attachmentIdx].Filename + "..."
+					return a, tea.Batch(a.spinner.Tick, a.downloadAttachment(email, a.attachmentIdx))
+				}
+			}
 			// Handle delete confirmation dialog
 			if a.confirmDelete {
 				switch a.deleteOption {
@@ -459,6 +510,54 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				a.statusMsg = "Extract: AI not configured yet"
 				return a, nil
 			}
+		case "a":
+			// Download attachments (read view only)
+			if a.state == stateReady && a.view == readView && !a.confirmDelete && !a.showAttachmentPicker {
+				email := a.mailList.SelectedEmail()
+				if email == nil || len(email.Attachments) == 0 {
+					a.statusMsg = "No attachments"
+					return a, nil
+				}
+				if len(email.Attachments) == 1 {
+					// Download directly
+					a.state = stateLoading
+					a.statusMsg = "Downloading " + email.Attachments[0].Filename + "..."
+					return a, tea.Batch(a.spinner.Tick, a.downloadAttachment(email, 0))
+				}
+				// Multiple attachments - show picker
+				a.showAttachmentPicker = true
+				a.attachmentIdx = 0
+				return a, nil
+			}
+			// Handle attachment picker - 'a' again downloads all
+			if a.showAttachmentPicker {
+				email := a.mailList.SelectedEmail()
+				if email != nil && len(email.Attachments) > 0 {
+					a.showAttachmentPicker = false
+					a.state = stateLoading
+					a.statusMsg = fmt.Sprintf("Downloading %d attachments...", len(email.Attachments))
+					return a, tea.Batch(a.spinner.Tick, a.downloadAllAttachments(email))
+				}
+			}
+			// Select/deselect all (search mode only)
+			if a.isSearchResult && a.view == listView && a.state == stateReady {
+				emails := a.mailList.Emails()
+				allSelected := len(a.selected) == len(emails) && len(emails) > 0
+				for _, email := range emails {
+					if !a.selected[email.UID] {
+						allSelected = false
+						break
+					}
+				}
+				if allSelected {
+					a.selected = make(map[imap.UID]bool)
+				} else {
+					for _, email := range emails {
+						a.selected[email.UID] = true
+					}
+				}
+				a.mailList.SetSelections(a.selected)
+			}
 		case "d":
 			if a.state == stateReady && !a.confirmDelete {
 				// In search mode with selections, delete selected emails
@@ -499,28 +598,6 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						a.mailList.ScrollDown()
 					}
 				}
-			}
-		case "a": // Select/deselect all (search mode only)
-			if a.isSearchResult && a.view == listView && a.state == stateReady {
-				emails := a.mailList.Emails()
-				allSelected := len(a.selected) == len(emails) && len(emails) > 0
-				// Check if all are actually selected
-				for _, email := range emails {
-					if !a.selected[email.UID] {
-						allSelected = false
-						break
-					}
-				}
-				if allSelected {
-					// Deselect all
-					a.selected = make(map[imap.UID]bool)
-				} else {
-					// Select all
-					for _, email := range emails {
-						a.selected[email.UID] = true
-					}
-				}
-				a.mailList.SetSelections(a.selected)
 			}
 		case "m": // Mark read/unread (search mode only, for selected emails)
 			if a.isSearchResult && a.view == listView && a.state == stateReady && a.selectedCount() > 0 {
@@ -845,6 +922,14 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case summaryErrorMsg:
 		a.state = stateReady
 		a.statusMsg = fmt.Sprintf("Summarize failed: %v", msg.err)
+
+	case attachmentDownloadedMsg:
+		a.state = stateReady
+		a.statusMsg = fmt.Sprintf("Downloaded %s to ~/Downloads/maily", msg.filename)
+
+	case attachmentDownloadErrorMsg:
+		a.state = stateReady
+		a.statusMsg = fmt.Sprintf("Download failed: %v", msg.err)
 	}
 
 	if a.view == listView && a.state == stateReady {
@@ -887,11 +972,20 @@ func (a App) View() string {
 			content = components.RenderListView(a.width, a.height, a.mailList.View())
 		case readView:
 			if email := a.mailList.SelectedEmail(); email != nil {
+				var attachments []components.AttachmentInfo
+				for _, att := range email.Attachments {
+					attachments = append(attachments, components.AttachmentInfo{
+						Filename:    att.Filename,
+						ContentType: att.ContentType,
+						Size:        att.Size,
+					})
+				}
 				emailData := components.EmailViewData{
-					From:    email.From,
-					To:      email.To,
-					Subject: email.Subject,
-					Date:    email.Date,
+					From:        email.From,
+					To:          email.To,
+					Subject:     email.Subject,
+					Date:        email.Date,
+					Attachments: attachments,
 				}
 				content = components.RenderReadView(emailData, a.width, a.viewport.View())
 			}
@@ -935,6 +1029,21 @@ func (a App) View() string {
 	// Show summary dialog overlay
 	if a.showSummary {
 		content = components.RenderSummaryDialog(a.width, a.height, a.summaryText, a.summarySource)
+	}
+
+	// Show attachment picker overlay
+	if a.showAttachmentPicker {
+		if email := a.mailList.SelectedEmail(); email != nil {
+			var attachments []components.AttachmentInfo
+			for _, att := range email.Attachments {
+				attachments = append(attachments, components.AttachmentInfo{
+					Filename:    att.Filename,
+					ContentType: att.ContentType,
+					Size:        att.Size,
+				})
+			}
+			content = components.RenderAttachmentPicker(a.width, a.height, attachments, a.attachmentIdx)
+		}
 	}
 
 	// Build header data
@@ -999,4 +1108,124 @@ func (a App) selectedCount() int {
 		}
 	}
 	return count
+}
+
+func (a App) downloadAttachment(email *mail.Email, attachmentIdx int) tea.Cmd {
+	return func() tea.Msg {
+		if attachmentIdx < 0 || attachmentIdx >= len(email.Attachments) {
+			return attachmentDownloadErrorMsg{err: fmt.Errorf("invalid attachment index")}
+		}
+
+		att := email.Attachments[attachmentIdx]
+
+		// Get downloads directory
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			return attachmentDownloadErrorMsg{err: fmt.Errorf("cannot find home directory: %w", err)}
+		}
+		downloadsDir := filepath.Join(homeDir, "Downloads", "maily")
+
+		// Ensure downloads directory exists
+		if err := os.MkdirAll(downloadsDir, 0755); err != nil {
+			return attachmentDownloadErrorMsg{err: fmt.Errorf("cannot create downloads directory: %w", err)}
+		}
+
+		// Create IMAP client
+		account := a.currentAccount()
+		if account == nil {
+			return attachmentDownloadErrorMsg{err: fmt.Errorf("no account selected")}
+		}
+
+		imapClient, err := mail.NewIMAPClient(&account.Credentials)
+		if err != nil {
+			return attachmentDownloadErrorMsg{err: fmt.Errorf("failed to connect: %w", err)}
+		}
+		defer imapClient.Close()
+
+		// Fetch attachment content
+		content, err := imapClient.FetchAttachment(a.currentLabel, email.UID, att.PartID, att.Encoding)
+		if err != nil {
+			return attachmentDownloadErrorMsg{err: fmt.Errorf("failed to fetch attachment: %w", err)}
+		}
+
+		// Generate unique filename if file exists
+		destPath := filepath.Join(downloadsDir, att.Filename)
+		if _, err := os.Stat(destPath); err == nil {
+			// File exists, add number suffix
+			ext := filepath.Ext(att.Filename)
+			base := att.Filename[:len(att.Filename)-len(ext)]
+			for i := 1; ; i++ {
+				destPath = filepath.Join(downloadsDir, fmt.Sprintf("%s (%d)%s", base, i, ext))
+				if _, err := os.Stat(destPath); os.IsNotExist(err) {
+					break
+				}
+			}
+		}
+
+		// Write file
+		if err := os.WriteFile(destPath, content, 0644); err != nil {
+			return attachmentDownloadErrorMsg{err: fmt.Errorf("failed to save file: %w", err)}
+		}
+
+		return attachmentDownloadedMsg{filename: att.Filename, path: destPath}
+	}
+}
+
+func (a App) downloadAllAttachments(email *mail.Email) tea.Cmd {
+	return func() tea.Msg {
+		if len(email.Attachments) == 0 {
+			return attachmentDownloadErrorMsg{err: fmt.Errorf("no attachments")}
+		}
+
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			return attachmentDownloadErrorMsg{err: fmt.Errorf("cannot find home directory: %w", err)}
+		}
+		downloadsDir := filepath.Join(homeDir, "Downloads", "maily")
+
+		if err := os.MkdirAll(downloadsDir, 0755); err != nil {
+			return attachmentDownloadErrorMsg{err: fmt.Errorf("cannot create downloads directory: %w", err)}
+		}
+
+		account := a.currentAccount()
+		if account == nil {
+			return attachmentDownloadErrorMsg{err: fmt.Errorf("no account selected")}
+		}
+
+		imapClient, err := mail.NewIMAPClient(&account.Credentials)
+		if err != nil {
+			return attachmentDownloadErrorMsg{err: fmt.Errorf("failed to connect: %w", err)}
+		}
+		defer imapClient.Close()
+
+		var downloaded []string
+		for _, att := range email.Attachments {
+			content, err := imapClient.FetchAttachment(a.currentLabel, email.UID, att.PartID, att.Encoding)
+			if err != nil {
+				return attachmentDownloadErrorMsg{err: fmt.Errorf("failed to fetch %s: %w", att.Filename, err)}
+			}
+
+			destPath := filepath.Join(downloadsDir, att.Filename)
+			if _, err := os.Stat(destPath); err == nil {
+				ext := filepath.Ext(att.Filename)
+				base := att.Filename[:len(att.Filename)-len(ext)]
+				for i := 1; ; i++ {
+					destPath = filepath.Join(downloadsDir, fmt.Sprintf("%s (%d)%s", base, i, ext))
+					if _, err := os.Stat(destPath); os.IsNotExist(err) {
+						break
+					}
+				}
+			}
+
+			if err := os.WriteFile(destPath, content, 0644); err != nil {
+				return attachmentDownloadErrorMsg{err: fmt.Errorf("failed to save %s: %w", att.Filename, err)}
+			}
+			downloaded = append(downloaded, att.Filename)
+		}
+
+		return attachmentDownloadedMsg{
+			filename: fmt.Sprintf("%d files", len(downloaded)),
+			path:     downloadsDir,
+		}
+	}
 }

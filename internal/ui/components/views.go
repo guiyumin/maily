@@ -31,11 +31,18 @@ type StatusBarData struct {
 	SelectionCount int
 }
 
+type AttachmentInfo struct {
+	Filename    string
+	ContentType string
+	Size        int64
+}
+
 type EmailViewData struct {
-	From    string
-	To      string
-	Subject string
-	Date    time.Time
+	From        string
+	To          string
+	Subject     string
+	Date        time.Time
+	Attachments []AttachmentInfo
 }
 
 // Render functions
@@ -122,8 +129,8 @@ func RenderStatusBar(data StatusBarData) string {
 		// Read view
 		help = tabHint +
 			HelpKeyStyle.Render("r") + HelpDescStyle.Render(" reply  ") +
+			HelpKeyStyle.Render("a") + HelpDescStyle.Render(" attach  ") +
 			HelpKeyStyle.Render("s") + HelpDescStyle.Render(" summarize  ") +
-			HelpKeyStyle.Render("e") + HelpDescStyle.Render(" extract  ") +
 			HelpKeyStyle.Render("/") + HelpDescStyle.Render(" commands  ") +
 			HelpKeyStyle.Render("esc") + HelpDescStyle.Render(" back  ") +
 			HelpKeyStyle.Render("q") + HelpDescStyle.Render(" quit")
@@ -155,15 +162,47 @@ func RenderListView(width, height int, listContent string) string {
 		Render(listContent)
 }
 
+func formatFileSize(size int64) string {
+	const unit = 1024
+	if size < unit {
+		return fmt.Sprintf("%d B", size)
+	}
+	div, exp := int64(unit), 0
+	for n := size / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f %cB", float64(size)/float64(div), "KMGTPE"[exp])
+}
+
 func RenderReadView(email EmailViewData, width int, viewportContent string) string {
-	headerContent := lipgloss.JoinVertical(
-		lipgloss.Left,
-		FromStyle.Render("From: ")+email.From,
-		"To: "+email.To,
-		SubjectStyle.Render("Subject: ")+email.Subject,
+	headerLines := []string{
+		FromStyle.Render("From: ") + email.From,
+		"To: " + email.To,
+		SubjectStyle.Render("Subject: ") + email.Subject,
 		DateStyle.Render(email.Date.Format("Mon, 02 Jan 2006 15:04:05")),
-		strings.Repeat("─", width-12),
-	)
+	}
+
+	// Add attachments line if there are any
+	if len(email.Attachments) > 0 {
+		attachStyle := lipgloss.NewStyle().Foreground(Secondary).Bold(true)
+		fileStyle := lipgloss.NewStyle().Foreground(Text)
+		sizeStyle := lipgloss.NewStyle().Foreground(Muted)
+
+		var attachParts []string
+		for _, att := range email.Attachments {
+			attachParts = append(attachParts, fmt.Sprintf("%s %s",
+				fileStyle.Render(att.Filename),
+				sizeStyle.Render("("+formatFileSize(att.Size)+")")))
+		}
+
+		attachLine := attachStyle.Render("📎 Attachments: ") + strings.Join(attachParts, ", ")
+		headerLines = append(headerLines, attachLine)
+	}
+
+	headerLines = append(headerLines, strings.Repeat("─", width-12))
+
+	headerContent := lipgloss.JoinVertical(lipgloss.Left, headerLines...)
 
 	header := lipgloss.NewStyle().
 		PaddingLeft(4).
@@ -363,6 +402,65 @@ func RenderSummaryDialog(width, height int, summary string, provider string) str
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(Primary).
 		Padding(1, 3).
+		Width(dialogWidth)
+
+	return lipgloss.Place(
+		width,
+		height-4,
+		lipgloss.Center,
+		lipgloss.Center,
+		dialogStyle.Render(content),
+	)
+}
+
+func RenderAttachmentPicker(width, height int, attachments []AttachmentInfo, selectedIdx int) string {
+	dialogWidth := min(width-20, 60)
+
+	titleStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(Primary).
+		MarginBottom(1)
+
+	selectedStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(Bg).
+		Background(Primary).
+		Padding(0, 1)
+
+	normalStyle := lipgloss.NewStyle().
+		Foreground(Text).
+		Padding(0, 1)
+
+	sizeStyle := lipgloss.NewStyle().
+		Foreground(Muted)
+
+	hintStyle := lipgloss.NewStyle().
+		Foreground(Muted).
+		MarginTop(1)
+
+	var items []string
+	for i, att := range attachments {
+		line := fmt.Sprintf("%s %s", att.Filename, sizeStyle.Render("("+formatFileSize(att.Size)+")"))
+		if i == selectedIdx {
+			items = append(items, selectedStyle.Render("→ "+line))
+		} else {
+			items = append(items, normalStyle.Render("  "+line))
+		}
+	}
+
+	content := lipgloss.JoinVertical(
+		lipgloss.Left,
+		titleStyle.Render("📎 Download Attachment"),
+		"",
+		strings.Join(items, "\n"),
+		"",
+		hintStyle.Render("↑↓ select  enter download  a all  esc cancel"),
+	)
+
+	dialogStyle := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(Primary).
+		Padding(1, 2).
 		Width(dialogWidth)
 
 	return lipgloss.Place(

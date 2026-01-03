@@ -34,17 +34,18 @@ const (
 
 // ComposeModel handles email composition (reply/compose)
 type ComposeModel struct {
-	from         string
-	toInput      textinput.Model
-	subjectInput textinput.Model
-	body         textarea.Model
-	width        int
-	height       int
-	focused      int
-	isReply      bool
-	replyEmail   *mail.Email // Original email being replied to
-	confirming   int         // confirmNone, confirmSend, or confirmCancel
-	quotedBody   string      // stored quoted body for deferred initialization
+	from           string
+	toInput        textinput.Model
+	subjectInput   textinput.Model
+	body           textarea.Model
+	width          int
+	height         int
+	focused        int
+	isReply        bool
+	replyEmail     *mail.Email // Original email being replied to
+	confirming     int         // confirmNone, confirmSend, or confirmCancel
+	confirmFocused int         // 0 = Confirm button, 1 = Cancel button
+	quotedBody     string      // stored quoted body for deferred initialization
 }
 
 // NewComposeModel creates a new compose model for a fresh email
@@ -261,20 +262,46 @@ func (m ComposeModel) Update(msg tea.Msg) (ComposeModel, tea.Cmd) {
 		// Handle confirmation dialogs
 		if m.confirming != confirmNone {
 			switch msg.String() {
-			case "y", "Y", "enter":
-				switch m.confirming {
+			case "left", "right", "tab", "h", "l":
+				// Toggle between Confirm and Cancel buttons
+				m.confirmFocused = 1 - m.confirmFocused
+				return m, nil
+			case "y", "Y":
+				// Quick confirm with Y
+				action := m.confirming
+				m.confirming = confirmNone
+				m.confirmFocused = 0
+				switch action {
 				case confirmSend:
-					m.confirming = confirmNone
 					return m, func() tea.Msg { return SendMsg{} }
 				case confirmSaveDraft:
-					m.confirming = confirmNone
 					return m, func() tea.Msg { return SaveDraftMsg{} }
 				case confirmCancel:
-					m.confirming = confirmNone
 					return m, func() tea.Msg { return CancelMsg{} }
+				}
+			case "enter":
+				if m.confirmFocused == 0 {
+					// Confirm button selected
+					action := m.confirming
+					m.confirming = confirmNone
+					m.confirmFocused = 0
+					switch action {
+					case confirmSend:
+						return m, func() tea.Msg { return SendMsg{} }
+					case confirmSaveDraft:
+						return m, func() tea.Msg { return SaveDraftMsg{} }
+					case confirmCancel:
+						return m, func() tea.Msg { return CancelMsg{} }
+					}
+				} else {
+					// Cancel button selected
+					m.confirming = confirmNone
+					m.confirmFocused = 0
+					return m, nil
 				}
 			case "n", "N", "esc":
 				m.confirming = confirmNone
+				m.confirmFocused = 0
 				return m, nil
 			}
 			return m, nil
@@ -498,15 +525,37 @@ func (m ComposeModel) renderConfirmDialog() string {
 		Foreground(components.Text).
 		MarginBottom(1)
 
-	hintStyle := lipgloss.NewStyle().
+	// Button styles
+	buttonStyle := lipgloss.NewStyle().
+		Padding(0, 2).
+		MarginRight(1)
+
+	activeButtonStyle := buttonStyle.
+		Background(components.Primary).
+		Foreground(lipgloss.Color("#ffffff"))
+
+	inactiveButtonStyle := buttonStyle.
+		Background(components.Bg).
 		Foreground(components.TextDim)
+
+	// Render buttons based on focus
+	var confirmBtn, cancelBtn string
+	if m.confirmFocused == 0 {
+		confirmBtn = activeButtonStyle.Render("Confirm")
+		cancelBtn = inactiveButtonStyle.Render("Cancel")
+	} else {
+		confirmBtn = inactiveButtonStyle.Render("Confirm")
+		cancelBtn = activeButtonStyle.Render("Cancel")
+	}
+
+	buttons := lipgloss.JoinHorizontal(lipgloss.Center, confirmBtn, cancelBtn)
 
 	content := lipgloss.JoinVertical(
 		lipgloss.Center,
 		titleStyle.Render(title),
 		messageStyle.Render(message),
 		"",
-		hintStyle.Render("Press Y to confirm, N to cancel"),
+		buttons,
 	)
 
 	dialogStyle := lipgloss.NewStyle().

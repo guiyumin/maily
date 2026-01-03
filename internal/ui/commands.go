@@ -435,8 +435,7 @@ func (a App) executeCommand(command string) (tea.Model, tea.Cmd) {
 		account := a.currentAccount()
 		if account != nil {
 			a.compose = NewComposeModel(account.Credentials.Email)
-			a.compose.width = a.width
-			a.compose.height = a.height
+			a.compose.setSize(a.width, a.height)
 			a.view = composeView
 			return a, a.compose.Init()
 		}
@@ -447,8 +446,7 @@ func (a App) executeCommand(command string) (tea.Model, tea.Cmd) {
 			account := a.currentAccount()
 			if account != nil {
 				a.compose = NewReplyModel(account.Credentials.Email, email)
-				a.compose.width = a.width
-				a.compose.height = a.height
+				a.compose.setSize(a.width, a.height)
 				a.view = composeView
 				return a, a.compose.Init()
 			}

@@ -407,8 +407,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				account := a.currentAccount()
 				if account != nil {
 					a.compose = NewComposeModel(account.Credentials.Email)
-					a.compose.width = a.width
-					a.compose.height = a.height
+					a.compose.setSize(a.width, a.height)
 					a.view = composeView
 					return a, a.compose.Init()
 				}
@@ -420,8 +419,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					account := a.currentAccount()
 					if account != nil {
 						a.compose = NewReplyModel(account.Credentials.Email, email)
-						a.compose.width = a.width
-						a.compose.height = a.height
+						a.compose.setSize(a.width, a.height)
 						a.view = composeView
 						return a, a.compose.Init()
 					}
@@ -615,11 +613,9 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.labelPicker.SetSize(msg.Width, msg.Height)
 		a.viewport.Width = msg.Width - 8
 		a.viewport.Height = msg.Height - 8
-		// Update compose model size
+		// Update compose model size (Update is called at end of function)
 		if a.view == composeView {
-			a.compose.width = msg.Width
-			a.compose.height = msg.Height
-			a.compose, _ = a.compose.Update(msg)
+			a.compose.setSize(msg.Width, msg.Height)
 		}
 
 	case spinner.TickMsg:
@@ -866,6 +862,12 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, cmd)
 	}
 
+	if a.view == composeView {
+		var cmd tea.Cmd
+		a.compose, cmd = a.compose.Update(msg)
+		cmds = append(cmds, cmd)
+	}
+
 	return a, tea.Batch(cmds...)
 }
 
@@ -901,7 +903,7 @@ func (a App) View() string {
 				a.width,
 				a.height-6,
 				lipgloss.Center,
-				lipgloss.Center,
+				lipgloss.Top,
 				a.compose.View(),
 			)
 		default:

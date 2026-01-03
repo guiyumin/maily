@@ -43,7 +43,8 @@ type ComposeModel struct {
 	focused      int
 	isReply      bool
 	replyEmail   *mail.Email // Original email being replied to
-	confirming   int          // confirmNone, confirmSend, or confirmCancel
+	confirming   int         // confirmNone, confirmSend, or confirmCancel
+	quotedBody   string      // stored quoted body for deferred initialization
 }
 
 // NewComposeModel creates a new compose model for a fresh email
@@ -105,10 +106,8 @@ func NewReplyModel(from string, original *mail.Email) ComposeModel {
 	ta.SetHeight(10)
 	ta.Focus()
 
-	// Build quoted body
+	// Build quoted body - will be set after first resize
 	quotedBody := buildQuotedBody(original)
-	ta.SetValue("\n\n" + quotedBody)
-	ta.CursorStart()
 
 	return ComposeModel{
 		from:         from,
@@ -118,6 +117,7 @@ func NewReplyModel(from string, original *mail.Email) ComposeModel {
 		focused:      focusBody, // Start at body for reply
 		isReply:      true,
 		replyEmail:   original,
+		quotedBody:   "\n\n" + quotedBody,
 	}
 }
 
@@ -154,7 +154,66 @@ func buildQuotedBody(email *mail.Email) string {
 	return sb.String()
 }
 
+func (m *ComposeModel) setSize(width, height int) {
+	m.width = width
+	m.height = height
+
+	inputWidth := width - 20
+	if inputWidth < 10 {
+		inputWidth = 10
+	}
+	m.toInput.Width = inputWidth
+	m.subjectInput.Width = inputWidth
+
+	bodyWidth := width - 16
+	if bodyWidth < 10 {
+		bodyWidth = 10
+	}
+	m.body.SetWidth(bodyWidth)
+
+	availableHeight := height - 6
+	if availableHeight < 0 {
+		availableHeight = height
+	}
+	bodyHeight := availableHeight - 11
+	if bodyHeight < 5 {
+		bodyHeight = 5
+	}
+	m.body.SetHeight(bodyHeight)
+
+	m.applyDeferredReplyQuote()
+}
+
+func (m *ComposeModel) applyDeferredReplyQuote() {
+	if !m.isReply || m.quotedBody == "" {
+		return
+	}
+	m.body.SetValue(m.quotedBody)
+	m.quotedBody = ""
+	m.moveBodyCursorToTop()
+}
+
+func (m *ComposeModel) moveBodyCursorToTop() {
+	for m.body.Line() > 0 || m.body.LineInfo().RowOffset > 0 {
+		m.body.CursorUp()
+	}
+	m.body.CursorStart()
+}
+
+func isMouseEscapeKey(msg tea.KeyMsg) bool {
+	if msg.Type != tea.KeyRunes || len(msg.Runes) < 3 {
+		return false
+	}
+	if msg.Runes[0] != '\x1b' || msg.Runes[1] != '[' {
+		return false
+	}
+	return msg.Runes[2] == '<' || msg.Runes[2] == 'M'
+}
+
 func (m ComposeModel) Init() tea.Cmd {
+	if m.isReply {
+		return textarea.Blink
+	}
 	return textinput.Blink
 }
 
@@ -196,6 +255,9 @@ func (m ComposeModel) Update(msg tea.Msg) (ComposeModel, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
+		if isMouseEscapeKey(msg) {
+			return m, nil
+		}
 		// Handle confirmation dialogs
 		if m.confirming != confirmNone {
 			switch msg.String() {
@@ -243,13 +305,17 @@ func (m ComposeModel) Update(msg tea.Msg) (ComposeModel, tea.Cmd) {
 			cmd = m.focusField(nextFocus)
 			return m, cmd
 		}
+	case tea.MouseMsg:
+		// Ignore mouse events to prevent gibberish in textarea
+		return m, nil
 	case tea.WindowSizeMsg:
-		m.width = msg.Width
-		m.height = msg.Height
-		m.toInput.Width = msg.Width - 20
-		m.subjectInput.Width = msg.Width - 20
-		m.body.SetWidth(msg.Width - 16)
-		m.body.SetHeight(msg.Height - 20)
+		m.setSize(msg.Width, msg.Height)
+		return m, nil
+	}
+
+	if m.isReply && m.quotedBody != "" && m.body.Value() == "" {
+		m.applyDeferredReplyQuote()
+		cmds = append(cmds, textarea.Blink)
 	}
 
 	// Update the focused field
@@ -345,9 +411,6 @@ func (m ComposeModel) View() string {
 	// Buttons row
 	buttons := lipgloss.JoinHorizontal(lipgloss.Top, sendBtn, "  ", saveDraftBtn, "  ", cancelBtn)
 
-	// Help line
-	help := components.HelpKeyStyle.Render("Tab") + components.HelpDescStyle.Render(" next field")
-
 	// Compose everything
 	content := lipgloss.JoinVertical(
 		lipgloss.Left,
@@ -387,12 +450,7 @@ func (m ComposeModel) View() string {
 		box = strings.Join(lines, "\n")
 	}
 
-	return lipgloss.JoinVertical(
-		lipgloss.Left,
-		box,
-		"",
-		lipgloss.NewStyle().PaddingLeft(4).Render(help),
-	)
+	return box
 }
 
 // GetBody returns the composed email body

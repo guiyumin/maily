@@ -2,3 +2,4 @@ build
 .gocache
 .cleancoderules
 .glee/
+.mcp.json

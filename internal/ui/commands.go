@@ -345,6 +345,89 @@ func (a *App) summarizeEmail(email *mail.Email) tea.Cmd {
 	}
 }
 
+func (a *App) parseManualEvent(input string) tea.Cmd {
+	client := a.aiClient
+	prompt := ai.ParseCalendarEventPrompt(input, time.Now())
+	provider := client.Provider()
+
+	return func() tea.Msg {
+		response, err := client.Call(prompt)
+		if err != nil {
+			return extractErrorMsg{err: err}
+		}
+
+		// Parse the event
+		parsed, err := ai.ParseEventResponse(response)
+		if err != nil {
+			return extractErrorMsg{err: fmt.Errorf("failed to parse: %w", err)}
+		}
+
+		startTime, err := parsed.GetStartTime()
+		if err != nil {
+			return extractErrorMsg{err: fmt.Errorf("invalid start time: %w", err)}
+		}
+
+		endTime, err := parsed.GetEndTime()
+		if err != nil {
+			return extractErrorMsg{err: fmt.Errorf("invalid end time: %w", err)}
+		}
+
+		return extractResultMsg{
+			found:     true,
+			event:     parsed,
+			startTime: startTime,
+			endTime:   endTime,
+			provider:  provider,
+		}
+	}
+}
+
+func (a *App) doExtractEvent(email *mail.Email) tea.Cmd {
+	client := a.aiClient
+	body := email.Body
+	if body == "" {
+		body = email.Snippet
+	}
+	prompt := ai.ExtractEventsPrompt(email.From, email.Subject, body, time.Now())
+	provider := client.Provider()
+
+	return func() tea.Msg {
+		response, err := client.Call(prompt)
+		if err != nil {
+			return extractErrorMsg{err: err}
+		}
+
+		// Check if no events found
+		if response == "NO_EVENTS_FOUND" || response == "" {
+			return extractResultMsg{found: false, provider: provider}
+		}
+
+		// Parse the event
+		parsed, err := ai.ParseEventResponse(response)
+		if err != nil {
+			return extractErrorMsg{err: fmt.Errorf("failed to parse event: %w", err)}
+		}
+
+		startTime, err := parsed.GetStartTime()
+		if err != nil {
+			return extractErrorMsg{err: fmt.Errorf("invalid start time: %w", err)}
+		}
+
+		endTime, err := parsed.GetEndTime()
+		if err != nil {
+			return extractErrorMsg{err: fmt.Errorf("invalid end time: %w", err)}
+		}
+
+		return extractResultMsg{
+			found:     true,
+			event:     parsed,
+			startTime: startTime,
+			endTime:   endTime,
+			provider:  provider,
+		}
+	}
+}
+
 // loadCachedEmails loads emails from disk cache for instant display
 func (a App) loadCachedEmails() tea.Cmd {
 	account := a.currentAccount()
@@ -436,8 +519,8 @@ func cachedToGmail(c cache.CachedEmail) mail.Email {
 // executeCommand handles slash command execution
 func (a App) executeCommand(command string) (tea.Model, tea.Cmd) {
 	switch command {
-	case "compose":
-		// Compose new email
+	case "new":
+		// New email
 		account := a.currentAccount()
 		if account != nil {
 			a.compose = NewComposeModel(account.Credentials.Email)
@@ -500,8 +583,16 @@ func (a App) executeCommand(command string) (tea.Model, tea.Cmd) {
 		}
 
 	case "extract":
-		// AI extract event (placeholder - will be implemented in Phase 1)
-		a.statusMsg = "Extract: AI not configured yet"
+		// AI extract event from email
+		if a.aiClient.Available() {
+			if email := a.mailList.SelectedEmail(); email != nil {
+				a.state = stateLoading
+				a.statusMsg = "Extracting event with " + a.aiClient.Provider() + "..."
+				return a, tea.Batch(a.spinner.Tick, a.doExtractEvent(email))
+			}
+		} else {
+			a.statusMsg = "No AI CLI found (install claude, codex, gemini, vibe, or ollama)"
+		}
 
 	case "add":
 		// Add calendar event (placeholder)

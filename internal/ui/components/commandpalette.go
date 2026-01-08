@@ -23,7 +23,7 @@ type CommandSelectedMsg struct {
 
 // AllCommands defines all available slash commands
 var AllCommands = []Command{
-	{Name: "compose", Description: "Compose new email", Shortcut: "c", Views: []string{"list"}},
+	{Name: "new", Description: "New email", Shortcut: "n", Views: []string{"list"}},
 	{Name: "reply", Description: "Reply to this email", Shortcut: "r", Views: []string{"list", "read", "today"}},
 	{Name: "delete", Description: "Delete this email", Shortcut: "d", Views: []string{"list", "read", "today"}},
 	{Name: "search", Description: "Search emails", Shortcut: "s", Views: []string{"list"}},

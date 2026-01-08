@@ -413,6 +413,119 @@ func RenderSummaryDialog(width, height int, summary string, provider string) str
 	)
 }
 
+func RenderExtractInputDialog(width, height int, inputView string) string {
+	dialogWidth := min(width-20, 60)
+
+	titleStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(Primary).
+		MarginBottom(1)
+
+	subtitleStyle := lipgloss.NewStyle().
+		Foreground(Muted).
+		MarginBottom(1)
+
+	hintStyle := lipgloss.NewStyle().
+		Foreground(Muted).
+		MarginTop(1)
+
+	content := lipgloss.JoinVertical(
+		lipgloss.Left,
+		titleStyle.Render("No Event Found"),
+		subtitleStyle.Render("Type event details to add to calendar:"),
+		"",
+		"  "+inputView,
+		"",
+		hintStyle.Render("enter to parse • esc to cancel"),
+	)
+
+	dialogStyle := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(Primary).
+		Padding(1, 3).
+		Width(dialogWidth)
+
+	return lipgloss.Place(
+		width,
+		height-4,
+		lipgloss.Center,
+		lipgloss.Center,
+		dialogStyle.Render(content),
+	)
+}
+
+// ExtractData holds the extracted event data for rendering
+type ExtractData struct {
+	Title     string
+	StartTime time.Time
+	EndTime   time.Time
+	Location  string
+	Provider  string
+}
+
+func RenderExtractDialog(width, height int, data ExtractData) string {
+	dialogWidth := min(width-20, 60)
+
+	titleStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(Primary).
+		MarginBottom(1)
+
+	labelStyle := lipgloss.NewStyle().
+		Foreground(Muted).
+		Width(10)
+
+	valueStyle := lipgloss.NewStyle().
+		Foreground(Text)
+
+	providerStyle := lipgloss.NewStyle().
+		Foreground(Muted).
+		Italic(true)
+
+	hintStyle := lipgloss.NewStyle().
+		Foreground(Muted).
+		MarginTop(1)
+
+	// Format event details
+	dateStr := data.StartTime.Format("Monday, Jan 2, 2006")
+	timeStr := fmt.Sprintf("%s - %s", data.StartTime.Format("3:04 PM"), data.EndTime.Format("3:04 PM"))
+
+	lines := []string{
+		labelStyle.Render("Title:") + valueStyle.Render(data.Title),
+		labelStyle.Render("Date:") + valueStyle.Render(dateStr),
+		labelStyle.Render("Time:") + valueStyle.Render(timeStr),
+	}
+
+	if data.Location != "" {
+		lines = append(lines, labelStyle.Render("Location:")+valueStyle.Render(data.Location))
+	}
+
+	content := lipgloss.JoinVertical(
+		lipgloss.Left,
+		titleStyle.Render("Extracted Event"),
+		"",
+		strings.Join(lines, "\n"),
+		"",
+		providerStyle.Render("via "+data.Provider),
+		"",
+		hintStyle.Render("Press Esc to close"),
+	)
+
+	dialogStyle := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(Primary).
+		Padding(1, 3).
+		Width(dialogWidth)
+
+	return lipgloss.Place(
+		width,
+		height-4,
+		lipgloss.Center,
+		lipgloss.Center,
+		dialogStyle.Render(content),
+	)
+}
+
 func RenderAttachmentPicker(width, height int, attachments []AttachmentInfo, selectedIdx int) string {
 	dialogWidth := min(width-20, 60)
 

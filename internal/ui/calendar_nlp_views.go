@@ -38,6 +38,68 @@ func (m *CalendarApp) renderNLPParsing() string {
 	return lipgloss.NewStyle().Padding(1, 2).Render(b.String())
 }
 
+func (m *CalendarApp) renderNLPEdit() string {
+	var b strings.Builder
+
+	titleStyle := lipgloss.NewStyle().Bold(true).Foreground(components.Primary)
+	hintStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#AAAAAA"))
+	labelStyle := lipgloss.NewStyle().Width(12).Foreground(components.Muted)
+	focusedLabel := lipgloss.NewStyle().Width(12).Foreground(components.Primary).Bold(true)
+
+	b.WriteString(titleStyle.Render("Edit Parsed Event"))
+	b.WriteString("\n\n")
+
+	// Title
+	if m.nlpEditFocus == 0 {
+		b.WriteString("    " + focusedLabel.Render("Title:") + m.nlpEditTitle.View() + "\n")
+	} else {
+		b.WriteString("    " + labelStyle.Render("Title:") + m.nlpEditTitle.View() + "\n")
+	}
+
+	// Date
+	if m.nlpEditFocus == 1 {
+		b.WriteString("    " + focusedLabel.Render("Date:") + m.nlpEditDate.View())
+		b.WriteString(hintStyle.Render("  (↑↓ scroll, ←→ switch)") + "\n")
+	} else {
+		b.WriteString("    " + labelStyle.Render("Date:") + m.nlpEditDate.View() + "\n")
+	}
+
+	// Start time
+	if m.nlpEditFocus == 2 {
+		b.WriteString("    " + focusedLabel.Render("Start:") + m.nlpEditStart.View())
+		b.WriteString(hintStyle.Render("  (↑↓ scroll, ←→ switch)") + "\n")
+	} else {
+		b.WriteString("    " + labelStyle.Render("Start:") + m.nlpEditStart.View() + "\n")
+	}
+
+	// End time
+	if m.nlpEditFocus == 3 {
+		b.WriteString("    " + focusedLabel.Render("End:") + m.nlpEditEnd.View())
+		b.WriteString(hintStyle.Render("  (↑↓ scroll, ←→ switch)") + "\n")
+	} else {
+		b.WriteString("    " + labelStyle.Render("End:") + m.nlpEditEnd.View() + "\n")
+	}
+
+	// Location
+	if m.nlpEditFocus == 4 {
+		b.WriteString("    " + focusedLabel.Render("Location:") + m.nlpEditLocation.View() + "\n")
+	} else {
+		b.WriteString("    " + labelStyle.Render("Location:") + m.nlpEditLocation.View() + "\n")
+	}
+
+	// Error
+	if m.err != nil {
+		errStyle := lipgloss.NewStyle().Foreground(components.Danger)
+		b.WriteString("\n")
+		b.WriteString("    " + errStyle.Render(m.err.Error()))
+	}
+
+	b.WriteString("\n\n")
+	b.WriteString(hintStyle.Render("tab next field • enter confirm • esc cancel"))
+
+	return lipgloss.NewStyle().Padding(1, 2).Render(b.String())
+}
+
 func (m *CalendarApp) renderNLPCalendar() string {
 	var b strings.Builder
 

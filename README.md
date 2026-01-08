@@ -38,6 +38,7 @@ maily update
 ## Quick Start
 
 1. Add your email account:
+
 ```bash
 maily login gmail      # For Gmail
 maily login yahoo      # For Yahoo
@@ -45,6 +46,7 @@ maily login imap       # For other IMAP providers
 ```
 
 2. Start the TUI:
+
 ```bash
 maily
 ```
@@ -55,27 +57,27 @@ The background sync daemon starts automatically when you open maily.
 
 ### List View
 
-| Key | Action |
-|-----|--------|
-| `enter` | Open email |
-| `c` | Compose new email |
-| `r` | Reply to email |
-| `R` | Refresh from server |
-| `d` | Delete email |
-| `s` | Search |
-| `g` | Switch folders/labels |
-| `l` | Load more emails |
-| `/` | Command palette |
-| `tab` | Switch accounts |
-| `q` | Quit |
+| Key     | Action                |
+| ------- | --------------------- |
+| `enter` | Open email            |
+| `n`     | New email             |
+| `r`     | Reply to email        |
+| `R`     | Refresh from server   |
+| `d`     | Delete email          |
+| `s`     | Search                |
+| `g`     | Switch folders/labels |
+| `l`     | Load more emails      |
+| `/`     | Command palette       |
+| `tab`   | Switch accounts       |
+| `q`     | Quit                  |
 
 ### Read View
 
-| Key | Action |
-|-----|--------|
-| `r` | Reply |
-| `s` | Summarize (AI) |
-| `esc` | Back to list |
+| Key   | Action         |
+| ----- | -------------- |
+| `r`   | Reply          |
+| `s`   | Summarize (AI) |
+| `esc` | Back to list   |
 
 ## Commands
 

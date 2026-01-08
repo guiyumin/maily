@@ -22,6 +22,7 @@ const (
 	viewEventDetail    // Event detail view
 	viewNLPInput       // NLP quick-add: text input
 	viewNLPParsing     // NLP quick-add: waiting for AI
+	viewNLPEdit        // NLP quick-add: edit parsed event
 	viewNLPCalendar    // NLP quick-add: select calendar
 	viewNLPReminder    // NLP quick-add: select reminder
 	viewNLPConfirm     // NLP quick-add: confirm
@@ -57,6 +58,14 @@ type CalendarApp struct {
 	nlpReminderIdx int
 	nlpStartTime   time.Time
 	nlpEndTime     time.Time
+
+	// NLP edit fields (for editing parsed event)
+	nlpEditTitle    textinput.Model
+	nlpEditDate     components.DatePicker
+	nlpEditStart    components.TimePicker
+	nlpEditEnd      components.TimePicker
+	nlpEditLocation textinput.Model
+	nlpEditFocus    int // 0=title, 1=date, 2=start, 3=end, 4=location
 
 	// Interactive form fields (fallback when no AI CLI)
 	formTitleInput    textinput.Model
@@ -191,7 +200,8 @@ func (m *CalendarApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.nlpEndTime = msg.endTime
 		m.nlpCalendarIdx = 0
 		m.nlpReminderIdx = 0
-		m.view = viewNLPCalendar
+		m.initNLPEdit()
+		m.view = viewNLPEdit
 		return m, nil
 
 	case tea.KeyMsg:
@@ -202,6 +212,9 @@ func (m *CalendarApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Handle NLP views
 		if m.view == viewNLPInput {
 			return m.handleNLPInputKeys(msg)
+		}
+		if m.view == viewNLPEdit {
+			return m.handleNLPEditKeys(msg)
 		}
 		if m.view == viewNLPCalendar || m.view == viewNLPReminder || m.view == viewNLPConfirm {
 			return m.handleNLPSelectKeys(msg)
@@ -659,6 +672,128 @@ func (m *CalendarApp) getNLPReminderMinutes() int {
 	return 0
 }
 
+// NLP Edit functions
+func (m *CalendarApp) initNLPEdit() {
+	m.nlpEditTitle = textinput.New()
+	m.nlpEditTitle.SetValue(m.nlpParsed.Title)
+	m.nlpEditTitle.Focus()
+	m.nlpEditTitle.CharLimit = 100
+	m.nlpEditTitle.Width = 40
+
+	m.nlpEditDate = components.NewDatePicker()
+	m.nlpEditDate.SetDate(m.nlpStartTime)
+
+	m.nlpEditStart = components.NewTimePicker()
+	m.nlpEditStart.SetTime24(m.nlpStartTime.Format("15:04"))
+
+	m.nlpEditEnd = components.NewTimePicker()
+	m.nlpEditEnd.SetTime24(m.nlpEndTime.Format("15:04"))
+
+	m.nlpEditLocation = textinput.New()
+	m.nlpEditLocation.SetValue(m.nlpParsed.Location)
+	m.nlpEditLocation.Placeholder = "Location (optional)"
+	m.nlpEditLocation.CharLimit = 100
+	m.nlpEditLocation.Width = 40
+
+	m.nlpEditFocus = 0
+}
+
+func (m *CalendarApp) handleNLPEditKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	key := msg.String()
+
+	// Handle date/time picker navigation
+	if m.nlpEditFocus >= 1 && m.nlpEditFocus <= 3 {
+		switch key {
+		case "up", "down", "left", "right":
+			switch m.nlpEditFocus {
+			case 1:
+				m.nlpEditDate, _ = m.nlpEditDate.Update(msg)
+			case 2:
+				m.nlpEditStart, _ = m.nlpEditStart.Update(msg)
+			case 3:
+				m.nlpEditEnd, _ = m.nlpEditEnd.Update(msg)
+			}
+			return m, nil
+		}
+	}
+
+	switch key {
+	case "esc":
+		m.view = viewCalendar
+		return m, nil
+	case "tab":
+		m.nlpEditFocus = (m.nlpEditFocus + 1) % 5
+		m.updateNLPEditFocus()
+		return m, nil
+	case "shift+tab":
+		m.nlpEditFocus = (m.nlpEditFocus + 4) % 5
+		m.updateNLPEditFocus()
+		return m, nil
+	case "enter":
+		// Validate and apply edits
+		if m.applyNLPEdits() {
+			m.view = viewNLPCalendar
+		}
+		return m, nil
+	}
+
+	// Pass keystrokes to focused text input
+	var cmd tea.Cmd
+	switch m.nlpEditFocus {
+	case 0:
+		m.nlpEditTitle, cmd = m.nlpEditTitle.Update(msg)
+	case 4:
+		m.nlpEditLocation, cmd = m.nlpEditLocation.Update(msg)
+	}
+	return m, cmd
+}
+
+func (m *CalendarApp) updateNLPEditFocus() {
+	m.nlpEditTitle.Blur()
+	m.nlpEditDate.Blur()
+	m.nlpEditStart.Blur()
+	m.nlpEditEnd.Blur()
+	m.nlpEditLocation.Blur()
+
+	switch m.nlpEditFocus {
+	case 0:
+		m.nlpEditTitle.Focus()
+	case 1:
+		m.nlpEditDate.Focus()
+	case 2:
+		m.nlpEditStart.Focus()
+	case 3:
+		m.nlpEditEnd.Focus()
+	case 4:
+		m.nlpEditLocation.Focus()
+	}
+}
+
+func (m *CalendarApp) applyNLPEdits() bool {
+	// Update parsed event with edited values
+	m.nlpParsed.Title = m.nlpEditTitle.Value()
+	m.nlpParsed.Location = m.nlpEditLocation.Value()
+
+	// Update times
+	date := m.nlpEditDate.Value()
+	startTime, _ := time.Parse("15:04", m.nlpEditStart.Value24())
+	endTime, _ := time.Parse("15:04", m.nlpEditEnd.Value24())
+
+	// Validate end time is after start time
+	if !endTime.After(startTime) {
+		m.err = fmt.Errorf("end time must be after start time")
+		return false
+	}
+
+	m.nlpStartTime = time.Date(date.Year(), date.Month(), date.Day(),
+		startTime.Hour(), startTime.Minute(), 0, 0, time.Local)
+	m.nlpEndTime = time.Date(date.Year(), date.Month(), date.Day(),
+		endTime.Hour(), endTime.Minute(), 0, 0, time.Local)
+
+	m.err = nil
+	return true
+}
+
 func (m *CalendarApp) createNLPEvent() tea.Cmd {
 	return func() tea.Msg {
 		var calendarID string
@@ -771,6 +906,8 @@ func (m *CalendarApp) View() string {
 		return m.renderNLPInput()
 	case viewNLPParsing:
 		return m.renderNLPParsing()
+	case viewNLPEdit:
+		return m.renderNLPEdit()
 	case viewNLPCalendar:
 		return m.renderNLPCalendar()
 	case viewNLPReminder:

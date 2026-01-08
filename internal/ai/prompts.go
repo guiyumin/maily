@@ -111,21 +111,35 @@ Keep it brief. No preamble, just the bullet points.`, from, subject, body)
 }
 
 // ExtractEventsPrompt builds a prompt for extracting calendar events from email
-func ExtractEventsPrompt(from, subject, body string) string {
-	return fmt.Sprintf(`Extract any calendar events, meetings, or deadlines from this email.
+func ExtractEventsPrompt(from, subject, body string, now time.Time) string {
+	return fmt.Sprintf(`Extract the most relevant calendar event, meeting, or deadline from this email.
+
+Current date/time: %s
 
 From: %s
 Subject: %s
 
 %s
 
-If found, respond in this format:
-Title: <event title>
-Date: <date in YYYY-MM-DD format>
-Time: <time in HH:MM format, 24h>
-Duration: <duration like "1h" or "30m">
+If an event is found, respond with ONLY a JSON object (no markdown, no explanation):
+{
+  "title": "event title",
+  "start_time": "2024-12-25T10:00:00-08:00",
+  "end_time": "2024-12-25T11:00:00-08:00",
+  "location": "location if mentioned, otherwise empty string",
+  "alarm_minutes_before": 0,
+  "alarm_specified": false
+}
 
-If no events found, respond with: No events found.
+If NO events found, respond with exactly: NO_EVENTS_FOUND
 
-Respond with only the event details or "No events found", no preamble.`, from, subject, body)
+Rules:
+- start_time and end_time must be in RFC3339 format with timezone
+- If no end time/duration specified, default to 1 hour after start
+- Extract location if mentioned
+- Use the current date/time to interpret relative dates like "tomorrow", "next Monday"
+- Pick the most important/relevant event if multiple are mentioned
+- Set alarm_minutes_before=0 and alarm_specified=false (user will set reminder later)
+
+Respond with ONLY the JSON or NO_EVENTS_FOUND, no other text.`, now.Format(time.RFC3339), from, subject, body)
 }

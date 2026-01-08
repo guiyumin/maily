@@ -88,6 +88,17 @@ type App struct {
 	summaryText   string
 	summarySource string // which AI provider was used
 
+	// Extract
+	showExtract       bool
+	extractedEvent    *ai.ParsedEvent
+	extractedStart    time.Time
+	extractedEnd      time.Time
+	extractedProvider string // which AI provider was used
+
+	// Manual extract input (when no event found)
+	showExtractInput bool
+	extractInput     textinput.Model
+
 	// Attachments
 	showAttachmentPicker bool
 	attachmentIdx        int
@@ -132,6 +143,18 @@ type summaryResultMsg struct {
 }
 
 type summaryErrorMsg struct {
+	err error
+}
+
+type extractResultMsg struct {
+	found     bool
+	event     *ai.ParsedEvent
+	startTime time.Time
+	endTime   time.Time
+	provider  string
+}
+
+type extractErrorMsg struct {
 	err error
 }
 
@@ -268,6 +291,30 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return a, nil
 		}
 
+		// Handle extract input mode
+		if a.showExtractInput {
+			switch msg.String() {
+			case "esc":
+				a.showExtractInput = false
+				a.extractInput.Blur()
+				a.extractInput.SetValue("")
+			case "enter":
+				input := a.extractInput.Value()
+				if input != "" {
+					a.showExtractInput = false
+					a.extractInput.Blur()
+					a.state = stateLoading
+					a.statusMsg = "Parsing with " + a.aiClient.Provider() + "..."
+					return a, tea.Batch(a.spinner.Tick, a.parseManualEvent(input))
+				}
+			default:
+				var cmd tea.Cmd
+				a.extractInput, cmd = a.extractInput.Update(msg)
+				return a, cmd
+			}
+			return a, nil
+		}
+
 		// Handle label picker navigation
 		if a.showLabelPicker {
 			switch msg.String() {
@@ -346,6 +393,10 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				a.showSummary = false
 				a.summaryText = ""
 				a.summarySource = ""
+			} else if a.showExtract {
+				a.showExtract = false
+				a.extractedEvent = nil
+				a.extractedProvider = ""
 			} else if a.confirmDelete {
 				a.confirmDelete = false
 				a.statusMsg = ""
@@ -461,8 +512,8 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					}
 				}
 			}
-		case "c":
-			// Compose new email
+		case "n":
+			// new email
 			if a.state == stateReady && !a.confirmDelete && a.view == listView {
 				account := a.currentAccount()
 				if account != nil {
@@ -515,10 +566,18 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 		case "e":
-			// Extract event to calendar (read view only)
-			if a.state == stateReady && a.view == readView && !a.confirmDelete {
-				a.statusMsg = "Extract: AI not configured yet"
-				return a, nil
+			// Extract event from email (read view only)
+			if a.state == stateReady && a.view == readView && !a.confirmDelete && !a.showExtract {
+				if !a.aiClient.Available() {
+					a.statusMsg = "No AI CLI found (install claude, codex, gemini, vibe, or ollama)"
+					return a, nil
+				}
+				email := a.mailList.SelectedEmail()
+				if email != nil {
+					a.state = stateLoading
+					a.statusMsg = "Extracting event with " + a.aiClient.Provider() + "..."
+					return a, tea.Batch(a.spinner.Tick, a.doExtractEvent(email))
+				}
 			}
 		case "a":
 			// Download attachments (read view only)
@@ -917,6 +976,32 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.state = stateReady
 		a.statusMsg = fmt.Sprintf("Summarize failed: %v", msg.err)
 
+	case extractResultMsg:
+		a.state = stateReady
+		if !msg.found {
+			// No event found - prompt user to type event details
+			a.extractInput = textinput.New()
+			a.extractInput.Placeholder = "e.g., tomorrow 2pm meeting with John"
+			a.extractInput.Focus()
+			a.extractInput.CharLimit = 200
+			a.extractInput.Width = 50
+			a.showExtractInput = true
+			a.extractedProvider = msg.provider
+			a.statusMsg = ""
+			return a, textinput.Blink
+		} else {
+			a.showExtract = true
+			a.extractedEvent = msg.event
+			a.extractedStart = msg.startTime
+			a.extractedEnd = msg.endTime
+			a.extractedProvider = msg.provider
+			a.statusMsg = ""
+		}
+
+	case extractErrorMsg:
+		a.state = stateReady
+		a.statusMsg = fmt.Sprintf("Extract failed: %v", msg.err)
+
 	case attachmentDownloadedMsg:
 		a.state = stateReady
 		a.statusMsg = fmt.Sprintf("Downloaded %s to ~/Downloads/maily", msg.filename)
@@ -1023,6 +1108,22 @@ func (a App) View() string {
 	// Show summary dialog overlay
 	if a.showSummary {
 		content = components.RenderSummaryDialog(a.width, a.height, a.summaryText, a.summarySource)
+	}
+
+	// Show extract input dialog overlay
+	if a.showExtractInput {
+		content = components.RenderExtractInputDialog(a.width, a.height, a.extractInput.View())
+	}
+
+	// Show extract dialog overlay
+	if a.showExtract && a.extractedEvent != nil {
+		content = components.RenderExtractDialog(a.width, a.height, components.ExtractData{
+			Title:     a.extractedEvent.Title,
+			StartTime: a.extractedStart,
+			EndTime:   a.extractedEnd,
+			Location:  a.extractedEvent.Location,
+			Provider:  a.extractedProvider,
+		})
 	}
 
 	// Show attachment picker overlay

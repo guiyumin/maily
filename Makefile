@@ -1,4 +1,4 @@
-.PHONY: build clean push version patch minor major
+.PHONY: build clean push version patch minor major lint
 
 APP_NAME := maily
 BUILD_DIR := build
@@ -52,3 +52,6 @@ patch minor major: version
 	git tag "v$$NEW_VERSION" && \
 	echo "Created tag v$$NEW_VERSION" && \
 	echo "Run 'make push' to push changes and trigger release"
+
+lint:
+	go run honnef.co/go/tools/cmd/staticcheck@latest ./...

@@ -56,7 +56,7 @@ func (a *App) loadEmails() tea.Cmd {
 	imapClient := a.imap // capture for nil check in closure
 	return func() tea.Msg {
 		if imapClient == nil {
-			return errorMsg{err: fmt.Errorf("connecting to server..."), accountEmail: accountEmail}
+			return errorMsg{err: fmt.Errorf("connecting to server"), accountEmail: accountEmail}
 		}
 		// Get UIDValidity for cache consistency with daemon
 		mailboxInfo, err := imapClient.SelectMailboxWithInfo(label)
@@ -79,7 +79,7 @@ func (a *App) loadLabels() tea.Cmd {
 	imap := a.imap // capture for nil check in closure
 	return func() tea.Msg {
 		if imap == nil {
-			return errorMsg{err: fmt.Errorf("connecting to server..."), accountEmail: accountEmail}
+			return errorMsg{err: fmt.Errorf("connecting to server"), accountEmail: accountEmail}
 		}
 		labels, err := imap.ListMailboxes()
 		if err != nil {
@@ -98,7 +98,7 @@ func (a *App) executeSearch(query string) tea.Cmd {
 	imap := a.imap // capture for nil check in closure
 	return func() tea.Msg {
 		if imap == nil {
-			return errorMsg{err: fmt.Errorf("connecting to server..."), accountEmail: accountEmail}
+			return errorMsg{err: fmt.Errorf("connecting to server"), accountEmail: accountEmail}
 		}
 		emails, err := imap.SearchMessages(label, query)
 		if err != nil {
@@ -131,7 +131,7 @@ func (a *App) markSelectedAsRead() tea.Cmd {
 			return bulkActionCompleteMsg{action: "marked as read", count: 0}
 		}
 		if imapClient == nil {
-			return errorMsg{err: fmt.Errorf("connecting to server..."), accountEmail: accountEmail}
+			return errorMsg{err: fmt.Errorf("connecting to server"), accountEmail: accountEmail}
 		}
 		if err := imapClient.MarkMessagesAsRead(uids); err != nil {
 			return errorMsg{err: err, accountEmail: accountEmail}
@@ -169,7 +169,7 @@ func (a *App) deleteSelectedEmails() tea.Cmd {
 			return bulkActionCompleteMsg{action: "deleted", count: 0}
 		}
 		if imapClient == nil {
-			return errorMsg{err: fmt.Errorf("connecting to server..."), accountEmail: accountEmail}
+			return errorMsg{err: fmt.Errorf("connecting to server"), accountEmail: accountEmail}
 		}
 		err := imapClient.DeleteMessages(uids)
 		if err != nil {
@@ -198,7 +198,7 @@ func (a *App) deleteSingleEmail(uid imap.UID) tea.Cmd {
 
 	return func() tea.Msg {
 		if imapClient == nil {
-			return errorMsg{err: fmt.Errorf("connecting to server..."), accountEmail: accountEmail}
+			return errorMsg{err: fmt.Errorf("connecting to server"), accountEmail: accountEmail}
 		}
 		err := imapClient.DeleteMessage(uid)
 		if err != nil {
@@ -236,7 +236,7 @@ func (a *App) moveSelectedToTrash() tea.Cmd {
 			return bulkActionCompleteMsg{action: "moved to trash", count: 0}
 		}
 		if imapClient == nil {
-			return errorMsg{err: fmt.Errorf("connecting to server..."), accountEmail: accountEmail}
+			return errorMsg{err: fmt.Errorf("connecting to server"), accountEmail: accountEmail}
 		}
 		err := imapClient.MoveToTrashFromMailbox(uids, mailbox)
 		if err != nil {
@@ -265,7 +265,7 @@ func (a *App) moveSingleToTrash(uid imap.UID) tea.Cmd {
 
 	return func() tea.Msg {
 		if imapClient == nil {
-			return errorMsg{err: fmt.Errorf("connecting to server..."), accountEmail: accountEmail}
+			return errorMsg{err: fmt.Errorf("connecting to server"), accountEmail: accountEmail}
 		}
 		err := imapClient.MoveToTrashFromMailbox([]imap.UID{uid}, mailbox)
 		if err != nil {
@@ -318,7 +318,7 @@ func (a *App) saveDraft() tea.Cmd {
 
 	return func() tea.Msg {
 		if imapClient == nil {
-			return draftSaveErrorMsg{err: fmt.Errorf("connecting to server...")}
+			return draftSaveErrorMsg{err: fmt.Errorf("connecting to server")}
 		}
 		if err := imapClient.SaveDraft(to, subject, body); err != nil {
 			return draftSaveErrorMsg{err: err}

@@ -32,6 +32,7 @@ func init() {
 	rootCmd.AddCommand(todayCmd)
 	rootCmd.AddCommand(versionCmd)
 	rootCmd.AddCommand(updateCmd)
+	rootCmd.AddCommand(configCmd)
 }
 
 func runTUI() {

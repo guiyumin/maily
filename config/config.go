@@ -1,17 +1,29 @@
 package config
 
 import (
-	"encoding/json"
 	"os"
 	"path/filepath"
+
+	"gopkg.in/yaml.v3"
 )
 
-const configFileName = "config.json"
+const configFileName = "config.yml"
+
+// AIAccount represents an OpenAI-compatible API configuration
+type AIAccount struct {
+	Name    string `yaml:"name,omitempty"`    // friendly name (e.g., "nvidia", "openai")
+	BaseURL string `yaml:"base_url"`          // API base URL
+	APIKey  string `yaml:"api_key"`           // API key
+	Model   string `yaml:"model"`             // model to use
+}
 
 type Config struct {
-	MaxEmails    int    `json:"max_emails"`
-	DefaultLabel string `json:"default_label"`
-	Theme        string `json:"theme"`
+	MaxEmails    int    `yaml:"max_emails"`
+	DefaultLabel string `yaml:"default_label"`
+	Theme        string `yaml:"theme"`
+
+	// AI API accounts - tried in order from first to last
+	AIAccounts []AIAccount `yaml:"ai_accounts,omitempty"`
 }
 
 func DefaultConfig() Config {
@@ -38,8 +50,19 @@ func Load() (Config, error) {
 	}
 
 	var cfg Config
-	if err := json.Unmarshal(data, &cfg); err != nil {
+	if err := yaml.Unmarshal(data, &cfg); err != nil {
 		return DefaultConfig(), err
+	}
+
+	// Apply defaults for zero values
+	if cfg.MaxEmails == 0 {
+		cfg.MaxEmails = 50
+	}
+	if cfg.DefaultLabel == "" {
+		cfg.DefaultLabel = "INBOX"
+	}
+	if cfg.Theme == "" {
+		cfg.Theme = "default"
 	}
 
 	return cfg, nil
@@ -56,7 +79,7 @@ func (c Config) Save() error {
 	}
 
 	configPath := filepath.Join(configDir, configFileName)
-	data, err := json.MarshalIndent(c, "", "  ")
+	data, err := yaml.Marshal(c)
 	if err != nil {
 		return err
 	}

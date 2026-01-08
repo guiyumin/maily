@@ -24,13 +24,13 @@ type CommandSelectedMsg struct {
 // AllCommands defines all available slash commands
 var AllCommands = []Command{
 	{Name: "new", Description: "New email", Shortcut: "n", Views: []string{"list"}},
-	{Name: "reply", Description: "Reply to this email", Shortcut: "r", Views: []string{"list", "read", "today"}},
-	{Name: "delete", Description: "Delete this email", Shortcut: "d", Views: []string{"list", "read", "today"}},
+	{Name: "reply", Description: "Reply to this email", Shortcut: "r", Views: []string{"list", "today"}},
+	{Name: "delete", Description: "Delete this email", Shortcut: "d", Views: []string{"list", "today"}},
 	{Name: "search", Description: "Search emails", Shortcut: "s", Views: []string{"list"}},
 	{Name: "refresh", Description: "Refresh inbox", Shortcut: "R", Views: []string{"list"}},
 	{Name: "labels", Description: "Switch label/folder", Shortcut: "f", Views: []string{"list"}},
-	{Name: "summarize", Description: "Summarize this email (AI)", Shortcut: "s", Views: []string{"read", "today"}},
-	{Name: "extract", Description: "Extract event to calendar (AI)", Shortcut: "e", Views: []string{"read", "today"}},
+	{Name: "summarize", Description: "Summarize this email (AI)", Shortcut: "s", Views: []string{"today"}},
+	{Name: "extract", Description: "Extract event to calendar (AI)", Shortcut: "e", Views: []string{"today"}},
 	{Name: "add", Description: "Add calendar event", Shortcut: "a", Views: []string{"today"}},
 }
 

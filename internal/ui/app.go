@@ -16,6 +16,7 @@ import (
 	"maily/internal/ai"
 	"maily/internal/auth"
 	"maily/internal/cache"
+	"maily/internal/calendar"
 	"maily/internal/mail"
 	"maily/internal/ui/components"
 )
@@ -95,6 +96,19 @@ type App struct {
 	extractedEnd      time.Time
 	extractedProvider string // which AI provider was used
 
+	// Extract edit form
+	showExtractEdit      bool
+	extractEditTitle     textinput.Model
+	extractEditDate      textinput.Model
+	extractEditStart     textinput.Model
+	extractEditEnd       textinput.Model
+	extractEditLocation  textinput.Model
+	extractEditReminder  int // index into reminderOptions: 0=none, 1=5min, 2=10min, 3=15min, 4=30min, 5=1hr
+	extractEditFocus     int // 0=title, 1=date, 2=start, 3=end, 4=location, 5=reminder, 6=save, 7=cancel
+
+	// Calendar
+	calClient calendar.Client
+
 	// Manual extract input (when no event found)
 	showExtractInput bool
 	extractInput     textinput.Model
@@ -158,6 +172,14 @@ type extractErrorMsg struct {
 	err error
 }
 
+type calendarEventCreatedMsg struct {
+	eventID string
+}
+
+type calendarEventErrorMsg struct {
+	err error
+}
+
 type cachedEmailsLoadedMsg struct {
 	emails       []mail.Email
 	accountEmail string // which account this belongs to
@@ -202,6 +224,9 @@ func NewApp(store *auth.AccountStore) App {
 	// Initialize disk cache (ignore error, will just skip cache)
 	diskCache, _ := cache.New()
 
+	// Initialize calendar client (ignore error, will just skip calendar features)
+	calClient, _ := calendar.NewClient()
+
 	return App{
 		store:          store,
 		accountIdx:     0,
@@ -220,6 +245,7 @@ func NewApp(store *auth.AccountStore) App {
 		selected:       make(map[imap.UID]bool),
 		commandPalette: components.NewCommandPalette(),
 		aiClient:       ai.NewClient(),
+		calClient:      calClient,
 	}
 }
 
@@ -366,6 +392,100 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 
+		// Handle extract edit form
+		if a.showExtractEdit {
+			switch msg.String() {
+			case "esc":
+				// Go back to extract preview without saving
+				a.showExtractEdit = false
+				return a, nil
+			case "tab":
+				a.extractEditFocus = (a.extractEditFocus + 1) % 8
+				a.updateExtractEditFocus()
+				return a, nil
+			case "shift+tab":
+				a.extractEditFocus = (a.extractEditFocus - 1 + 8) % 8
+				a.updateExtractEditFocus()
+				return a, nil
+			case "up", "k":
+				// For reminder field, cycle through options
+				if a.extractEditFocus == 5 {
+					a.extractEditReminder = (a.extractEditReminder - 1 + 6) % 6
+					return a, nil
+				}
+			case "down", "j":
+				// For reminder field, cycle through options
+				if a.extractEditFocus == 5 {
+					a.extractEditReminder = (a.extractEditReminder + 1) % 6
+					return a, nil
+				}
+			case "enter":
+				switch a.extractEditFocus {
+				case 6: // Save button
+					if err := a.applyExtractEdits(); err != nil {
+						a.statusMsg = fmt.Sprintf("Invalid input: %v", err)
+						return a, nil
+					}
+					a.showExtractEdit = false
+					a.statusMsg = "Changes saved"
+					return a, nil
+				case 7: // Cancel button
+					a.showExtractEdit = false
+					return a, nil
+				default:
+					// Move to next field
+					a.extractEditFocus++
+					a.updateExtractEditFocus()
+					return a, nil
+				}
+			default:
+				// Route input to focused field
+				var cmd tea.Cmd
+				switch a.extractEditFocus {
+				case 0:
+					a.extractEditTitle, cmd = a.extractEditTitle.Update(msg)
+				case 1:
+					a.extractEditDate, cmd = a.extractEditDate.Update(msg)
+				case 2:
+					a.extractEditStart, cmd = a.extractEditStart.Update(msg)
+				case 3:
+					a.extractEditEnd, cmd = a.extractEditEnd.Update(msg)
+				case 4:
+					a.extractEditLocation, cmd = a.extractEditLocation.Update(msg)
+				// case 5: reminder uses up/down, no text input
+				// case 6, 7: buttons, no text input
+				}
+				return a, cmd
+			}
+		}
+
+		// Handle extract dialog (add to calendar)
+		if a.showExtract && a.extractedEvent != nil {
+			switch msg.String() {
+			case "enter":
+				// Add event to calendar
+				if a.calClient == nil {
+					a.statusMsg = "Calendar not available"
+					a.showExtract = false
+					a.extractedEvent = nil
+					return a, nil
+				}
+				a.state = stateLoading
+				a.statusMsg = "Adding to calendar..."
+				return a, tea.Batch(a.spinner.Tick, a.addEventToCalendar())
+			case "e":
+				// Enter edit mode
+				a.initExtractEditForm()
+				a.showExtractEdit = true
+				return a, textinput.Blink
+			case "esc":
+				a.showExtract = false
+				a.extractedEvent = nil
+				a.extractedProvider = ""
+				return a, nil
+			}
+		}
+
 		switch msg.String() {
 		case "ctrl+c", "q":
 			// Close all cached IMAP connections
@@ -393,10 +513,6 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				a.showSummary = false
 				a.summaryText = ""
 				a.summarySource = ""
-			} else if a.showExtract {
-				a.showExtract = false
-				a.extractedEvent = nil
-				a.extractedProvider = ""
 			} else if a.confirmDelete {
 				a.confirmDelete = false
 				a.statusMsg = ""
@@ -1002,6 +1118,21 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.state = stateReady
 		a.statusMsg = fmt.Sprintf("Extract failed: %v", msg.err)
 
+	case calendarEventCreatedMsg:
+		a.state = stateReady
+		a.showExtract = false
+		a.showExtractEdit = false
+		a.extractedEvent = nil
+		a.extractedProvider = ""
+		a.statusMsg = "Event added to calendar"
+
+	case calendarEventErrorMsg:
+		a.state = stateReady
+		a.showExtract = false
+		a.showExtractEdit = false
+		a.extractedEvent = nil
+		a.statusMsg = fmt.Sprintf("Failed to add event: %v", msg.err)
+
 	case attachmentDownloadedMsg:
 		a.state = stateReady
 		a.statusMsg = fmt.Sprintf("Downloaded %s to ~/Downloads/maily", msg.filename)
@@ -1117,12 +1248,32 @@ func (a App) View() string {
 
 	// Show extract dialog overlay
 	if a.showExtract && a.extractedEvent != nil {
+		reminderStr := ""
+		if a.extractedEvent.AlarmMinutesBefore > 0 {
+			reminderStr = ReminderLabels[minutesToReminderIndex(a.extractedEvent.AlarmMinutesBefore)]
+		}
 		content = components.RenderExtractDialog(a.width, a.height, components.ExtractData{
 			Title:     a.extractedEvent.Title,
 			StartTime: a.extractedStart,
 			EndTime:   a.extractedEnd,
 			Location:  a.extractedEvent.Location,
+			Reminder:  reminderStr,
 			Provider:  a.extractedProvider,
+		})
+	}
+
+	// Show extract edit dialog overlay (takes precedence over extract dialog)
+	if a.showExtractEdit {
+		content = components.RenderExtractEditDialog(a.width, a.height, components.ExtractEditData{
+			TitleInput:    a.extractEditTitle.View(),
+			DateInput:     a.extractEditDate.View(),
+			StartInput:    a.extractEditStart.View(),
+			EndInput:      a.extractEditEnd.View(),
+			LocationInput: a.extractEditLocation.View(),
+			ReminderIdx:   a.extractEditReminder,
+			ReminderLabel: ReminderLabels[a.extractEditReminder],
+			FocusIdx:      a.extractEditFocus,
+			Provider:      a.extractedProvider,
 		})
 	}
 

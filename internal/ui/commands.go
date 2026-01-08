@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/charmbracelet/bubbles/textinput"
@@ -9,6 +10,7 @@ import (
 	"github.com/emersion/go-imap/v2"
 	"maily/internal/ai"
 	"maily/internal/cache"
+	"maily/internal/calendar"
 	"maily/internal/mail"
 )
 
@@ -397,8 +399,11 @@ func (a *App) doExtractEvent(email *mail.Email) tea.Cmd {
 			return extractErrorMsg{err: err}
 		}
 
-		// Check if no events found
-		if response == "NO_EVENTS_FOUND" || response == "" {
+		// Check if no events found (case-insensitive, handle variations)
+		responseLower := strings.ToLower(strings.TrimSpace(response))
+		if response == "" || responseLower == "no_events_found" ||
+			strings.Contains(responseLower, "no events found") ||
+			strings.Contains(responseLower, "no event found") {
 			return extractResultMsg{found: false, provider: provider}
 		}
 
@@ -426,6 +431,165 @@ func (a *App) doExtractEvent(email *mail.Email) tea.Cmd {
 			provider:  provider,
 		}
 	}
+}
+
+// addEventToCalendar creates a calendar event from the extracted event data
+func (a *App) addEventToCalendar() tea.Cmd {
+	event := a.extractedEvent
+	startTime := a.extractedStart
+	endTime := a.extractedEnd
+	client := a.calClient
+
+	return func() tea.Msg {
+		if event == nil || client == nil {
+			return calendarEventErrorMsg{err: fmt.Errorf("no event data or calendar unavailable")}
+		}
+
+		calEvent := calendar.Event{
+			Title:              event.Title,
+			StartTime:          startTime,
+			EndTime:            endTime,
+			Location:           event.Location,
+			AlarmMinutesBefore: event.AlarmMinutesBefore,
+		}
+
+		eventID, err := client.CreateEvent(calEvent)
+		if err != nil {
+			return calendarEventErrorMsg{err: err}
+		}
+
+		return calendarEventCreatedMsg{eventID: eventID}
+	}
+}
+
+// ReminderOptions defines available reminder choices (in minutes, 0 = none)
+var ReminderOptions = []int{0, 5, 10, 15, 30, 60}
+
+// ReminderLabels are the display labels for reminder options
+var ReminderLabels = []string{"No reminder", "5 minutes", "10 minutes", "15 minutes", "30 minutes", "1 hour"}
+
+// minutesToReminderIndex converts minutes to reminder option index
+func minutesToReminderIndex(minutes int) int {
+	for i, m := range ReminderOptions {
+		if m == minutes {
+			return i
+		}
+	}
+	// Default to no reminder if not found
+	return 0
+}
+
+// initExtractEditForm initializes the edit form with extracted event data
+func (a *App) initExtractEditForm() {
+	event := a.extractedEvent
+	if event == nil {
+		return
+	}
+
+	// Title
+	a.extractEditTitle = textinput.New()
+	a.extractEditTitle.Placeholder = "Event title"
+	a.extractEditTitle.SetValue(event.Title)
+	a.extractEditTitle.CharLimit = 100
+	a.extractEditTitle.Width = 40
+	a.extractEditTitle.Focus()
+
+	// Date (YYYY-MM-DD)
+	a.extractEditDate = textinput.New()
+	a.extractEditDate.Placeholder = "YYYY-MM-DD"
+	a.extractEditDate.SetValue(a.extractedStart.Format("2006-01-02"))
+	a.extractEditDate.CharLimit = 10
+	a.extractEditDate.Width = 12
+
+	// Start time (HH:MM)
+	a.extractEditStart = textinput.New()
+	a.extractEditStart.Placeholder = "HH:MM"
+	a.extractEditStart.SetValue(a.extractedStart.Format("15:04"))
+	a.extractEditStart.CharLimit = 5
+	a.extractEditStart.Width = 8
+
+	// End time (HH:MM)
+	a.extractEditEnd = textinput.New()
+	a.extractEditEnd.Placeholder = "HH:MM"
+	a.extractEditEnd.SetValue(a.extractedEnd.Format("15:04"))
+	a.extractEditEnd.CharLimit = 5
+	a.extractEditEnd.Width = 8
+
+	// Location
+	a.extractEditLocation = textinput.New()
+	a.extractEditLocation.Placeholder = "Location (optional)"
+	a.extractEditLocation.SetValue(event.Location)
+	a.extractEditLocation.CharLimit = 100
+	a.extractEditLocation.Width = 40
+
+	// Reminder - convert minutes to index
+	a.extractEditReminder = minutesToReminderIndex(event.AlarmMinutesBefore)
+
+	a.extractEditFocus = 0
+}
+
+// updateExtractEditFocus updates focus state of edit form fields
+func (a *App) updateExtractEditFocus() {
+	a.extractEditTitle.Blur()
+	a.extractEditDate.Blur()
+	a.extractEditStart.Blur()
+	a.extractEditEnd.Blur()
+	a.extractEditLocation.Blur()
+
+	switch a.extractEditFocus {
+	case 0:
+		a.extractEditTitle.Focus()
+	case 1:
+		a.extractEditDate.Focus()
+	case 2:
+		a.extractEditStart.Focus()
+	case 3:
+		a.extractEditEnd.Focus()
+	case 4:
+		a.extractEditLocation.Focus()
+	}
+}
+
+// applyExtractEdits validates and applies edits to the extracted event
+func (a *App) applyExtractEdits() error {
+	// Parse date
+	dateStr := a.extractEditDate.Value()
+	date, err := time.ParseInLocation("2006-01-02", dateStr, time.Local)
+	if err != nil {
+		return fmt.Errorf("invalid date format (use YYYY-MM-DD)")
+	}
+
+	// Parse start time
+	startStr := a.extractEditStart.Value()
+	startTime, err := time.Parse("15:04", startStr)
+	if err != nil {
+		return fmt.Errorf("invalid start time format (use HH:MM)")
+	}
+
+	// Parse end time
+	endStr := a.extractEditEnd.Value()
+	endTime, err := time.Parse("15:04", endStr)
+	if err != nil {
+		return fmt.Errorf("invalid end time format (use HH:MM)")
+	}
+
+	// Combine date and times
+	a.extractedStart = time.Date(date.Year(), date.Month(), date.Day(),
+		startTime.Hour(), startTime.Minute(), 0, 0, time.Local)
+	a.extractedEnd = time.Date(date.Year(), date.Month(), date.Day(),
+		endTime.Hour(), endTime.Minute(), 0, 0, time.Local)
+
+	// Validate end > start
+	if !a.extractedEnd.After(a.extractedStart) {
+		return fmt.Errorf("end time must be after start time")
+	}
+
+	// Update event fields
+	a.extractedEvent.Title = a.extractEditTitle.Value()
+	a.extractedEvent.Location = a.extractEditLocation.Value()
+	a.extractedEvent.AlarmMinutesBefore = ReminderOptions[a.extractEditReminder]
+
+	return nil
 }
 
 // loadCachedEmails loads emails from disk cache for instant display

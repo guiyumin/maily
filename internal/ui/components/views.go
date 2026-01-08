@@ -129,9 +129,10 @@ func RenderStatusBar(data StatusBarData) string {
 		// Read view
 		help = tabHint +
 			HelpKeyStyle.Render("r") + HelpDescStyle.Render(" reply  ") +
-			HelpKeyStyle.Render("a") + HelpDescStyle.Render(" download attachments ") +
+			HelpKeyStyle.Render("d") + HelpDescStyle.Render(" delete  ") +
+			HelpKeyStyle.Render("a") + HelpDescStyle.Render(" attachments  ") +
 			HelpKeyStyle.Render("s") + HelpDescStyle.Render(" summarize  ") +
-			HelpKeyStyle.Render("/") + HelpDescStyle.Render(" commands  ") +
+			HelpKeyStyle.Render("e") + HelpDescStyle.Render(" extract  ") +
 			HelpKeyStyle.Render("esc") + HelpDescStyle.Render(" back  ") +
 			HelpKeyStyle.Render("q") + HelpDescStyle.Render(" quit")
 	}
@@ -460,6 +461,7 @@ type ExtractData struct {
 	StartTime time.Time
 	EndTime   time.Time
 	Location  string
+	Reminder  string // e.g., "15 minutes before" or empty
 	Provider  string
 }
 
@@ -500,6 +502,12 @@ func RenderExtractDialog(width, height int, data ExtractData) string {
 		lines = append(lines, labelStyle.Render("Location:")+valueStyle.Render(data.Location))
 	}
 
+	reminderText := data.Reminder
+	if reminderText == "" {
+		reminderText = "No reminder set"
+	}
+	lines = append(lines, labelStyle.Render("Reminder:")+valueStyle.Render(reminderText))
+
 	content := lipgloss.JoinVertical(
 		lipgloss.Left,
 		titleStyle.Render("Extracted Event"),
@@ -508,7 +516,130 @@ func RenderExtractDialog(width, height int, data ExtractData) string {
 		"",
 		providerStyle.Render("via "+data.Provider),
 		"",
-		hintStyle.Render("Press Esc to close"),
+		hintStyle.Render("Enter: add · e: edit · Esc: close"),
+	)
+
+	dialogStyle := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(Primary).
+		Padding(1, 3).
+		Width(dialogWidth)
+
+	return lipgloss.Place(
+		width,
+		height-4,
+		lipgloss.Center,
+		lipgloss.Center,
+		dialogStyle.Render(content),
+	)
+}
+
+// ExtractEditData contains form data for editing extracted events
+type ExtractEditData struct {
+	TitleInput    string
+	DateInput     string
+	StartInput    string
+	EndInput      string
+	LocationInput string
+	ReminderIdx   int
+	ReminderLabel string
+	FocusIdx      int
+	Provider      string
+}
+
+func RenderExtractEditDialog(width, height int, data ExtractEditData) string {
+	dialogWidth := min(width-20, 60)
+
+	titleStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(Primary).
+		MarginBottom(1)
+
+	labelStyle := lipgloss.NewStyle().
+		Foreground(Muted).
+		Width(10)
+
+	focusedLabelStyle := lipgloss.NewStyle().
+		Foreground(Primary).
+		Bold(true).
+		Width(10)
+
+	inputStyle := lipgloss.NewStyle().
+		Foreground(Text)
+
+	providerStyle := lipgloss.NewStyle().
+		Foreground(Muted).
+		Italic(true)
+
+	hintStyle := lipgloss.NewStyle().
+		Foreground(Muted).
+		MarginTop(1)
+
+	// Build form fields
+	fields := []struct {
+		label string
+		value string
+	}{
+		{"Title:", data.TitleInput},
+		{"Date:", data.DateInput},
+		{"Start:", data.StartInput},
+		{"End:", data.EndInput},
+		{"Location:", data.LocationInput},
+	}
+
+	var lines []string
+	for i, f := range fields {
+		ls := labelStyle
+		if i == data.FocusIdx {
+			ls = focusedLabelStyle
+		}
+		lines = append(lines, ls.Render(f.label)+inputStyle.Render(f.value))
+	}
+
+	// Add reminder field (uses ↑↓ to change)
+	reminderLs := labelStyle
+	reminderHint := ""
+	if data.FocusIdx == 5 {
+		reminderLs = focusedLabelStyle
+		reminderHint = " (↑↓)"
+	}
+	lines = append(lines, reminderLs.Render("Reminder:")+inputStyle.Render(data.ReminderLabel+reminderHint))
+
+	// Button styles
+	buttonStyle := lipgloss.NewStyle().
+		Padding(0, 2).
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(Muted)
+
+	focusedButtonStyle := lipgloss.NewStyle().
+		Padding(0, 2).
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(Primary).
+		Foreground(Primary).
+		Bold(true)
+
+	// Build buttons
+	saveStyle := buttonStyle
+	cancelStyle := buttonStyle
+	if data.FocusIdx == 6 {
+		saveStyle = focusedButtonStyle
+	}
+	if data.FocusIdx == 7 {
+		cancelStyle = focusedButtonStyle
+	}
+	buttons := lipgloss.JoinHorizontal(lipgloss.Center, saveStyle.Render("Save"), "  ", cancelStyle.Render("Cancel"))
+
+	content := lipgloss.JoinVertical(
+		lipgloss.Left,
+		titleStyle.Render("Edit Event"),
+		"",
+		strings.Join(lines, "\n"),
+		"",
+		buttons,
+		"",
+		providerStyle.Render("via "+data.Provider),
+		"",
+		hintStyle.Render("Tab: next · Enter: select · Esc: back"),
 	)
 
 	dialogStyle := lipgloss.NewStyle().

@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/textinput"
@@ -14,15 +16,28 @@ import (
 	"maily/internal/ui/components"
 )
 
+// Package-level compiled regex for extracting email addresses
+var emailExtractRegex = regexp.MustCompile(`<([^>]+)>`)
+
+// maxQuotedBodyLen limits quoted body length to prevent performance issues
+const maxQuotedBodyLen = 10000
+
+// maxAttachmentSize is the Gmail attachment size limit (25MB)
+const maxAttachmentSize = 25 * 1024 * 1024
+
 // Focus fields
 const (
 	focusTo = iota
 	focusSubject
 	focusBody
+	focusAttachments
 	focusSend
 	focusSaveDraft
 	focusCancel
 )
+
+// numFocusFields is the total number of focus fields for cycling
+const numFocusFields = 7
 
 // Confirmation states
 const (
@@ -32,21 +47,35 @@ const (
 	confirmCancel
 )
 
+// ComposeAttachment represents an attachment to be sent
+type ComposeAttachment struct {
+	Path        string
+	Name        string
+	Size        int64
+	ContentType string
+}
+
 // ComposeModel handles email composition (reply/compose)
 type ComposeModel struct {
-	from           string
-	toInput        textinput.Model
-	subjectInput   textinput.Model
-	body           textarea.Model
-	width          int
-	height         int
-	focused        int
-	isReply        bool
-	replyEmail     *mail.Email // Original email being replied to
-	confirming     int         // confirmNone, confirmSend, or confirmCancel
-	confirmFocused int         // 0 = Confirm button, 1 = Cancel button
-	quotedBody     string      // stored quoted body for deferred initialization
+	from            string
+	toInput         textinput.Model
+	subjectInput    textinput.Model
+	body            textarea.Model
+	width           int
+	height          int
+	focused         int
+	isReply         bool
+	replyEmail      *mail.Email // Original email being replied to
+	confirming      int         // confirmNone, confirmSend, or confirmCancel
+	confirmFocused  int         // 0 = Confirm button, 1 = Cancel button
+	quotedBody      string      // stored quoted body for deferred initialization
+	attachments     []ComposeAttachment
+	totalAttachSize int64 // cumulative size of all attachments
+	attachmentIdx   int   // currently selected attachment index
 }
+
+// OpenFilePickerMsg is sent when user wants to open the file picker
+type OpenFilePickerMsg struct{}
 
 // NewComposeModel creates a new compose model for a fresh email
 func NewComposeModel(from string) ComposeModel {
@@ -124,27 +153,75 @@ func NewReplyModel(from string, original *mail.Email) ComposeModel {
 
 // extractEmail extracts email address from "Name <email@example.com>" format
 func extractEmail(s string) string {
-	re := regexp.MustCompile(`<([^>]+)>`)
-	matches := re.FindStringSubmatch(s)
+	matches := emailExtractRegex.FindStringSubmatch(s)
 	if len(matches) > 1 {
 		return matches[1]
 	}
 	return s
 }
 
+// sanitizeControlChars removes ANSI escape sequences and control characters
+// except for allowed whitespace (newline, tab). Properly handles UTF-8.
+func sanitizeControlChars(s string) string {
+	var sb strings.Builder
+	sb.Grow(len(s))
+
+	i := 0
+	for i < len(s) {
+		// Check for ANSI escape sequence (ESC [ ... or ESC O ...)
+		if i+1 < len(s) && s[i] == '\x1b' {
+			// Skip the escape sequence
+			j := i + 1
+			if j < len(s) && (s[j] == '[' || s[j] == 'O') {
+				j++
+				// Skip until we find a letter (end of sequence)
+				for j < len(s) && !((s[j] >= 'A' && s[j] <= 'Z') || (s[j] >= 'a' && s[j] <= 'z')) {
+					j++
+				}
+				if j < len(s) {
+					j++ // Skip the final letter
+				}
+				i = j
+				continue
+			}
+		}
+
+		// Decode UTF-8 rune properly
+		r, size := utf8.DecodeRuneInString(s[i:])
+		// Allow printable characters, newlines, and tabs
+		if unicode.IsPrint(r) || r == '\n' || r == '\t' {
+			sb.WriteRune(r)
+		}
+		i += size
+	}
+	return sb.String()
+}
+
 // buildQuotedBody creates the quoted original email content
 func buildQuotedBody(email *mail.Email) string {
 	var sb strings.Builder
 
+	// Sanitize From field to prevent escape injection
+	sanitizedFrom := sanitizeControlChars(email.From)
+
 	// Quote header
 	dateStr := email.Date.Format("Mon, Jan 2, 2006 at 3:04 PM")
-	sb.WriteString(fmt.Sprintf("On %s, %s wrote:\n", dateStr, email.From))
+	sb.WriteString(fmt.Sprintf("On %s, %s wrote:\n", dateStr, sanitizedFrom))
 
 	// Quote body with > prefix
 	body := email.Body
 	if body == "" {
 		body = email.Snippet
 	}
+
+	// Sanitize body to prevent escape injection
+	body = sanitizeControlChars(body)
+
+	// Limit quoted body length to prevent performance issues
+	if len(body) > maxQuotedBodyLen {
+		body = body[:maxQuotedBodyLen] + "\n[... content truncated ...]"
+	}
+
 	lines := strings.Split(body, "\n")
 	for _, line := range lines {
 		sb.WriteString("> ")
@@ -234,6 +311,12 @@ func (m *ComposeModel) focusField(field int) tea.Cmd {
 	case focusBody:
 		m.body.Focus()
 		return textarea.Blink
+	case focusAttachments:
+		// Reset attachment index if out of bounds
+		if m.attachmentIdx >= len(m.attachments) {
+			m.attachmentIdx = 0
+		}
+		return nil
 	case focusSend, focusSaveDraft, focusCancel:
 		// No input to focus, just visual
 		return nil
@@ -322,15 +405,60 @@ func (m ComposeModel) Update(msg tea.Msg) (ComposeModel, tea.Cmd) {
 				return m, nil
 			}
 		case "tab":
-			// Cycle focus: To → Subject → Body → Send → Save Draft → Cancel → To
-			nextFocus := (m.focused + 1) % 6
+			// Cycle focus: To → Subject → Body → Attachments → Send → Save Draft → Cancel → To
+			nextFocus := (m.focused + 1) % numFocusFields
+			// Skip attachments if there are none
+			if nextFocus == focusAttachments && len(m.attachments) == 0 {
+				nextFocus = (nextFocus + 1) % numFocusFields
+			}
 			cmd = m.focusField(nextFocus)
 			return m, cmd
 		case "shift+tab":
 			// Cycle focus backwards
-			nextFocus := (m.focused + 5) % 6
+			nextFocus := (m.focused + numFocusFields - 1) % numFocusFields
+			// Skip attachments if there are none
+			if nextFocus == focusAttachments && len(m.attachments) == 0 {
+				nextFocus = (nextFocus + numFocusFields - 1) % numFocusFields
+			}
 			cmd = m.focusField(nextFocus)
 			return m, cmd
+		case "a", "A":
+			// Open file picker to add attachment (only when not in text input)
+			if m.focused != focusTo && m.focused != focusSubject && m.focused != focusBody {
+				return m, func() tea.Msg { return OpenFilePickerMsg{} }
+			}
+		case "x", "d", "delete", "backspace":
+			// Remove selected attachment when in attachments focus
+			if m.focused == focusAttachments && len(m.attachments) > 0 {
+				// Remove attachment at current index
+				idx := m.attachmentIdx
+				if idx >= 0 && idx < len(m.attachments) {
+					m.totalAttachSize -= m.attachments[idx].Size
+					m.attachments = append(m.attachments[:idx], m.attachments[idx+1:]...)
+				}
+				// If no more attachments, move focus to body
+				if len(m.attachments) == 0 {
+					cmd = m.focusField(focusBody)
+					return m, cmd
+				}
+				// Adjust index if needed
+				if m.attachmentIdx >= len(m.attachments) {
+					m.attachmentIdx = len(m.attachments) - 1
+				}
+				return m, nil
+			}
+		case "left", "h":
+			// Navigate attachments
+			if m.focused == focusAttachments && m.attachmentIdx > 0 {
+				m.attachmentIdx--
+				return m, nil
+			}
+		case "right", "l":
+			// Navigate attachments
+			if m.focused == focusAttachments && m.attachmentIdx < len(m.attachments)-1 {
+				m.attachmentIdx++
+				return m, nil
+			}
 		}
 	case tea.MouseMsg:
 		// Ignore mouse events to prevent gibberish in textarea
@@ -388,16 +516,28 @@ func (m ComposeModel) View() string {
 	}
 	subjectLine := subjectLabel + " " + m.subjectInput.View()
 
+	// Clamp separator width to avoid panic on negative count
+	separatorWidth := m.width - 16
+	if separatorWidth < 0 {
+		separatorWidth = 0
+	}
+
 	header := lipgloss.JoinVertical(
 		lipgloss.Left,
 		fromLine,
 		toLine,
 		subjectLine,
-		strings.Repeat("─", m.width-16),
+		strings.Repeat("─", separatorWidth),
 	)
 
 	// Body textarea
 	bodySection := m.body.View()
+
+	// Attachments section
+	var attachSection string
+	if len(m.attachments) > 0 {
+		attachSection = m.renderAttachments()
+	}
 
 	// Button styles - both have border for consistent sizing
 	btnStyle := lipgloss.NewStyle().
@@ -439,21 +579,25 @@ func (m ComposeModel) View() string {
 	buttons := lipgloss.JoinHorizontal(lipgloss.Top, sendBtn, "  ", saveDraftBtn, "  ", cancelBtn)
 
 	// Compose everything
-	content := lipgloss.JoinVertical(
-		lipgloss.Left,
-		header,
-		"",
-		bodySection,
-		"",
-		buttons,
-	)
+	var contentParts []string
+	contentParts = append(contentParts, header, "", bodySection)
+	if attachSection != "" {
+		contentParts = append(contentParts, "", attachSection)
+	}
+	contentParts = append(contentParts, "", buttons)
 
-	// Create a bordered container
+	content := lipgloss.JoinVertical(lipgloss.Left, contentParts...)
+
+	// Create a bordered container - clamp width to minimum of 1
+	containerWidth := m.width - 8
+	if containerWidth < 1 {
+		containerWidth = 1
+	}
 	containerStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(components.Primary).
 		Padding(1, 2).
-		Width(m.width - 8)
+		Width(containerWidth)
 
 	// Title based on compose type
 	titleText := " Compose "
@@ -485,19 +629,139 @@ func (m ComposeModel) GetBody() string {
 	return m.body.Value()
 }
 
-// GetTo returns the recipient email
-func (m ComposeModel) GetTo() string {
-	return m.toInput.Value()
+// sanitizeHeaderValue removes CR/LF and other control characters from header values
+// to prevent header injection attacks
+func sanitizeHeaderValue(s string) string {
+	var sb strings.Builder
+	sb.Grow(len(s))
+	for _, r := range s {
+		// Skip CR, LF, and other control characters (except space/tab for headers)
+		if r == '\r' || r == '\n' || (r < 32 && r != '\t') {
+			continue
+		}
+		sb.WriteRune(r)
+	}
+	return sb.String()
 }
 
-// GetSubject returns the subject
+// GetTo returns the recipient email (sanitized to prevent header injection)
+func (m ComposeModel) GetTo() string {
+	return sanitizeHeaderValue(m.toInput.Value())
+}
+
+// GetSubject returns the subject (sanitized to prevent header injection)
 func (m ComposeModel) GetSubject() string {
-	return m.subjectInput.Value()
+	return sanitizeHeaderValue(m.subjectInput.Value())
 }
 
 // GetOriginalEmail returns the original email being replied to
 func (m ComposeModel) GetOriginalEmail() *mail.Email {
 	return m.replyEmail
+}
+
+// AddAttachment adds a file attachment to the compose model
+func (m *ComposeModel) AddAttachment(path, name, contentType string, size int64) error {
+	if m.totalAttachSize+size > maxAttachmentSize {
+		return fmt.Errorf("total attachments exceed 25MB limit (current: %s, adding: %s)",
+			formatSize(m.totalAttachSize), formatSize(size))
+	}
+
+	m.attachments = append(m.attachments, ComposeAttachment{
+		Path:        path,
+		Name:        name,
+		Size:        size,
+		ContentType: contentType,
+	})
+	m.totalAttachSize += size
+	return nil
+}
+
+// RemoveAttachment removes the attachment at the given index
+func (m *ComposeModel) RemoveAttachment(idx int) {
+	if idx >= 0 && idx < len(m.attachments) {
+		m.totalAttachSize -= m.attachments[idx].Size
+		m.attachments = append(m.attachments[:idx], m.attachments[idx+1:]...)
+	}
+}
+
+// GetAttachments returns the list of attachments
+func (m ComposeModel) GetAttachments() []ComposeAttachment {
+	return m.attachments
+}
+
+// HasAttachments returns true if there are any attachments
+func (m ComposeModel) HasAttachments() bool {
+	return len(m.attachments) > 0
+}
+
+// formatSize formats a byte size for display
+func formatSize(size int64) string {
+	const (
+		KB = 1024
+		MB = KB * 1024
+	)
+	switch {
+	case size >= MB:
+		return fmt.Sprintf("%.1f MB", float64(size)/float64(MB))
+	case size >= KB:
+		return fmt.Sprintf("%.1f KB", float64(size)/float64(KB))
+	default:
+		return fmt.Sprintf("%d B", size)
+	}
+}
+
+// renderAttachments renders the attachments list
+func (m ComposeModel) renderAttachments() string {
+	if len(m.attachments) == 0 {
+		return ""
+	}
+
+	var parts []string
+
+	// Header with total size
+	headerStyle := lipgloss.NewStyle().Foreground(components.Muted)
+	header := headerStyle.Render(fmt.Sprintf("Attachments (%d, %s):", len(m.attachments), formatSize(m.totalAttachSize)))
+	parts = append(parts, header)
+
+	// Attachment items
+	for i, att := range m.attachments {
+		icon := "📎"
+		name := att.Name
+		if utf8.RuneCountInString(name) > 25 {
+			// Truncate by runes to avoid breaking UTF-8 characters
+			runes := []rune(name)
+			name = string(runes[:22]) + "..."
+		}
+		sizeStr := formatSize(att.Size)
+
+		item := fmt.Sprintf("%s %s (%s)", icon, name, sizeStr)
+
+		var style lipgloss.Style
+		if m.focused == focusAttachments && i == m.attachmentIdx {
+			// Highlighted attachment
+			style = lipgloss.NewStyle().
+				Bold(true).
+				Foreground(components.Text).
+				Background(components.Primary).
+				Padding(0, 1)
+			item = style.Render(item + " [x]")
+		} else {
+			style = lipgloss.NewStyle().
+				Foreground(components.Text).
+				Padding(0, 1)
+			item = style.Render(item)
+		}
+
+		parts = append(parts, item)
+	}
+
+	// Add hint when focused on attachments
+	if m.focused == focusAttachments {
+		hintStyle := lipgloss.NewStyle().Foreground(components.Muted).Italic(true)
+		parts = append(parts, hintStyle.Render("  ←/→ navigate • x remove • a add more"))
+	}
+
+	return lipgloss.JoinVertical(lipgloss.Left, parts...)
 }
 
 // renderConfirmDialog renders a confirmation dialog

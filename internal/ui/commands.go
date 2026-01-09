@@ -295,14 +295,36 @@ func (a *App) sendReply() tea.Cmd {
 	body := a.compose.GetBody()
 	original := a.compose.GetOriginalEmail()
 
+	// Convert compose attachments to mail attachments
+	composeAttachments := a.compose.GetAttachments()
+	var attachments []mail.AttachmentFile
+	for _, att := range composeAttachments {
+		attachments = append(attachments, mail.AttachmentFile{
+			Path:        att.Path,
+			Name:        att.Name,
+			Size:        att.Size,
+			ContentType: att.ContentType,
+		})
+	}
+
 	return func() tea.Msg {
-		smtp := mail.NewSMTPClient(&account.Credentials)
+		smtpClient := mail.NewSMTPClient(&account.Credentials)
 
 		var err error
-		if original != nil {
-			err = smtp.Reply(to, subject, body, original.MessageID, original.References)
+		if len(attachments) > 0 {
+			// Send with attachments
+			if original != nil {
+				err = smtpClient.ReplyWithAttachments(to, subject, body, original.MessageID, original.References, attachments)
+			} else {
+				err = smtpClient.SendWithAttachments(to, subject, body, attachments)
+			}
 		} else {
-			err = smtp.Send(to, subject, body)
+			// Send without attachments (original flow)
+			if original != nil {
+				err = smtpClient.Reply(to, subject, body, original.MessageID, original.References)
+			} else {
+				err = smtpClient.Send(to, subject, body)
+			}
 		}
 
 		if err != nil {

@@ -113,9 +113,13 @@ type App struct {
 	showExtractInput bool
 	extractInput     textinput.Model
 
-	// Attachments
+	// Attachments (download)
 	showAttachmentPicker bool
 	attachmentIdx        int
+
+	// File picker (for compose attachments)
+	showFilePicker bool
+	filePicker     components.FilePicker
 }
 
 type emailsLoadedMsg struct {
@@ -280,6 +284,13 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				a.commandPalette, cmd = a.commandPalette.Update(msg)
 				return a, cmd
 			}
+		}
+
+		// Handle file picker input (for compose attachments)
+		if a.showFilePicker {
+			var cmd tea.Cmd
+			a.filePicker, cmd = a.filePicker.Update(msg)
+			return a, cmd
 		}
 
 		// Handle compose view input
@@ -862,6 +873,10 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if a.view == composeView {
 			a.compose.setSize(msg.Width, msg.Height)
 		}
+		// Update file picker size if visible
+		if a.showFilePicker {
+			a.filePicker.SetSize(msg.Width, msg.Height)
+		}
 
 	case spinner.TickMsg:
 		var cmd tea.Cmd
@@ -1081,6 +1096,29 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		a.statusMsg = "Cancelled"
 
+	case OpenFilePickerMsg:
+		// Open file picker from compose view
+		a.filePicker = components.NewFilePicker()
+		a.filePicker.SetSize(a.width, a.height)
+		a.showFilePicker = true
+		return a, nil
+
+	case components.FileSelectedMsg:
+		// File selected from file picker
+		a.showFilePicker = false
+		contentType := ""
+		if err := a.compose.AddAttachment(msg.Path, msg.Name, contentType, msg.Size); err != nil {
+			a.statusMsg = fmt.Sprintf("Cannot attach: %v", err)
+		} else {
+			a.statusMsg = fmt.Sprintf("Attached: %s", msg.Name)
+		}
+		return a, nil
+
+	case components.FilePickerCancelledMsg:
+		// File picker cancelled
+		a.showFilePicker = false
+		return a, nil
+
 	case summaryResultMsg:
 		a.state = stateReady
 		a.showSummary = true
@@ -1290,6 +1328,11 @@ func (a App) View() string {
 			}
 			content = components.RenderAttachmentPicker(a.width, a.height, attachments, a.attachmentIdx)
 		}
+	}
+
+	// Show file picker overlay (for compose attachments)
+	if a.showFilePicker {
+		content = a.filePicker.View()
 	}
 
 	// Build header data

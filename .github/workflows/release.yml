@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 jobs:
-  release:
+  release-macos:
     strategy:
       matrix:
         include:
@@ -53,8 +53,43 @@ jobs:
           name: maily-darwin-${{ matrix.goarch }}
           path: maily_${{ steps.version.outputs.VERSION }}_darwin_${{ matrix.goarch }}.zip
 
+  release-linux:
+    strategy:
+      matrix:
+        goarch: [amd64, arm64]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+
+      - name: Extract version
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Build
+        env:
+          CGO_ENABLED: 0
+          GOOS: linux
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          go build -ldflags "-s -w -X maily/internal/version.Version=${{ steps.version.outputs.VERSION }} -X maily/internal/version.Commit=${{ github.sha }} -X maily/internal/version.Date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" -o maily .
+          tar -czvf maily_${{ steps.version.outputs.VERSION }}_linux_${{ matrix.goarch }}.tar.gz maily README.md LICENSE*
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: maily-linux-${{ matrix.goarch }}
+          path: maily_${{ steps.version.outputs.VERSION }}_linux_${{ matrix.goarch }}.tar.gz
+
   publish:
-    needs: release
+    needs: [release-macos, release-linux]
     runs-on: ubuntu-latest
     steps:
       - name: Download all artifacts
@@ -69,13 +104,19 @@ jobs:
       - name: Prepare release files
         run: |
           mkdir -p release
+          # macOS
           cp dist/maily-darwin-amd64/*.zip release/
           cp dist/maily-darwin-arm64/*.zip release/
+          # Linux
+          cp dist/maily-linux-amd64/*.tar.gz release/
+          cp dist/maily-linux-arm64/*.tar.gz release/
           # Create latest naming
           cp release/maily_${{ steps.version.outputs.VERSION }}_darwin_amd64.zip release/maily-darwin-amd64.zip
           cp release/maily_${{ steps.version.outputs.VERSION }}_darwin_arm64.zip release/maily-darwin-arm64.zip
+          cp release/maily_${{ steps.version.outputs.VERSION }}_linux_amd64.tar.gz release/maily-linux-amd64.tar.gz
+          cp release/maily_${{ steps.version.outputs.VERSION }}_linux_arm64.tar.gz release/maily-linux-arm64.tar.gz
           # Generate checksums
-          cd release && sha256sum *.zip > checksums.txt
+          cd release && sha256sum *.zip *.tar.gz > checksums.txt
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
@@ -83,8 +124,12 @@ jobs:
           files: |
             release/maily_${{ steps.version.outputs.VERSION }}_darwin_amd64.zip
             release/maily_${{ steps.version.outputs.VERSION }}_darwin_arm64.zip
+            release/maily_${{ steps.version.outputs.VERSION }}_linux_amd64.tar.gz
+            release/maily_${{ steps.version.outputs.VERSION }}_linux_arm64.tar.gz
             release/maily-darwin-amd64.zip
             release/maily-darwin-arm64.zip
+            release/maily-linux-amd64.tar.gz
+            release/maily-linux-arm64.tar.gz
             release/checksums.txt
           generate_release_notes: true
         env:

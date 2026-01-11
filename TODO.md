@@ -46,7 +46,17 @@
 
 ---
 
+## Bugs
+
+- [ ] Max email config is 60 but list view only shows 50 emails
+
 ## Future
+
+### Configurable AI CLI
+
+- [ ] Allow user to choose AI CLI provider (codex, gemini, claude)
+- [ ] Add config option: `ai_cli: codex | gemini | claude`
+- [ ] Claude Haiku is slow - default to faster option if available
 
 ### CLI Bulk Processing Commands
 

@@ -41,18 +41,14 @@ var (
 var (
 	titleStyle = lipgloss.NewStyle().
 			Bold(true).
-			Foreground(purple).
-			MarginBottom(1)
+			Foreground(purple)
 
 	sectionStyle = lipgloss.NewStyle().
 			Foreground(purpleLight).
-			Bold(true).
-			MarginTop(1).
-			MarginBottom(1)
+			Bold(true)
 
 	labelStyle = lipgloss.NewStyle().
-			Foreground(purpleLight).
-			Width(22)
+			Foreground(purpleLight)
 
 	valueStyle = lipgloss.NewStyle().
 			Foreground(white)
@@ -64,16 +60,18 @@ var (
 	selectedStyle = lipgloss.NewStyle().
 			Foreground(white).
 			Background(purple).
-			Bold(true).
-			Padding(0, 1)
+			Bold(true)
+
+	dimSelectedStyle = lipgloss.NewStyle().
+				Foreground(white).
+				Background(grayDark)
 
 	cursorStyle = lipgloss.NewStyle().
 			Foreground(purple).
 			Bold(true)
 
 	hintStyle = lipgloss.NewStyle().
-			Foreground(gray).
-			MarginTop(1)
+			Foreground(gray)
 
 	errorStyle = lipgloss.NewStyle().
 			Foreground(red).
@@ -82,37 +80,45 @@ var (
 	buttonStyle = lipgloss.NewStyle().
 			Foreground(white).
 			Background(grayDark).
-			Padding(0, 2).
-			MarginRight(1)
+			Padding(0, 2)
 
 	buttonSelectedStyle = lipgloss.NewStyle().
 				Foreground(white).
 				Background(purple).
 				Bold(true).
-				Padding(0, 2).
-				MarginRight(1)
+				Padding(0, 2)
 
 	buttonDangerStyle = lipgloss.NewStyle().
 				Foreground(white).
 				Background(red).
-				Padding(0, 2).
-				MarginRight(1)
+				Padding(0, 2)
 
 	buttonSuccessStyle = lipgloss.NewStyle().
 				Foreground(white).
 				Background(green).
-				Padding(0, 2).
-				MarginRight(1)
+				Padding(0, 2)
 
-	boxStyle = lipgloss.NewStyle().
+	paneBorderStyle = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
-			BorderForeground(grayDark).
-			Padding(1, 2)
+			BorderForeground(grayDark)
 
-	editBoxStyle = lipgloss.NewStyle().
+	paneBorderActiveStyle = lipgloss.NewStyle().
+				Border(lipgloss.RoundedBorder()).
+				BorderForeground(purple)
+
+	fieldLabelStyle = lipgloss.NewStyle().
+			Foreground(purpleLight).
+			Bold(true).
+			MarginBottom(1)
+
+	fieldDescStyle = lipgloss.NewStyle().
+			Foreground(gray).
+			Italic(true)
+
+	inputBoxStyle = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(purple).
-			Padding(1, 2)
+			Padding(0, 1)
 )
 
 type rowType int
@@ -123,39 +129,56 @@ const (
 	rowTypeSeparator
 )
 
+type pane int
+
+const (
+	leftPane pane = iota
+	rightPane
+)
+
 type configRow struct {
-	key      string
-	label    string
-	value    string
-	aiIndex  int
-	editable bool
-	isSecret bool
-	rowType  rowType
+	key         string
+	label       string
+	value       string
+	aiIndex     int
+	editable    bool
+	isSecret    bool
+	rowType     rowType
+	description string
 }
 
+type rightPaneButton int
+
+const (
+	buttonSave rightPaneButton = iota
+	buttonDiscard
+)
+
 type ConfigTUI struct {
-	cfg       config.Config
-	rows      []configRow
-	cursor    int
-	editMode  bool
-	editing   bool
-	input     textinput.Model
-	dirty     bool
-	confirm   bool
-	loadErr   error
-	saveErr   error
-	fieldErr  string
-	width     int
-	height    int
+	cfg              config.Config
+	rows             []configRow
+	cursor           int
+	activePane       pane
+	editing          bool
+	input            textinput.Model
+	dirty            bool
+	confirm          bool
+	loadErr          error
+	saveErr          error
+	fieldErr         string
+	width            int
+	height           int
+	rightPaneButton rightPaneButton
 }
 
 func NewConfigTUI() ConfigTUI {
 	cfg, err := config.Load()
 	m := ConfigTUI{
-		cfg:     cfg,
-		loadErr: err,
-		width:   80,
-		height:  24,
+		cfg:        cfg,
+		loadErr:    err,
+		width:      80,
+		height:     24,
+		activePane: leftPane,
 	}
 	m.buildRows()
 	return m
@@ -163,10 +186,12 @@ func NewConfigTUI() ConfigTUI {
 
 func (m *ConfigTUI) buildRows() {
 	m.rows = []configRow{
+		// General section header
+		{key: "separator", label: "General", rowType: rowTypeSeparator},
 		// General settings
-		{key: "max_emails", label: "Max Emails", value: fmt.Sprintf("%d", m.cfg.MaxEmails), aiIndex: -1, editable: true, rowType: rowTypeField},
-		{key: "default_label", label: "Default Label", value: m.cfg.DefaultLabel, aiIndex: -1, editable: true, rowType: rowTypeField},
-		{key: "theme", label: "Theme", value: m.cfg.Theme, aiIndex: -1, editable: true, rowType: rowTypeField},
+		{key: "max_emails", label: "Max Emails", value: fmt.Sprintf("%d", m.cfg.MaxEmails), aiIndex: -1, editable: true, rowType: rowTypeField, description: "Maximum number of emails to load per folder"},
+		{key: "default_label", label: "Default Label", value: m.cfg.DefaultLabel, aiIndex: -1, editable: true, rowType: rowTypeField, description: "The folder/label to show on startup (e.g., INBOX)"},
+		{key: "theme", label: "Theme", value: m.cfg.Theme, aiIndex: -1, editable: true, rowType: rowTypeField, description: "Color theme (dark, light)"},
 	}
 
 	// AI Accounts
@@ -181,23 +206,19 @@ func (m *ConfigTUI) buildRows() {
 		prefix := fmt.Sprintf("AI Account %d", i+1)
 		m.rows = append(m.rows,
 			configRow{key: "separator", label: prefix, rowType: rowTypeSeparator},
-			configRow{key: "name", label: "Name", value: acc.Name, aiIndex: i, editable: true, rowType: rowTypeField},
-			configRow{key: "base_url", label: "Base URL", value: acc.BaseURL, aiIndex: i, editable: true, rowType: rowTypeField},
-			configRow{key: "model", label: "Model", value: acc.Model, aiIndex: i, editable: true, rowType: rowTypeField},
-			configRow{key: "api_key", label: "API Key", value: maskedKey, aiIndex: i, editable: true, isSecret: true, rowType: rowTypeField},
-			configRow{key: "delete", label: "Delete Account", aiIndex: i, rowType: rowTypeAction},
+			configRow{key: "name", label: "Name", value: acc.Name, aiIndex: i, editable: true, rowType: rowTypeField, description: "Display name for this AI provider"},
+			configRow{key: "base_url", label: "Base URL", value: acc.BaseURL, aiIndex: i, editable: true, rowType: rowTypeField, description: "API endpoint URL"},
+			configRow{key: "model", label: "Model", value: acc.Model, aiIndex: i, editable: true, rowType: rowTypeField, description: "Model identifier (e.g., gpt-4, claude-3)"},
+			configRow{key: "api_key", label: "API Key", value: maskedKey, aiIndex: i, editable: true, isSecret: true, rowType: rowTypeField, description: "Your API key (stored securely)"},
+			configRow{key: "delete", label: "Delete Account", aiIndex: i, rowType: rowTypeAction, description: "Remove this AI account"},
 		)
 	}
 
-	// Actions (only in edit mode)
-	if m.editMode {
-		m.rows = append(m.rows,
-			configRow{key: "separator", label: "Actions", rowType: rowTypeSeparator},
-			configRow{key: "add", label: "Add AI Account", rowType: rowTypeAction},
-			configRow{key: "save", label: "Save Changes", rowType: rowTypeAction},
-			configRow{key: "cancel", label: "Cancel", rowType: rowTypeAction},
-		)
-	}
+	// Actions
+	m.rows = append(m.rows,
+		configRow{key: "separator", label: "Actions", rowType: rowTypeSeparator},
+		configRow{key: "add", label: "Add AI Account", rowType: rowTypeAction, description: "Add a new AI provider account"},
+	)
 }
 
 func (m ConfigTUI) Init() tea.Cmd {
@@ -218,48 +239,53 @@ func (m ConfigTUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.editing {
 			return m.updateEditing(msg)
 		}
-		if m.editMode {
-			return m.updateEditMode(msg)
-		}
-		return m.updateReadOnly(msg)
+		return m.updateNavigation(msg)
 	}
 	return m, nil
 }
 
-func (m ConfigTUI) updateReadOnly(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m ConfigTUI) updateNavigation(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
-	case "up", "k":
-		m.moveCursor(-1)
-	case "down", "j":
-		m.moveCursor(1)
-	case "e":
-		if m.loadErr != nil {
-			return m, nil
+	case "tab":
+		// Switch panes
+		if m.activePane == leftPane {
+			m.activePane = rightPane
+		} else {
+			m.activePane = leftPane
 		}
-		m.editMode = true
-		m.buildRows()
-	case "q", "esc", "ctrl+c":
-		return m, tea.Quit
-	}
-	return m, nil
-}
+		return m, nil
 
-func (m ConfigTUI) updateEditMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	switch msg.String() {
 	case "up", "k":
-		m.moveCursor(-1)
+		if m.activePane == leftPane {
+			m.moveCursor(-1)
+		} else {
+			// Navigate between save/discard in right pane
+			if m.rightPaneButton == buttonDiscard {
+				m.rightPaneButton = buttonSave
+			}
+		}
+		return m, nil
+
 	case "down", "j":
-		m.moveCursor(1)
+		if m.activePane == leftPane {
+			m.moveCursor(1)
+		} else {
+			// Navigate between save/discard in right pane
+			if m.rightPaneButton == buttonSave {
+				m.rightPaneButton = buttonDiscard
+			}
+		}
+		return m, nil
+
 	case "enter", " ":
 		return m.handleSelect()
+
 	case "q", "esc", "ctrl+c":
 		if m.dirty {
 			m.confirm = true
 			return m, nil
 		}
-		m.editMode = false
-		m.buildRows()
-		m.clampCursor()
+		return m, tea.Quit
 	}
 	return m, nil
 }
@@ -271,6 +297,7 @@ func (m ConfigTUI) updateEditing(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "esc":
 		m.editing = false
 		m.fieldErr = ""
+		m.activePane = leftPane
 		return m, nil
 	}
 
@@ -289,18 +316,12 @@ func (m ConfigTUI) updateConfirm(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		m.saveErr = nil
 		m.dirty = false
-		m.editMode = false
 		m.confirm = false
-		m.buildRows()
-		m.clampCursor()
+		return m, tea.Quit
 	case "n", "d":
 		m.dirty = false
-		m.editMode = false
 		m.confirm = false
-		m.saveErr = nil
-		m.cfg, m.loadErr = config.Load()
-		m.buildRows()
-		m.clampCursor()
+		return m, tea.Quit
 	case "esc", "c":
 		m.confirm = false
 	}
@@ -332,6 +353,28 @@ func (m *ConfigTUI) clampCursor() {
 }
 
 func (m ConfigTUI) handleSelect() (tea.Model, tea.Cmd) {
+	// Handle right pane buttons
+	if m.activePane == rightPane {
+		switch m.rightPaneButton {
+		case buttonSave:
+			if err := m.cfg.Save(); err != nil {
+				m.saveErr = err
+				return m, nil
+			}
+			m.saveErr = nil
+			m.dirty = false
+			return m, tea.Quit
+		case buttonDiscard:
+			if m.dirty {
+				m.confirm = true
+				return m, nil
+			}
+			return m, tea.Quit
+		}
+		return m, nil
+	}
+
+	// Handle left pane selections
 	if m.cursor >= len(m.rows) {
 		return m, nil
 	}
@@ -342,28 +385,6 @@ func (m ConfigTUI) handleSelect() (tea.Model, tea.Cmd) {
 		m.cfg.AIAccounts = append(m.cfg.AIAccounts, config.AIAccount{})
 		m.dirty = true
 		m.buildRows()
-		return m, nil
-
-	case "save":
-		if err := m.cfg.Save(); err != nil {
-			m.saveErr = err
-			return m, nil
-		}
-		m.saveErr = nil
-		m.dirty = false
-		m.editMode = false
-		m.buildRows()
-		m.clampCursor()
-		return m, nil
-
-	case "cancel":
-		if m.dirty {
-			m.confirm = true
-			return m, nil
-		}
-		m.editMode = false
-		m.buildRows()
-		m.clampCursor()
 		return m, nil
 
 	case "delete":
@@ -378,11 +399,12 @@ func (m ConfigTUI) handleSelect() (tea.Model, tea.Cmd) {
 
 	if row.editable {
 		m.editing = true
+		m.activePane = rightPane
 		m.fieldErr = ""
 		m.input = textinput.New()
 		m.input.Focus()
 		m.input.CharLimit = 200
-		m.input.Width = 40
+		m.input.Width = 30
 		m.input.Prompt = ""
 
 		if row.isSecret {
@@ -485,47 +507,44 @@ func (m ConfigTUI) saveField() (tea.Model, tea.Cmd) {
 		m.dirty = true
 	}
 	m.editing = false
+	m.activePane = leftPane
 	m.buildRows()
 
 	return m, nil
 }
 
 func (m ConfigTUI) View() string {
-	var content strings.Builder
+	// Calculate pane widths (40% left, 60% right)
+	totalWidth := max(m.width, 60)
+	leftWidth := totalWidth * 4 / 10
+	rightWidth := totalWidth - leftWidth - 4 // Account for borders and separator
+
+	contentHeight := m.height - 6 // Account for title and footer
+
+	// Render panes
+	leftPaneView := m.renderLeftPane(leftWidth, contentHeight)
+	rightPaneView := m.renderRightPane(rightWidth, contentHeight)
+
+	// Join panes horizontally
+	panels := lipgloss.JoinHorizontal(lipgloss.Top, leftPaneView, rightPaneView)
 
 	// Title
-	title := "⚙  Maily Configuration"
+	title := titleStyle.Render("⚙  Maily Configuration")
 	if m.dirty {
 		title += errorStyle.Render(" (unsaved)")
 	}
-	content.WriteString(titleStyle.Render(title))
-	content.WriteString("\n\n")
 
 	// Errors
+	var errLine string
 	if m.loadErr != nil {
-		content.WriteString(errorStyle.Render("⚠ Error loading config: " + m.loadErr.Error()))
-		content.WriteString("\n\n")
+		errLine = errorStyle.Render("⚠ Error loading config: "+m.loadErr.Error()) + "\n"
 	}
 	if m.saveErr != nil {
-		content.WriteString(errorStyle.Render("⚠ Error saving config: " + m.saveErr.Error()))
-		content.WriteString("\n\n")
+		errLine += errorStyle.Render("⚠ Error saving config: "+m.saveErr.Error()) + "\n"
 	}
 
-	// Mode indicator
-	if m.editMode {
-		content.WriteString(sectionStyle.Render("━━━ Edit Mode ━━━"))
-		content.WriteString("\n\n")
-	}
-
-	// Rows
-	for i, row := range m.rows {
-		content.WriteString(m.renderRow(i, row))
-		content.WriteString("\n")
-	}
-
-	// Confirm dialog
+	// Confirm dialog overlay
 	if m.confirm {
-		content.WriteString("\n")
 		dialog := lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(red).
@@ -536,105 +555,218 @@ func (m ConfigTUI) View() string {
 					buttonDangerStyle.Render(" D  Discard ") + "  " +
 					buttonStyle.Render(" C  Cancel "),
 			)
-		content.WriteString(dialog)
+		return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, dialog)
 	}
 
-	// Hints
-	content.WriteString("\n")
+	// Footer hints
+	var hint string
 	if m.editing {
-		content.WriteString(hintStyle.Render("Enter to save • Esc to cancel"))
-	} else if m.editMode {
-		content.WriteString(hintStyle.Render("↑↓ Navigate • Enter/Space to edit • Esc to exit"))
-	} else if m.loadErr != nil {
-		content.WriteString(hintStyle.Render("↑↓ Navigate • Q to quit (editing disabled)"))
+		hint = hintStyle.Render("Enter save · Esc cancel")
 	} else {
-		content.WriteString(hintStyle.Render("↑↓ Navigate • E to edit • Q to quit"))
+		hint = hintStyle.Render("↑↓ navigate · Tab switch pane · Enter select · q quit")
 	}
 
-	// Wrap in box
-	boxStyleToUse := boxStyle
-	if m.editMode {
-		boxStyleToUse = editBoxStyle
-	}
-
-	return boxStyleToUse.Render(content.String())
+	return lipgloss.JoinVertical(lipgloss.Left,
+		title,
+		errLine,
+		panels,
+		hint,
+	)
 }
 
-func (m ConfigTUI) renderRow(idx int, row configRow) string {
-	selected := idx == m.cursor
+func (m ConfigTUI) renderLeftPane(width, height int) string {
+	var content strings.Builder
 
+	for i, row := range m.rows {
+		selected := i == m.cursor
+		isActive := m.activePane == leftPane
+
+		line := m.renderLeftRow(row, selected, isActive)
+		content.WriteString(line)
+		content.WriteString("\n")
+	}
+
+	// Apply pane styling
+	style := paneBorderStyle.
+		Width(width).
+		Height(height).
+		Padding(1, 1)
+
+	if m.activePane == leftPane {
+		style = paneBorderActiveStyle.
+			Width(width).
+			Height(height).
+			Padding(1, 1)
+	}
+
+	return style.Render(content.String())
+}
+
+func (m ConfigTUI) renderLeftRow(row configRow, selected, isActive bool) string {
 	// Separator
 	if row.rowType == rowTypeSeparator {
-		return "\n" + sectionStyle.Render("─── "+row.label+" ───")
+		return sectionStyle.Render("── " + row.label + " ──")
+	}
+
+	// Build the row content
+	var prefix string
+	if selected {
+		if isActive {
+			prefix = cursorStyle.Render("▸ ")
+		} else {
+			prefix = "▸ "
+		}
+	} else {
+		prefix = "  "
 	}
 
 	// Action buttons
 	if row.rowType == rowTypeAction {
-		var btn string
+		var label string
 		switch row.key {
-		case "add":
-			if selected {
-				btn = buttonSelectedStyle.Render(" + " + row.label + " ")
-			} else {
-				btn = buttonSuccessStyle.Render(" + " + row.label + " ")
-			}
 		case "delete":
-			if selected {
-				btn = buttonSelectedStyle.Render(" ✕ " + row.label + " ")
-			} else {
-				btn = buttonDangerStyle.Render(" ✕ " + row.label + " ")
-			}
-		case "save":
-			if selected {
-				btn = buttonSelectedStyle.Render(" ✓ " + row.label + " ")
-			} else {
-				btn = buttonSuccessStyle.Render(" ✓ " + row.label + " ")
-			}
-		case "cancel":
-			if selected {
-				btn = buttonSelectedStyle.Render(" ✕ " + row.label + " ")
-			} else {
-				btn = buttonStyle.Render(" ✕ " + row.label + " ")
-			}
+			label = "✕ " + row.label
+		case "add":
+			label = "+ " + row.label
 		default:
-			if selected {
-				btn = buttonSelectedStyle.Render(" " + row.label + " ")
-			} else {
-				btn = buttonStyle.Render(" " + row.label + " ")
-			}
+			label = row.label
 		}
 
-		if selected {
-			return cursorStyle.Render("▸ ") + btn
+		if selected && isActive {
+			return prefix + selectedStyle.Render(" "+label+" ")
+		} else if selected {
+			return prefix + dimSelectedStyle.Render(" "+label+" ")
 		}
-		return "  " + btn
+		return prefix + label
 	}
 
 	// Field rows
-	label := labelStyle.Render(row.label)
+	label := labelStyle.Width(14).Render(row.label)
 	sanitized := sanitizeValue(row.value)
-	value := valueStyle.Render(sanitized)
+	var value string
 	if sanitized == "" {
 		value = emptyStyle.Render("(not set)")
-	}
-
-	// Currently editing this field
-	if m.editing && selected {
-		inputView := m.input.View()
-		line := cursorStyle.Render("▸ ") + label + inputView
-		if m.fieldErr != "" {
-			line += "  " + errorStyle.Render("⚠ " + m.fieldErr)
+	} else {
+		// Truncate long values
+		maxValLen := 12
+		if len(sanitized) > maxValLen {
+			sanitized = sanitized[:maxValLen-2] + ".."
 		}
-		return line
+		value = valueStyle.Render(sanitized)
 	}
 
-	// Selected but not editing
-	if selected {
-		return cursorStyle.Render("▸ ") + label + selectedStyle.Render(" "+sanitized+" ")
+	if selected && isActive {
+		return prefix + label + selectedStyle.Render(" "+sanitized+" ")
+	} else if selected {
+		return prefix + label + dimSelectedStyle.Render(" "+sanitized+" ")
+	}
+	return prefix + label + value
+}
+
+func (m ConfigTUI) renderRightPane(width, height int) string {
+	var content strings.Builder
+
+	if m.cursor < len(m.rows) {
+		row := m.rows[m.cursor]
+
+		if row.rowType != rowTypeSeparator {
+			// Field label
+			content.WriteString(fieldLabelStyle.Render(row.label))
+			content.WriteString("\n")
+			content.WriteString(strings.Repeat("─", min(width-4, 30)))
+			content.WriteString("\n\n")
+
+			// Description
+			if row.description != "" {
+				content.WriteString(fieldDescStyle.Render(row.description))
+				content.WriteString("\n\n")
+			}
+
+			switch row.rowType {
+			case rowTypeField:
+				// Current value
+				currentVal := m.getActualValue(row)
+				if row.isSecret && currentVal != "" {
+					if len(currentVal) > 8 {
+						currentVal = currentVal[:4] + "••••" + currentVal[len(currentVal)-4:]
+					} else {
+						currentVal = "••••••••"
+					}
+				}
+				if currentVal == "" {
+					currentVal = "(not set)"
+				}
+				content.WriteString(lipgloss.NewStyle().Foreground(gray).Render("Current: "))
+				content.WriteString(valueStyle.Render(currentVal))
+				content.WriteString("\n\n")
+
+				// Input box (when editing)
+				if m.editing {
+					inputView := inputBoxStyle.Width(min(width-6, 35)).Render(m.input.View())
+					content.WriteString(inputView)
+					content.WriteString("\n")
+
+					if m.fieldErr != "" {
+						content.WriteString(errorStyle.Render("⚠ " + m.fieldErr))
+						content.WriteString("\n")
+					}
+
+					content.WriteString("\n")
+					content.WriteString(hintStyle.Render("Enter to save · Esc to cancel"))
+				} else {
+					content.WriteString(hintStyle.Render("Press Enter to edit"))
+				}
+			case rowTypeAction:
+				// Action description
+				switch row.key {
+				case "delete":
+					content.WriteString(errorStyle.Render("This will remove the AI account."))
+					content.WriteString("\n\n")
+					content.WriteString(hintStyle.Render("Press Enter to confirm"))
+				case "add":
+					content.WriteString(valueStyle.Render("Add a new AI provider configuration."))
+					content.WriteString("\n\n")
+					content.WriteString(hintStyle.Render("Press Enter to add"))
+				}
+			}
+		}
 	}
 
-	// Normal row
-	return "  " + label + value
+	// Separator line before buttons
+	content.WriteString("\n\n")
+	content.WriteString(lipgloss.NewStyle().Foreground(grayDark).Render(strings.Repeat("─", min(width-4, 30))))
+	content.WriteString("\n\n")
+
+	// Save/Discard buttons
+	isActive := m.activePane == rightPane && !m.editing
+
+	saveBtn := buttonSuccessStyle.Render(" ✓ Save ")
+	discardBtn := buttonStyle.Render(" ✕ Quit ")
+
+	if isActive {
+		if m.rightPaneButton == buttonSave {
+			saveBtn = buttonSelectedStyle.Render(" ✓ Save ")
+		} else {
+			discardBtn = buttonSelectedStyle.Render(" ✕ Quit ")
+		}
+	}
+
+	content.WriteString(saveBtn + "  " + discardBtn)
+
+	// Apply pane styling
+	style := paneBorderStyle.
+		Width(width).
+		Height(height).
+		Padding(1, 2)
+
+	if m.activePane == rightPane {
+		style = paneBorderActiveStyle.
+			Width(width).
+			Height(height).
+			Padding(1, 2)
+	}
+
+	return style.Render(content.String())
 }
 
 func RunConfigTUI() error {

@@ -14,6 +14,10 @@ Maily Desktop bridges the gap between terminal power and GUI convenience. It's n
 - **Frontend:** TBD (Solid, Svelte, or React - whatever gives best performance)
 - **AI:** NVIDIA APIs for cloud, optional local models for privacy
 - **Auth:** OAuth 2.0 (no more app passwords)
+- **Platforms:**
+  - v1: macOS only (dogfood, smallest surface area)
+  - v1.x: Linux (similar enough, audience wants it)
+  - Maybe later: Windows (only if demand justifies the pain)
 
 ## Core Features
 

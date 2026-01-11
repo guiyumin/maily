@@ -5,40 +5,102 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Build Commands
 
 ```bash
-make build      # Build to build/maily
-make clean      # Remove build directory
+make build           # Build to build/maily
+make clean           # Remove build directory
+make lint            # Run staticcheck
+make version patch   # Bump patch version (0.0.X)
+make version minor   # Bump minor version (0.X.0)
+make version major   # Bump major version (X.0.0)
+make push            # Push to origin with tags
 ```
 
 ## Architecture
 
 Maily is a terminal email client built with Go and Bubbletea (Elm-architecture TUI framework).
 
-### Core Structure
+### Directory Structure
 
-- `main.go` - CLI entry point using Cobra
-- `internal/cli/` - CLI commands: login, logout, accounts, daemon, sync, update
-- `internal/auth/` - Account management, credentials stored in `~/.config/maily/accounts.yml`
-- `internal/gmail/` - IMAP client (fetching, read/unread, delete) and SMTP client (send, reply)
-- `internal/ui/` - Bubbletea TUI application
-- `internal/cache/` - Local email cache for fast startup
-- `internal/updater/` - Self-update functionality
+```
+maily/
+├── main.go                    # CLI entry point
+├── internal/
+│   ├── cli/                   # Cobra CLI commands
+│   │   ├── root.go           # Root command, launches TUI
+│   │   ├── login.go          # Account login flow
+│   │   ├── logout.go         # Account removal
+│   │   ├── accounts.go       # List accounts
+│   │   ├── calendar.go       # Calendar TUI launcher
+│   │   ├── today.go          # Today view launcher
+│   │   ├── daemon.go         # Background sync daemon
+│   │   ├── sync_cmd.go       # Manual sync command
+│   │   ├── config.go         # Config TUI launcher
+│   │   ├── config_tui.go     # Config TUI implementation
+│   │   ├── search.go         # CLI search
+│   │   ├── update.go         # Self-update
+│   │   └── version.go        # Version display
+│   ├── ui/                    # Bubbletea TUI application
+│   │   ├── app.go            # Main App model (1500+ lines)
+│   │   ├── calendar.go       # Calendar TUI
+│   │   ├── today.go          # Combined email + calendar view
+│   │   ├── compose.go        # Email composition
+│   │   ├── search.go         # Search results view
+│   │   ├── commands.go       # Async tea.Cmd handlers
+│   │   ├── calendar_*.go     # Calendar views and forms
+│   │   └── components/       # Reusable UI components
+│   │       ├── styles.go     # Lipgloss styles (purple theme)
+│   │       ├── views.go      # View rendering functions
+│   │       ├── maillist.go   # Email list component
+│   │       ├── commandpalette.go
+│   │       ├── labelpicker.go
+│   │       ├── datepicker.go
+│   │       ├── timepicker.go
+│   │       └── filepicker.go
+│   ├── mail/                  # Email protocol implementation
+│   │   ├── imap.go           # IMAP client (go-imap/v2)
+│   │   ├── smtp.go           # SMTP client
+│   │   ├── search.go         # IMAP search (X-GM-RAW support)
+│   │   └── provider.go       # Gmail/Yahoo folder constants
+│   ├── auth/                  # Account management
+│   │   └── credentials.go    # ~/.config/maily/accounts.yml
+│   ├── cache/                 # Local email storage
+│   │   └── cache.go          # Per-account disk cache
+│   ├── sync/                  # Email synchronization
+│   │   └── sync.go           # Daemon/manual sync logic
+│   ├── calendar/              # Calendar integration
+│   │   ├── calendar.go       # Abstract interface
+│   │   ├── eventkit_darwin.go # macOS EventKit (CGO)
+│   │   └── stub_other.go     # Stub for non-macOS
+│   ├── ai/                    # AI integration
+│   │   ├── client.go         # Multi-provider AI client
+│   │   └── prompts.go        # AI prompt templates
+│   ├── proc/                  # Process management
+│   │   └── proc.go           # PID-based locking
+│   ├── updater/               # Self-update
+│   │   └── updater.go        # GitHub release updates
+│   └── version/               # Version info
+│       └── version.go        # Injected via LDFLAGS
+├── config/                    # Configuration
+│   └── config.go             # YAML config management
+└── docs/                      # Documentation
+```
 
 ### UI Architecture (Bubbletea)
 
 The UI follows Elm architecture with `Init()`, `Update()`, `View()` methods:
 
-- `internal/ui/app.go` - Main App model, handles state transitions, keyboard/mouse events
-- `internal/ui/components/` - Reusable components (maillist, command palette, label picker)
-- `internal/ui/components/views.go` - View rendering functions
-- `internal/ui/components/styles.go` - Lipgloss styles (purple primary theme)
-- `internal/ui/commands.go` - Async commands (delete, refresh, search, etc.)
+- **app.go** - Main App model, handles state transitions, keyboard/mouse events
+- **components/** - Reusable components (maillist, command palette, label picker)
+- **views.go** - View rendering functions
+- **styles.go** - Lipgloss styles (purple primary theme #7C3AED)
+- **commands.go** - Async commands (delete, refresh, search, etc.)
 
 ### Key Patterns
 
-- **Multi-account support**: Accounts stored in `AccountStore`, Tab key switches between them
+- **Multi-account support**: Accounts in `AccountStore`, Tab key switches
 - **Local cache**: Emails cached to disk for fast startup, daemon syncs in background
 - **No optimistic UI**: Server operations wait for confirmation before updating UI
-- **Gmail App Passwords**: Uses IMAP/SMTP with App Passwords (not OAuth) for simplicity
+- **Gmail App Passwords**: Uses IMAP/SMTP with App Passwords (not OAuth)
+- **Message-passing**: Commands return `tea.Cmd` for async operations
 
 ### Key Bindings (List View)
 
@@ -53,6 +115,20 @@ The UI follows Elm architecture with `Init()`, `Update()`, `View()` methods:
 - `/` - Command palette
 - `tab` - Switch accounts
 - `q` - Quit
+
+### Key Bindings (Read View)
+
+- `r` - Reply
+- `s` - Summarize (AI)
+- `esc` - Back to list
+
+### Key Bindings (Search Results)
+
+- `space` - Toggle selection
+- `a` - Select/deselect all
+- `d` - Delete selected
+- `m` - Mark as read
+- `esc` - Back to list
 
 ### Key Bindings (Calendar View)
 
@@ -71,14 +147,14 @@ The UI follows Elm architecture with `Init()`, `Update()`, `View()` methods:
 
 No optimistic UI - wait for server confirmation:
 
-1. `d` → confirmation dialog
-2. `y` → spinner, send to server, wait for response
+1. `d` → confirmation dialog (Move to Trash / Permanent Delete / Cancel)
+2. Select option → spinner, send to server, wait for response
 3. Success → remove from UI and cache
 4. Error → show error, email stays in UI
 
 ### Authentication Flow
 
-1. User runs `maily login gmail`
+1. User runs `maily login gmail` / `maily login yahoo` / `maily login imap`
 2. Prompts for email and App Password (password input hidden)
 3. Verifies credentials by connecting to IMAP before saving
 4. Stores in `~/.config/maily/accounts.yml`
@@ -88,6 +164,7 @@ No optimistic UI - wait for server confirmation:
 - Uses `go-imap/v2` library
 - `Peek: true` in fetch options prevents marking emails as read when loading
 - Import `github.com/emersion/go-message/charset` for proper character encoding
+- Gmail X-GM-RAW for native search syntax
 
 ### Cache Design
 
@@ -97,6 +174,36 @@ See `docs/cache.md` for detailed cache architecture. Key points:
 - Local cache is just a mirror for fast startup
 - Daemon syncs every 30 minutes
 - Manual refresh with `R` fetches from server
+- 14-day retention by INTERNALDATE
+- UIDVALIDITY change detection (clears cache if UIDs reassigned)
+- Per-account locking prevents concurrent syncs
+
+### AI Integration
+
+Multi-provider support with fallback:
+
+1. **CLI tools** (auto-detected): Claude, Codex, Gemini, Ollama
+2. **BYOK (Bring Your Own Key)**: Any OpenAI-compatible API in `~/.config/maily/config.yml`
+
+Used for:
+- Email summarization (`s` key in read view)
+- Natural language calendar event creation
+- Event extraction from emails
+
+### Calendar Integration (macOS)
+
+- EventKit integration via CGO (`internal/calendar/eventkit_darwin.go`)
+- Abstract interface for cross-platform (`internal/calendar/calendar.go`)
+- Stub implementation for non-macOS (`internal/calendar/stub_other.go`)
+- NLP event creation with AI-powered date/time parsing
+
+### Configuration Storage
+
+- Accounts: `~/.config/maily/accounts.yml` (0600 permissions)
+- Config: `~/.config/maily/config.yml`
+- Cache: `~/.config/maily/cache/<email>/<mailbox>/<uid>.json`
+- Daemon PID: `~/.config/maily/daemon.pid`
+- Daemon logs: `~/.config/maily/daemon.log`
 
 ## Clean Code Reviewer
 

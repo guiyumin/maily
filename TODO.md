@@ -83,6 +83,12 @@ For when the project has more traction. Unverified OAuth apps show scary warning
 - [ ] Extract events from email (`e` key)
 - [x] Today view (split panel: emails + events)
 
+### Notifications
+
+- [ ] Native OS notifications on new email (daemon already syncs)
+- [ ] Configurable: all emails, important only, or none
+- [ ] Click notification to open maily
+
 ### Other Ideas
 
 - [ ] Thread view (group emails by conversation)

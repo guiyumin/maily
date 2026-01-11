@@ -73,15 +73,21 @@ Maily Desktop bridges the gap between terminal power and GUI convenience. It's n
 - Template system for common replies
 - Rules engine (if X then Y)
 
-Example script:
-```javascript
-maily.on('email:receive', async (email) => {
-  if (email.from.includes('github.com')) {
-    await maily.label(email, 'GitHub');
-    await maily.archive(email);
-  }
-});
+Example script (Lua):
+```lua
+maily.on("email:receive", function(email)
+  if string.find(email.from, "github.com") then
+    maily.label(email, "GitHub")
+    maily.archive(email)
+  end
+end)
 ```
+
+**Why Lua?**
+- Tiny (~200KB), fast (LuaJIT option)
+- Proven in dev tools: Neovim, Redis, Hammerspoon, WezTerm
+- Simple syntax, easy to learn
+- Great Rust bindings (`mlua`)
 
 ### Split Panes
 
@@ -89,6 +95,17 @@ maily.on('email:receive', async (email) => {
 - Terminal + email
 - Calendar + email
 - Resizable, remembers layout
+
+### Notifications
+
+- Native OS notifications (macOS, Windows, Linux)
+- New email alerts (configurable: all, important only, none)
+- Calendar reminders (already works via macOS EventKit)
+- Quiet hours / Do Not Disturb setting
+- Sound options (on/off, custom sounds)
+- Click notification → opens email/event in app
+
+Daemon already syncs in background - just needs to trigger notifications on new mail.
 
 ## AI Features
 

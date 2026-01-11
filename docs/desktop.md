@@ -145,6 +145,61 @@ Daemon already syncs in background - just needs to trigger notifications on new 
 - No email content sent to cloud
 - Toggle per-account or globally
 
+## Developer-Focused Features
+
+These are what make Maily different from generic email clients.
+
+### GitHub/GitLab Integration
+
+- Parse PR notification emails → show status, CI results, reviewers
+- Quick actions: approve, request changes, merge (via API)
+- Group notifications by repo/PR
+- "Show all PRs waiting for my review"
+- Link directly to diff, not just the PR page
+
+### Alert Aggregation
+
+- Recognize alerts from PagerDuty, Datadog, Sentry, AWS, etc.
+- Group related alerts (don't show 50 emails for one incident)
+- One-click acknowledge/resolve
+- Show alert status inline (firing, resolved, silenced)
+- Quiet repeated alerts after first one
+
+### Code & Logs in Emails
+
+- Syntax highlighting for code snippets
+- Pretty-print JSON payloads
+- Parse and format stack traces
+- Link to source files (if repo is known)
+- Collapsible log sections
+
+### CLI Integration
+
+```bash
+# Send email from terminal
+maily send --to team@company.com --subject "Deploy done" --body "$(cat deploy.log)"
+
+# Search and pipe to other tools
+maily search "from:github.com subject:failed" --json | jq '.[] | .subject'
+
+# Read specific email
+maily read <message-id> --format plain
+```
+
+### Webhooks & API
+
+- Local HTTP API for read/send/search
+- Webhooks: trigger on new email matching patterns
+- Example: new Sentry alert → post to Slack
+- Integrate with internal dashboards and tools
+
+### Markdown Compose
+
+- Write emails in markdown
+- Code blocks render with syntax highlighting
+- Tables, lists, links work properly
+- Preview before sending
+
 ## UX Principles
 
 1. **Fast** - Launch in <500ms, instant UI responses

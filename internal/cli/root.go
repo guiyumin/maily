@@ -6,6 +6,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
+	"maily/config"
 	"maily/internal/auth"
 	"maily/internal/ui"
 )
@@ -50,11 +51,18 @@ func runTUI() {
 		os.Exit(1)
 	}
 
+	// Load config
+	cfg, err := config.Load()
+	if err != nil {
+		fmt.Printf("Error loading config: %v\n", err)
+		os.Exit(1)
+	}
+
 	// Auto-start daemon if not running
 	startDaemonBackground()
 
 	p := tea.NewProgram(
-		ui.NewApp(store),
+		ui.NewApp(store, &cfg),
 		tea.WithAltScreen(),
 		tea.WithMouseCellMotion(),
 	)

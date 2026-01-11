@@ -13,6 +13,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/emersion/go-imap/v2"
 
+	"maily/config"
 	"maily/internal/ai"
 	"maily/internal/auth"
 	"maily/internal/cache"
@@ -39,6 +40,7 @@ const (
 
 type App struct {
 	store           *auth.AccountStore
+	cfg             *config.Config
 	accountIdx      int
 	imap            *mail.IMAPClient
 	imapCache       map[int]*mail.IMAPClient
@@ -212,7 +214,7 @@ func scheduleAutoRefresh() tea.Cmd {
 	})
 }
 
-func NewApp(store *auth.AccountStore) App {
+func NewApp(store *auth.AccountStore, cfg *config.Config) App {
 	s := spinner.New()
 	s.Spinner = spinner.Dot
 	s.Style = components.SpinnerStyle
@@ -233,6 +235,7 @@ func NewApp(store *auth.AccountStore) App {
 
 	return App{
 		store:          store,
+		cfg:            cfg,
 		accountIdx:     0,
 		imapCache:      make(map[int]*mail.IMAPClient),
 		emailCache:     make(map[string][]mail.Email),
@@ -242,7 +245,7 @@ func NewApp(store *auth.AccountStore) App {
 		spinner:        s,
 		state:          stateLoading,
 		view:           listView,
-		emailLimit:     50,
+		emailLimit:     uint32(cfg.MaxEmails),
 		labelPicker:    components.NewLabelPicker(),
 		currentLabel:   "INBOX",
 		searchInput:    si,
@@ -763,7 +766,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		case "l":
 			if a.view == listView && a.state == stateReady && !a.confirmDelete && !a.isSearchResult {
-				a.emailLimit += 50
+				a.emailLimit += uint32(a.cfg.MaxEmails)
 				a.state = stateLoading
 				a.statusMsg = fmt.Sprintf("Loading %d emails...", a.emailLimit)
 				return a, tea.Batch(a.spinner.Tick, a.reloadFromCache())
@@ -821,7 +824,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				// Try disk cache first, then init IMAP after cache load
 				a.imap = a.imapCache[a.accountIdx]
 				a.state = stateLoading
-				a.emailLimit = 50
+				a.emailLimit = uint32(a.cfg.MaxEmails)
 				a.mailList.SetEmails(nil)
 				a.statusMsg = "Loading..."
 				return a, tea.Batch(a.spinner.Tick, a.loadCachedEmails())

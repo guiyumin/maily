@@ -629,8 +629,9 @@ func (a App) loadCachedEmails() tea.Cmd {
 
 	mailbox := a.currentLabel
 
+	limit := a.cfg.MaxEmails
 	return func() tea.Msg {
-		cached, err := a.diskCache.LoadEmailsLimit(accountEmail, mailbox, 50)
+		cached, err := a.diskCache.LoadEmailsLimit(accountEmail, mailbox, limit)
 		if err != nil || len(cached) == 0 {
 			return cachedEmailsLoadedMsg{emails: nil, accountEmail: accountEmail}
 		}

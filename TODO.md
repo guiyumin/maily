@@ -3,6 +3,7 @@
 ## Completed
 
 ### Gmail Labels & Folders
+
 - [x] List all Gmail labels via IMAP (exposed as mailboxes)
 - [x] Display labels in the UI
 - [x] Allow filtering/viewing emails by label (`g` key)
@@ -10,17 +11,20 @@
 - [x] Display current folder in header
 
 ### Multiple Select and Bulk Actions (Search Mode)
+
 - [x] Multi-select mode in search results (`space` to toggle, `a` to select all)
 - [x] Bulk delete for selected emails
 - [x] Bulk mark as read for selected emails (`m` key)
 - [x] Show selection count in status bar
 
 ### AI Summarization
+
 - [x] Integrate AI CLI tools (Claude, Codex, Gemini, Ollama)
 - [x] Add summarize shortcut (`s` in read view)
 - [x] Display summary in modal dialog
 
 ### Calendar Integration (macOS)
+
 - [x] macOS EventKit integration via CGO
 - [x] Calendar TUI (`maily c` / `maily calendar`)
 - [x] Natural language event creation (`maily c add "tomorrow 9am meeting with Jerry"`)
@@ -34,21 +38,19 @@
 - [x] TUI quick-add with NLP (`a` key), falls back to interactive form when no AI CLI
 
 ### Core Features
+
 - [x] Local email cache for fast startup
 - [x] Background sync daemon
 - [x] Self-update functionality
 - [x] No optimistic UI - wait for server confirmation on delete
 
 ### Better Delete UX
+
 - [x] Delete dialog with 3 options: Move to Trash (default), Permanent Delete, Cancel
 - [x] Trash folder discovery (Gmail `[Gmail]/Trash`, standard IMAP `\Trash` attribute, fallbacks)
 - [x] Arrow keys to select option, Enter to confirm
 
 ---
-
-## Bugs
-
-- [ ] Max email config is 60 but list view only shows 50 emails
 
 ## Future
 
@@ -77,10 +79,12 @@ For when the project has more traction. Unverified OAuth apps show scary warning
 - [ ] Add `maily login gmail --oauth` option
 
 ### Calendar Features (Future)
+
 - [ ] Extract events from email (`e` key)
 - [x] Today view (split panel: emails + events)
 
 ### Other Ideas
+
 - [ ] Thread view (group emails by conversation)
 - [ ] Attachment preview/download
 - [ ] Email templates

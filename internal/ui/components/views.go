@@ -121,7 +121,7 @@ func RenderStatusBar(data StatusBarData) string {
 			HelpKeyStyle.Render("s") + HelpDescStyle.Render(" search  ") +
 			HelpKeyStyle.Render("q") + HelpDescStyle.Render(" quit")
 		row2 := HelpKeyStyle.Render("d") + HelpDescStyle.Render(" delete  ") +
-			HelpKeyStyle.Render("l") + HelpDescStyle.Render(" more  ") +
+			HelpKeyStyle.Render("l") + HelpDescStyle.Render(" load more  ") +
 			HelpKeyStyle.Render("f") + HelpDescStyle.Render(" folders  ") +
 			HelpKeyStyle.Render("/") + HelpDescStyle.Render(" commands")
 		help = row1 + "\n" + row2

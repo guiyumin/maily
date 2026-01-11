@@ -166,7 +166,7 @@ func (c *Client) callCLI(prompt string) (string, error) {
 
 	switch c.cliProvider {
 	case ProviderClaude:
-		cmd = exec.Command("claude", "-p", prompt, "--model", "haiku", "--output-format", "json")
+		cmd = exec.Command("claude", "-p", prompt, "--model", "haiku", "--output-format", "json", "--no-session-persistence")
 		parseFunc = parseClaudeOutput
 
 	case ProviderCodex:

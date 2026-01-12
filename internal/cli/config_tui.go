@@ -8,6 +8,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"maily/config"
+	"maily/internal/i18n"
 )
 
 // Styles
@@ -107,6 +108,10 @@ type ConfigTUI struct {
 	// Quit confirmation
 	showQuitConfirm bool
 	quitOption      quitOption
+
+	// Language picker
+	showLanguagePicker bool
+	languageCursor     int
 }
 
 func NewConfigTUI() ConfigTUI {
@@ -122,11 +127,18 @@ func NewConfigTUI() ConfigTUI {
 }
 
 func (m *ConfigTUI) buildRows() {
+	// Get language display name
+	langDisplay := i18n.DisplayName(m.cfg.Language)
+	if m.cfg.Language == "" {
+		langDisplay = "Auto (" + i18n.DisplayName(i18n.CurrentLanguage()) + ")"
+	}
+
 	m.rows = []row{
 		{kind: rowSection, label: "General"},
 		{kind: rowField, key: "max_emails", label: "Max Emails", value: fmt.Sprintf("%d", m.cfg.MaxEmails), providerIdx: -1},
 		{kind: rowField, key: "default_label", label: "Default Label", value: m.cfg.DefaultLabel, providerIdx: -1},
 		{kind: rowField, key: "theme", label: "Theme", value: m.cfg.Theme, providerIdx: -1},
+		{kind: rowAction, key: "language", label: "Language", value: langDisplay, providerIdx: -1},
 	}
 
 	// AI Providers
@@ -161,6 +173,9 @@ func (m ConfigTUI) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		if m.showQuitConfirm {
 			return m.updateQuitConfirm(msg)
+		}
+		if m.showLanguagePicker {
+			return m.updateLanguagePicker(msg)
 		}
 		if m.showProviderDialog {
 			return m.updateProviderDialog(msg)
@@ -246,6 +261,38 @@ func (m ConfigTUI) updateQuitConfirm(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+func (m ConfigTUI) updateLanguagePicker(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	// Total options = 1 (Auto) + len(SupportedLanguages)
+	total := 1 + len(i18n.SupportedLanguages)
+
+	switch msg.String() {
+	case "up", "k":
+		if m.languageCursor > 0 {
+			m.languageCursor--
+		}
+	case "down", "j":
+		if m.languageCursor < total-1 {
+			m.languageCursor++
+		}
+	case "enter":
+		var newLang string
+		if m.languageCursor == 0 {
+			newLang = "" // Auto-detect
+		} else {
+			newLang = i18n.SupportedLanguages[m.languageCursor-1]
+		}
+		if newLang != m.cfg.Language {
+			m.cfg.Language = newLang
+			m.dirty = true
+			m.buildRows()
+		}
+		m.showLanguagePicker = false
+	case "esc":
+		m.showLanguagePicker = false
+	}
+	return m, nil
+}
+
 func (m ConfigTUI) updateEditing(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "enter":
@@ -298,6 +345,17 @@ func (m ConfigTUI) handleSelect() (tea.Model, tea.Cmd) {
 
 	case rowAction:
 		switch r.key {
+		case "language":
+			m.showLanguagePicker = true
+			// Find current language in list
+			m.languageCursor = 0 // Default to first (Auto)
+			for i, lang := range i18n.SupportedLanguages {
+				if lang == m.cfg.Language {
+					m.languageCursor = i + 1 // +1 because Auto is at index 0
+					break
+				}
+			}
+			return m, nil
 		case "add_cli":
 			m.openProviderDialog(config.AIProviderTypeCLI, -1)
 			return m, textinput.Blink
@@ -585,7 +643,15 @@ func (m ConfigTUI) View() string {
 
 		case rowAction:
 			var line string
-			if r.key == "edit_provider" {
+			if r.key == "language" {
+				// Language row: show like a field with value
+				label := cfgLabelStyle.Render(r.label)
+				value := cfgValueStyle.Render(r.value)
+				line = pad + "  " + label + " " + value
+				if selected {
+					line = pad + cfgSelectedStyle.Render(" ▸ " + r.label + ": " + r.value + " ")
+				}
+			} else if r.key == "edit_provider" {
 				// Provider row: show type and name/model
 				typeLabel := cfgHintStyle.Render("[" + r.value + "]")
 				if selected {
@@ -681,6 +747,35 @@ func (m ConfigTUI) View() string {
 				saveBtn + "  " + discardBtn + "  " + cancelBtn + "\n\n" +
 				cfgHintStyle.Render("← → select · Enter confirm"),
 		)
+		return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, dialog)
+	}
+
+	// Language picker dialog
+	if m.showLanguagePicker {
+		var dialogContent strings.Builder
+		dialogContent.WriteString(cfgSectionStyle.Render("Select Language") + "\n\n")
+
+		// Auto option
+		autoLabel := "Auto (detect from system)"
+		if m.languageCursor == 0 {
+			dialogContent.WriteString(cfgSelectedStyle.Render(" ▸ "+autoLabel+" ") + "\n")
+		} else {
+			dialogContent.WriteString("   " + cfgValueStyle.Render(autoLabel) + "\n")
+		}
+
+		// Language options
+		for i, lang := range i18n.SupportedLanguages {
+			label := fmt.Sprintf("%s - %s", i18n.DisplayName(lang), lang)
+			if m.languageCursor == i+1 {
+				dialogContent.WriteString(cfgSelectedStyle.Render(" ▸ "+label+" ") + "\n")
+			} else {
+				dialogContent.WriteString("   " + cfgValueStyle.Render(label) + "\n")
+			}
+		}
+
+		dialogContent.WriteString("\n" + cfgHintStyle.Render("↑↓ select · Enter confirm · Esc cancel"))
+
+		dialog := cfgDialogStyle.Render(dialogContent.String())
 		return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, dialog)
 	}
 

@@ -1,0 +1,247 @@
+common.loading: Laden...
+common.error: Fout
+common.success: Succes
+common.cancel: Annuleren
+common.confirm: Bevestigen
+common.save: Opslaan
+common.discard: Verwerpen
+common.quit: Afsluiten
+common.back: Terug
+common.yes: Ja
+common.no: Nee
+common.ok: OK
+common.close: Sluiten
+common.done: Klaar
+common.edit: Bewerken
+common.delete: Verwijderen
+common.add: Toevoegen
+email.count:
+  one: '{{.Count}} e-mail'
+  other: '{{.Count}} e-mails'
+email.deleted:
+  one: '{{.Count}} e-mail succesvol verwijderd'
+  other: '{{.Count}} e-mails succesvol verwijderd'
+email.moved:
+  one: '{{.Count}} e-mail verplaatst naar {{.Label}}'
+  other: '{{.Count}} e-mails verplaatst naar {{.Label}}'
+email.searching: Zoeken...
+email.refreshing: Vernieuwen...
+email.loading: '{{.Count}} e-mails laden...'
+email.no_results: Geen resultaten voor '{{.Query}}'
+email.results_count: '{{.Count}} resultaten voor ''{{.Query}}'''
+email.folder_count: '{{.Label}}: {{.Count}} e-mails'
+email.selected:
+  one: '{{.Count}} geselecteerd'
+  other: '{{.Count}} geselecteerd'
+email.auto_refreshing: Automatisch vernieuwen...
+email.parse_error: Parseerfout
+email.send_success: E-mail verzonden!
+email.send_failed: 'Verzenden mislukt: {{.Error}}'
+email.reply_success: Antwoord verzonden!
+email.draft_saved: Concept opgeslagen
+email.draft_failed: 'Concept opslaan mislukt: {{.Error}}'
+email.load_more: Meer e-mails laden
+email.no_emails: Geen e-mails
+email.attachment_count:
+  one: '{{.Count}} bijlage'
+  other: '{{.Count}} bijlagen'
+compose.title: Opstellen
+compose.reply: Beantwoorden
+compose.forward: Doorsturen
+compose.send: Verzenden
+compose.save_draft: Concept opslaan
+compose.attach: Bijlage
+compose.placeholder.to: ontvanger@voorbeeld.nl
+compose.placeholder.cc: cc@voorbeeld.nl
+compose.placeholder.subject: Onderwerp
+compose.placeholder.body: Typ je bericht...
+compose.placeholder.reply_body: Typ je antwoord...
+compose.hint: 'Tab: volgend veld · Ctrl+S: verzenden · Esc: annuleren'
+compose.reply_hint: 'Tab: volgend veld · Ctrl+S: verzenden · Esc: annuleren'
+dialog.delete.title: E-mail verwijderen?
+dialog.delete.title_plural: '{{.Count}} e-mails verwijderen?'
+dialog.delete.move_trash: Naar prullenbak
+dialog.delete.permanent: Permanent verwijderen
+dialog.delete.hint: ← → selecteren, Enter bevestigen, Esc annuleren
+dialog.ai_setup.title: Geen AI-provider gevonden
+dialog.ai_setup.message: 'Wilt u een AI-provider configureren?
+
+
+  U kunt CLI-tools (claude, codex, gemini) of API-sleutels toevoegen.'
+dialog.ai_setup.hint: Enter configureren, Esc overslaan
+dialog.ai_setup.configure: Configureren
+dialog.ai_setup.skip: Overslaan
+dialog.search.title: Zoeken
+dialog.search.placeholder: E-mails zoeken...
+dialog.search.hint: Enter zoeken, Esc annuleren
+dialog.quit.title: Niet-opgeslagen wijzigingen
+dialog.quit.message: U hebt niet-opgeslagen wijzigingen. Wat wilt u doen?
+dialog.quit.save_quit: Opslaan & Afsluiten
+dialog.quit.discard: Verwerpen
+dialog.quit.cancel: Annuleren
+label.inbox: Postvak IN
+label.starred: Met ster
+label.sent: Verzonden
+label.drafts: Concepten
+label.spam: Spam
+label.trash: Prullenbak
+label.all_mail: Alle e-mail
+label.archive: Archief
+label.important: Belangrijk
+label.folders: Mappen
+label.labels: Labels
+label.select: Label selecteren
+help.navigate: navigeren
+help.open: openen
+help.new_email: nieuwe e-mail
+help.reply: beantwoorden
+help.refresh: vernieuwen
+help.search: zoeken
+help.quit: afsluiten
+help.delete: verwijderen
+help.load_more: meer laden
+help.folders: mappen
+help.commands: commando's
+help.select: selecteren
+help.select_all: alles
+help.mark_read: als gelezen markeren
+help.attachments: bijlagen
+help.summarize: samenvatten
+help.extract: extraheren
+help.switch_account: wisselen
+help.next_field: volgend veld
+help.send: verzenden
+help.cancel: annuleren
+help.close: sluiten
+help.confirm: bevestigen
+help.back: terug
+help.add_event: gebeurtenis toevoegen
+help.edit: bewerken
+help.toggle: schakelen
+help.download: downloaden
+login.gmail.title: Gmail-aanmelding
+login.yahoo.title: Yahoo Mail-aanmelding
+login.imap.title: IMAP-aanmelding
+login.email_label: 'E-mail:'
+login.password_label: 'App-wachtwoord:'
+login.server_label: 'IMAP-server:'
+login.port_label: 'Poort:'
+login.verifying: Inloggegevens verifiëren...
+login.success: Aangemeld als {{.Email}}
+login.failed: 'Aanmelden mislukt: {{.Error}}'
+login.gmail.hint: 'U hebt een app-wachtwoord nodig om door te gaan.
+
+
+  1. Schakel tweestapsverificatie in
+
+  2. Ga naar: myaccount.google.com/apppasswords
+
+  3. Typ een naam en klik op Maken'
+login.yahoo.hint: 'U hebt een app-wachtwoord nodig om door te gaan.
+
+
+  1. Ga naar: login.yahoo.com/account/security
+
+  2. Klik op ''App-wachtwoord genereren''
+
+  3. Selecteer ''Andere app'' en genereer'
+login.hint_fields: Tab veld wisselen · Enter verzenden · Esc annuleren
+login.hint_exit: Druk op Enter om af te sluiten.
+provider.select_title: E-mailprovider selecteren
+provider.hint: ↑↓ verplaatsen · Enter selecteren · Esc annuleren
+provider.gmail: Gmail
+provider.gmail_desc: Google Mail
+provider.yahoo: Yahoo Mail
+provider.yahoo_desc: Yahoo Mail
+provider.imap: IMAP
+provider.imap_desc: Aangepaste IMAP-server
+config.title: Maily Instellingen
+config.section.general: Algemeen
+config.section.ai_providers: AI-providers
+config.section.actions: Acties
+config.max_emails: Max. e-mails
+config.default_label: Standaard label
+config.theme: Thema
+config.language: Taal
+config.add_cli_provider: CLI-provider toevoegen (claude, codex, gemini...)
+config.add_api_provider: API-provider toevoegen (OpenAI, enz.)
+config.edit_provider: Bewerken
+config.delete_provider: Verwijderen
+config.unsaved_changes: Niet-opgeslagen wijzigingen
+config.save_quit: Opslaan & Afsluiten
+config.hint: ↑↓ navigeren · Enter bewerken · s opslaan · q afsluiten
+config.saved: Wijzigingen opgeslagen
+config.no_providers: Geen AI-providers geconfigureerd
+config.select_language: Taal selecteren
+command.new: Nieuwe e-mail
+command.reply: Op deze e-mail beantwoorden
+command.delete: Deze e-mail verwijderen
+command.search: E-mails zoeken
+command.refresh: Postvak IN vernieuwen
+command.labels: Label/map wisselen
+command.summarize: Deze e-mail samenvatten (AI)
+command.extract: Gebeurtenis naar agenda extraheren (AI)
+command.add: Agenda-gebeurtenis toevoegen
+command.palette.title: Commando's
+command.palette.placeholder: Typ een commando...
+command.no_matching: Geen overeenkomende commando's
+summary.title: Samenvatting
+summary.via: via {{.Provider}}
+summary.close_hint: Druk op Esc om te sluiten
+summary.generating: Samenvatting genereren...
+summary.error: 'Samenvatting genereren mislukt: {{.Error}}'
+extract.title: Geëxtraheerde gebeurtenis
+extract.no_event: Geen gebeurtenis gevonden
+extract.input_hint: 'Typ gebeurtenisdetails om toe te voegen aan agenda:'
+extract.field.title: 'Titel:'
+extract.field.date: 'Datum:'
+extract.field.time: 'Tijd:'
+extract.field.location: 'Locatie:'
+extract.field.reminder: 'Herinnering:'
+extract.no_reminder: Geen herinnering
+extract.hint: 'Enter: toevoegen · e: bewerken · Esc: sluiten'
+extract.edit.title: Gebeurtenis bewerken
+extract.edit.hint: 'Tab: volgende · Enter: selecteren · Esc: terug'
+extract.added: Gebeurtenis toegevoegd aan agenda
+extract.failed: 'Gebeurtenis toevoegen mislukt: {{.Error}}'
+extract.parse_hint: Enter analyseren · Esc annuleren
+extract.parsing: Analyseren met {{.Provider}}...
+attachment.title: Bijlagen downloaden
+attachment.download_all: Alles downloaden ({{.Count}} bestanden, {{.Size}})
+attachment.hint: 'Tab: selecteren · Enter: downloaden · Esc: annuleren'
+attachment.downloaded: '{{.Filename}} gedownload naar ~/Downloads/maily'
+attachment.download_failed: 'Downloaden mislukt: {{.Error}}'
+attachment.no_attachments: Geen bijlagen
+attachment.total: 'Bijlagen ({{.Count}}, {{.Size}}):'
+calendar.title: Agenda
+calendar.today: Vandaag
+calendar.no_events: Geen gebeurtenissen
+calendar.event_count:
+  one: '{{.Count}} gebeurtenis'
+  other: '{{.Count}} gebeurtenissen'
+calendar.not_available: Agenda niet beschikbaar
+calendar.adding: Toevoegen aan agenda...
+calendar.extracting: Gebeurtenis extraheren...
+today.title: Vandaag
+today.emails: E-mails
+today.events: Gebeurtenissen
+cli.no_accounts: 'Geen accounts geconfigureerd. Voer uit:'
+cli.login_hint: '  maily login'
+cli.error_loading_accounts: 'Fout bij laden accounts: {{.Error}}'
+cli.error_loading_config: 'Fout bij laden configuratie: {{.Error}}'
+cli.error_running: 'Fout bij uitvoeren: {{.Error}}'
+cli.unknown_provider: 'Onbekende provider: {{.Provider}}'
+cli.available_providers: 'Beschikbare providers:'
+cli.logged_out: '{{.Email}} afgemeld'
+cli.logout_failed: 'Afmelden mislukt: {{.Error}}'
+cli.account_not_found: 'Account niet gevonden: {{.Email}}'
+error.auth_hint: 'Om op te lossen: Genereer een nieuw app-wachtwoord
+
+  Voer dan uit: maily login'
+error.connection: 'Verbindingsfout: {{.Error}}'
+error.timeout: Time-out
+error.unknown: Er is een onbekende fout opgetreden
+error.invalid_input: 'Ongeldige invoer: {{.Error}}'
+status.moving_to_trash: Verplaatsen naar prullenbak...
+status.deleting_permanently: Permanent verwijderen...
+status.changes_saved: Wijzigingen opgeslagen

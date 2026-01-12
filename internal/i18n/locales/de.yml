@@ -1,0 +1,247 @@
+common.loading: Laden...
+common.error: Fehler
+common.success: Erfolg
+common.cancel: Abbrechen
+common.confirm: Bestätigen
+common.save: Speichern
+common.discard: Verwerfen
+common.quit: Beenden
+common.back: Zurück
+common.yes: Ja
+common.no: Nein
+common.ok: OK
+common.close: Schließen
+common.done: Fertig
+common.edit: Bearbeiten
+common.delete: Löschen
+common.add: Hinzufügen
+email.count:
+  one: '{{.Count}} E-Mail'
+  other: '{{.Count}} E-Mails'
+email.deleted:
+  one: '{{.Count}} E-Mail erfolgreich gelöscht'
+  other: '{{.Count}} E-Mails erfolgreich gelöscht'
+email.moved:
+  one: '{{.Count}} E-Mail nach {{.Label}} verschoben'
+  other: '{{.Count}} E-Mails nach {{.Label}} verschoben'
+email.searching: Suche...
+email.refreshing: Aktualisiere...
+email.loading: Lade {{.Count}} E-Mails...
+email.no_results: Keine Ergebnisse für '{{.Query}}'
+email.results_count: '{{.Count}} Ergebnisse für ''{{.Query}}'''
+email.folder_count: '{{.Label}}: {{.Count}} E-Mails'
+email.selected:
+  one: '{{.Count}} ausgewählt'
+  other: '{{.Count}} ausgewählt'
+email.auto_refreshing: Automatische Aktualisierung...
+email.parse_error: Analysefehler
+email.send_success: E-Mail gesendet!
+email.send_failed: 'Senden fehlgeschlagen: {{.Error}}'
+email.reply_success: Antwort gesendet!
+email.draft_saved: Entwurf gespeichert
+email.draft_failed: 'Entwurf speichern fehlgeschlagen: {{.Error}}'
+email.load_more: Mehr E-Mails laden
+email.no_emails: Keine E-Mails
+email.attachment_count:
+  one: '{{.Count}} Anhang'
+  other: '{{.Count}} Anhänge'
+compose.title: Verfassen
+compose.reply: Antworten
+compose.forward: Weiterleiten
+compose.send: Senden
+compose.save_draft: Entwurf speichern
+compose.attach: Anhängen
+compose.placeholder.to: empfaenger@beispiel.de
+compose.placeholder.cc: cc@beispiel.de
+compose.placeholder.subject: Betreff
+compose.placeholder.body: Nachricht eingeben...
+compose.placeholder.reply_body: Antwort eingeben...
+compose.hint: 'Tab: nächstes Feld · Ctrl+S: senden · Esc: abbrechen'
+compose.reply_hint: 'Tab: nächstes Feld · Ctrl+S: senden · Esc: abbrechen'
+dialog.delete.title: E-Mail löschen?
+dialog.delete.title_plural: '{{.Count}} E-Mails löschen?'
+dialog.delete.move_trash: In Papierkorb verschieben
+dialog.delete.permanent: Dauerhaft löschen
+dialog.delete.hint: ← → auswählen, Enter bestätigen, Esc abbrechen
+dialog.ai_setup.title: Kein KI-Anbieter gefunden
+dialog.ai_setup.message: 'Möchten Sie einen KI-Anbieter konfigurieren?
+
+
+  Sie können CLI-Tools (claude, codex, gemini) oder API-Schlüssel hinzufügen.'
+dialog.ai_setup.hint: Enter konfigurieren, Esc überspringen
+dialog.ai_setup.configure: Konfigurieren
+dialog.ai_setup.skip: Überspringen
+dialog.search.title: Suchen
+dialog.search.placeholder: E-Mails suchen...
+dialog.search.hint: Enter suchen, Esc abbrechen
+dialog.quit.title: Ungespeicherte Änderungen
+dialog.quit.message: Sie haben ungespeicherte Änderungen. Was möchten Sie tun?
+dialog.quit.save_quit: Speichern & Beenden
+dialog.quit.discard: Verwerfen
+dialog.quit.cancel: Abbrechen
+label.inbox: Posteingang
+label.starred: Markiert
+label.sent: Gesendet
+label.drafts: Entwürfe
+label.spam: Spam
+label.trash: Papierkorb
+label.all_mail: Alle E-Mails
+label.archive: Archiv
+label.important: Wichtig
+label.folders: Ordner
+label.labels: Labels
+label.select: Label auswählen
+help.navigate: navigieren
+help.open: öffnen
+help.new_email: neue E-Mail
+help.reply: antworten
+help.refresh: aktualisieren
+help.search: suchen
+help.quit: beenden
+help.delete: löschen
+help.load_more: mehr laden
+help.folders: Ordner
+help.commands: Befehle
+help.select: auswählen
+help.select_all: alle
+help.mark_read: als gelesen markieren
+help.attachments: Anhänge
+help.summarize: zusammenfassen
+help.extract: extrahieren
+help.switch_account: wechseln
+help.next_field: nächstes Feld
+help.send: senden
+help.cancel: abbrechen
+help.close: schließen
+help.confirm: bestätigen
+help.back: zurück
+help.add_event: Termin hinzufügen
+help.edit: bearbeiten
+help.toggle: umschalten
+help.download: herunterladen
+login.gmail.title: Gmail-Anmeldung
+login.yahoo.title: Yahoo Mail-Anmeldung
+login.imap.title: IMAP-Anmeldung
+login.email_label: 'E-Mail:'
+login.password_label: 'App-Passwort:'
+login.server_label: 'IMAP-Server:'
+login.port_label: 'Port:'
+login.verifying: Anmeldedaten werden überprüft...
+login.success: Angemeldet als {{.Email}}
+login.failed: 'Anmeldung fehlgeschlagen: {{.Error}}'
+login.gmail.hint: 'Sie benötigen ein App-Passwort um fortzufahren.
+
+
+  1. Aktivieren Sie die 2-Faktor-Authentifizierung
+
+  2. Gehen Sie zu: myaccount.google.com/apppasswords
+
+  3. Geben Sie einen Namen ein und klicken Sie auf Erstellen'
+login.yahoo.hint: 'Sie benötigen ein App-Passwort um fortzufahren.
+
+
+  1. Gehen Sie zu: login.yahoo.com/account/security
+
+  2. Klicken Sie auf ''App-Passwort generieren''
+
+  3. Wählen Sie ''Andere App'' und generieren Sie'
+login.hint_fields: Tab Feld wechseln · Enter absenden · Esc abbrechen
+login.hint_exit: Drücken Sie Enter zum Beenden.
+provider.select_title: E-Mail-Anbieter auswählen
+provider.hint: ↑↓ bewegen · Enter auswählen · Esc abbrechen
+provider.gmail: Gmail
+provider.gmail_desc: Google Mail
+provider.yahoo: Yahoo Mail
+provider.yahoo_desc: Yahoo Mail
+provider.imap: IMAP
+provider.imap_desc: Benutzerdefinierter IMAP-Server
+config.title: Maily Einstellungen
+config.section.general: Allgemein
+config.section.ai_providers: KI-Anbieter
+config.section.actions: Aktionen
+config.max_emails: Max. E-Mails
+config.default_label: Standard-Label
+config.theme: Design
+config.language: Sprache
+config.add_cli_provider: CLI-Anbieter hinzufügen (claude, codex, gemini...)
+config.add_api_provider: API-Anbieter hinzufügen (OpenAI, etc.)
+config.edit_provider: Bearbeiten
+config.delete_provider: Löschen
+config.unsaved_changes: Ungespeicherte Änderungen
+config.save_quit: Speichern & Beenden
+config.hint: ↑↓ navigieren · Enter bearbeiten · s speichern · q beenden
+config.saved: Änderungen gespeichert
+config.no_providers: Keine KI-Anbieter konfiguriert
+config.select_language: Sprache auswählen
+command.new: Neue E-Mail
+command.reply: Auf diese E-Mail antworten
+command.delete: Diese E-Mail löschen
+command.search: E-Mails suchen
+command.refresh: Posteingang aktualisieren
+command.labels: Label/Ordner wechseln
+command.summarize: Diese E-Mail zusammenfassen (KI)
+command.extract: Termin in Kalender extrahieren (KI)
+command.add: Kalendereintrag hinzufügen
+command.palette.title: Befehle
+command.palette.placeholder: Befehl eingeben...
+command.no_matching: Keine passenden Befehle
+summary.title: Zusammenfassung
+summary.via: via {{.Provider}}
+summary.close_hint: Esc zum Schließen drücken
+summary.generating: Zusammenfassung wird erstellt...
+summary.error: 'Zusammenfassung fehlgeschlagen: {{.Error}}'
+extract.title: Extrahierter Termin
+extract.no_event: Kein Termin gefunden
+extract.input_hint: 'Termindetails eingeben:'
+extract.field.title: 'Titel:'
+extract.field.date: 'Datum:'
+extract.field.time: 'Uhrzeit:'
+extract.field.location: 'Ort:'
+extract.field.reminder: 'Erinnerung:'
+extract.no_reminder: Keine Erinnerung
+extract.hint: 'Enter: hinzufügen · e: bearbeiten · Esc: schließen'
+extract.edit.title: Termin bearbeiten
+extract.edit.hint: 'Tab: weiter · Enter: auswählen · Esc: zurück'
+extract.added: Termin zum Kalender hinzugefügt
+extract.failed: 'Termin hinzufügen fehlgeschlagen: {{.Error}}'
+extract.parse_hint: Enter analysieren · Esc abbrechen
+extract.parsing: Analysiere mit {{.Provider}}...
+attachment.title: Anhänge herunterladen
+attachment.download_all: Alle herunterladen ({{.Count}} Dateien, {{.Size}})
+attachment.hint: 'Tab: auswählen · Enter: herunterladen · Esc: abbrechen'
+attachment.downloaded: '{{.Filename}} nach ~/Downloads/maily heruntergeladen'
+attachment.download_failed: 'Download fehlgeschlagen: {{.Error}}'
+attachment.no_attachments: Keine Anhänge
+attachment.total: 'Anhänge ({{.Count}}, {{.Size}}):'
+calendar.title: Kalender
+calendar.today: Heute
+calendar.no_events: Keine Termine
+calendar.event_count:
+  one: '{{.Count}} Termin'
+  other: '{{.Count}} Termine'
+calendar.not_available: Kalender nicht verfügbar
+calendar.adding: Wird zum Kalender hinzugefügt...
+calendar.extracting: Termin wird extrahiert...
+today.title: Heute
+today.emails: E-Mails
+today.events: Termine
+cli.no_accounts: 'Keine Konten konfiguriert. Führen Sie aus:'
+cli.login_hint: '  maily login'
+cli.error_loading_accounts: 'Fehler beim Laden der Konten: {{.Error}}'
+cli.error_loading_config: 'Fehler beim Laden der Konfiguration: {{.Error}}'
+cli.error_running: 'Fehler beim Ausführen: {{.Error}}'
+cli.unknown_provider: 'Unbekannter Anbieter: {{.Provider}}'
+cli.available_providers: 'Verfügbare Anbieter:'
+cli.logged_out: '{{.Email}} abgemeldet'
+cli.logout_failed: 'Abmelden fehlgeschlagen: {{.Error}}'
+cli.account_not_found: 'Konto nicht gefunden: {{.Email}}'
+error.auth_hint: 'Zur Behebung: Generieren Sie ein neues App-Passwort
+
+  Dann führen Sie aus: maily login'
+error.connection: 'Verbindungsfehler: {{.Error}}'
+error.timeout: Zeitüberschreitung
+error.unknown: Ein unbekannter Fehler ist aufgetreten
+error.invalid_input: 'Ungültige Eingabe: {{.Error}}'
+status.moving_to_trash: Wird in Papierkorb verschoben...
+status.deleting_permanently: Wird dauerhaft gelöscht...
+status.changes_saved: Änderungen gespeichert

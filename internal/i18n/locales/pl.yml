@@ -1,0 +1,259 @@
+common.loading: Ładowanie...
+common.error: Błąd
+common.success: Sukces
+common.cancel: Anuluj
+common.confirm: Potwierdź
+common.save: Zapisz
+common.discard: Odrzuć
+common.quit: Wyjdź
+common.back: Wstecz
+common.yes: Tak
+common.no: Nie
+common.ok: OK
+common.close: Zamknij
+common.done: Gotowe
+common.edit: Edytuj
+common.delete: Usuń
+common.add: Dodaj
+email.count:
+  one: '{{.Count}} e-mail'
+  few: '{{.Count}} e-maile'
+  many: '{{.Count}} e-maili'
+  other: '{{.Count}} e-maili'
+email.deleted:
+  one: Pomyślnie usunięto {{.Count}} e-mail
+  few: Pomyślnie usunięto {{.Count}} e-maile
+  many: Pomyślnie usunięto {{.Count}} e-maili
+  other: Pomyślnie usunięto {{.Count}} e-maili
+email.moved:
+  one: Przeniesiono {{.Count}} e-mail do {{.Label}}
+  few: Przeniesiono {{.Count}} e-maile do {{.Label}}
+  many: Przeniesiono {{.Count}} e-maili do {{.Label}}
+  other: Przeniesiono {{.Count}} e-maili do {{.Label}}
+email.searching: Wyszukiwanie...
+email.refreshing: Odświeżanie...
+email.loading: Ładowanie {{.Count}} e-maili...
+email.no_results: Brak wyników dla '{{.Query}}'
+email.results_count: '{{.Count}} wyników dla ''{{.Query}}'''
+email.folder_count: '{{.Label}}: {{.Count}} e-maili'
+email.selected:
+  one: Zaznaczono {{.Count}}
+  few: Zaznaczono {{.Count}}
+  many: Zaznaczono {{.Count}}
+  other: Zaznaczono {{.Count}}
+email.auto_refreshing: Automatyczne odświeżanie...
+email.parse_error: Błąd analizy
+email.send_success: E-mail wysłany!
+email.send_failed: 'Wysyłanie nie powiodło się: {{.Error}}'
+email.reply_success: Odpowiedź wysłana!
+email.draft_saved: Szkic zapisany
+email.draft_failed: 'Nie udało się zapisać szkicu: {{.Error}}'
+email.load_more: Załaduj więcej e-maili
+email.no_emails: Brak e-maili
+email.attachment_count:
+  one: '{{.Count}} załącznik'
+  few: '{{.Count}} załączniki'
+  many: '{{.Count}} załączników'
+  other: '{{.Count}} załączników'
+compose.title: Utwórz
+compose.reply: Odpowiedz
+compose.forward: Przekaż
+compose.send: Wyślij
+compose.save_draft: Zapisz szkic
+compose.attach: Załącz
+compose.placeholder.to: odbiorca@przyklad.pl
+compose.placeholder.cc: cc@przyklad.pl
+compose.placeholder.subject: Temat
+compose.placeholder.body: Wpisz wiadomość...
+compose.placeholder.reply_body: Wpisz odpowiedź...
+compose.hint: 'Tab: następne pole · Ctrl+S: wyślij · Esc: anuluj'
+compose.reply_hint: 'Tab: następne pole · Ctrl+S: wyślij · Esc: anuluj'
+dialog.delete.title: Usunąć e-mail?
+dialog.delete.title_plural: Usunąć {{.Count}} e-maili?
+dialog.delete.move_trash: Przenieś do kosza
+dialog.delete.permanent: Usuń trwale
+dialog.delete.hint: ← → wybierz, Enter potwierdź, Esc anuluj
+dialog.ai_setup.title: Nie znaleziono dostawcy AI
+dialog.ai_setup.message: 'Czy chcesz skonfigurować dostawcę AI?
+
+
+  Możesz dodać narzędzia CLI (claude, codex, gemini) lub klucze API.'
+dialog.ai_setup.hint: Enter konfiguruj, Esc pomiń
+dialog.ai_setup.configure: Konfiguruj
+dialog.ai_setup.skip: Pomiń
+dialog.search.title: Szukaj
+dialog.search.placeholder: Szukaj e-maili...
+dialog.search.hint: Enter szukaj, Esc anuluj
+dialog.quit.title: Niezapisane zmiany
+dialog.quit.message: Masz niezapisane zmiany. Co chcesz zrobić?
+dialog.quit.save_quit: Zapisz i wyjdź
+dialog.quit.discard: Odrzuć
+dialog.quit.cancel: Anuluj
+label.inbox: Odebrane
+label.starred: Oznaczone gwiazdką
+label.sent: Wysłane
+label.drafts: Szkice
+label.spam: Spam
+label.trash: Kosz
+label.all_mail: Wszystkie e-maile
+label.archive: Archiwum
+label.important: Ważne
+label.folders: Foldery
+label.labels: Etykiety
+label.select: Wybierz etykietę
+help.navigate: nawiguj
+help.open: otwórz
+help.new_email: nowy e-mail
+help.reply: odpowiedz
+help.refresh: odśwież
+help.search: szukaj
+help.quit: wyjdź
+help.delete: usuń
+help.load_more: więcej
+help.folders: foldery
+help.commands: polecenia
+help.select: zaznacz
+help.select_all: wszystkie
+help.mark_read: oznacz jako przeczytane
+help.attachments: załączniki
+help.summarize: podsumuj
+help.extract: wyodrębnij
+help.switch_account: przełącz
+help.next_field: następne pole
+help.send: wyślij
+help.cancel: anuluj
+help.close: zamknij
+help.confirm: potwierdź
+help.back: wstecz
+help.add_event: dodaj wydarzenie
+help.edit: edytuj
+help.toggle: przełącz
+help.download: pobierz
+login.gmail.title: Logowanie do Gmail
+login.yahoo.title: Logowanie do Yahoo Mail
+login.imap.title: Logowanie IMAP
+login.email_label: 'E-mail:'
+login.password_label: 'Hasło aplikacji:'
+login.server_label: 'Serwer IMAP:'
+login.port_label: 'Port:'
+login.verifying: Weryfikowanie danych...
+login.success: Zalogowano jako {{.Email}}
+login.failed: 'Logowanie nie powiodło się: {{.Error}}'
+login.gmail.hint: 'Potrzebujesz hasła aplikacji, aby kontynuować.
+
+
+  1. Włącz weryfikację dwuetapową
+
+  2. Przejdź do: myaccount.google.com/apppasswords
+
+  3. Wpisz nazwę i kliknij Utwórz'
+login.yahoo.hint: 'Potrzebujesz hasła aplikacji, aby kontynuować.
+
+
+  1. Przejdź do: login.yahoo.com/account/security
+
+  2. Kliknij ''Wygeneruj hasło aplikacji''
+
+  3. Wybierz ''Inna aplikacja'' i wygeneruj'
+login.hint_fields: Tab zmień pole · Enter wyślij · Esc anuluj
+login.hint_exit: Naciśnij Enter, aby wyjść.
+provider.select_title: Wybierz dostawcę e-mail
+provider.hint: ↑↓ przesuń · Enter wybierz · Esc anuluj
+provider.gmail: Gmail
+provider.gmail_desc: Google Mail
+provider.yahoo: Yahoo Mail
+provider.yahoo_desc: Yahoo Mail
+provider.imap: IMAP
+provider.imap_desc: Niestandardowy serwer IMAP
+config.title: Ustawienia Maily
+config.section.general: Ogólne
+config.section.ai_providers: Dostawcy AI
+config.section.actions: Akcje
+config.max_emails: Maks. e-maili
+config.default_label: Domyślna etykieta
+config.theme: Motyw
+config.language: Język
+config.add_cli_provider: Dodaj dostawcę CLI (claude, codex, gemini...)
+config.add_api_provider: Dodaj dostawcę API (OpenAI, itp.)
+config.edit_provider: Edytuj
+config.delete_provider: Usuń
+config.unsaved_changes: Niezapisane zmiany
+config.save_quit: Zapisz i wyjdź
+config.hint: ↑↓ nawiguj · Enter edytuj · s zapisz · q wyjdź
+config.saved: Zmiany zapisane
+config.no_providers: Nie skonfigurowano dostawców AI
+config.select_language: Wybierz język
+command.new: Nowy e-mail
+command.reply: Odpowiedz na ten e-mail
+command.delete: Usuń ten e-mail
+command.search: Szukaj e-maili
+command.refresh: Odśwież skrzynkę
+command.labels: Zmień etykietę/folder
+command.summarize: Podsumuj ten e-mail (AI)
+command.extract: Wyodrębnij wydarzenie do kalendarza (AI)
+command.add: Dodaj wydarzenie do kalendarza
+command.palette.title: Polecenia
+command.palette.placeholder: Wpisz polecenie...
+command.no_matching: Brak pasujących poleceń
+summary.title: Podsumowanie
+summary.via: przez {{.Provider}}
+summary.close_hint: Naciśnij Esc, aby zamknąć
+summary.generating: Generowanie podsumowania...
+summary.error: 'Nie udało się wygenerować podsumowania: {{.Error}}'
+extract.title: Wyodrębnione wydarzenie
+extract.no_event: Nie znaleziono wydarzenia
+extract.input_hint: 'Wpisz szczegóły wydarzenia do dodania do kalendarza:'
+extract.field.title: 'Tytuł:'
+extract.field.date: 'Data:'
+extract.field.time: 'Czas:'
+extract.field.location: 'Miejsce:'
+extract.field.reminder: 'Przypomnienie:'
+extract.no_reminder: Brak przypomnienia
+extract.hint: 'Enter: dodaj · e: edytuj · Esc: zamknij'
+extract.edit.title: Edytuj wydarzenie
+extract.edit.hint: 'Tab: następne · Enter: wybierz · Esc: wstecz'
+extract.added: Wydarzenie dodane do kalendarza
+extract.failed: 'Nie udało się dodać wydarzenia: {{.Error}}'
+extract.parse_hint: Enter analizuj · Esc anuluj
+extract.parsing: Analizowanie przez {{.Provider}}...
+attachment.title: Pobierz załączniki
+attachment.download_all: Pobierz wszystkie ({{.Count}} plików, {{.Size}})
+attachment.hint: 'Tab: wybierz · Enter: pobierz · Esc: anuluj'
+attachment.downloaded: '{{.Filename}} pobrano do ~/Downloads/maily'
+attachment.download_failed: 'Pobieranie nie powiodło się: {{.Error}}'
+attachment.no_attachments: Brak załączników
+attachment.total: 'Załączniki ({{.Count}}, {{.Size}}):'
+calendar.title: Kalendarz
+calendar.today: Dziś
+calendar.no_events: Brak wydarzeń
+calendar.event_count:
+  one: '{{.Count}} wydarzenie'
+  few: '{{.Count}} wydarzenia'
+  many: '{{.Count}} wydarzeń'
+  other: '{{.Count}} wydarzeń'
+calendar.not_available: Kalendarz niedostępny
+calendar.adding: Dodawanie do kalendarza...
+calendar.extracting: Wyodrębnianie wydarzenia...
+today.title: Dziś
+today.emails: E-maile
+today.events: Wydarzenia
+cli.no_accounts: 'Nie skonfigurowano kont. Uruchom:'
+cli.login_hint: '  maily login'
+cli.error_loading_accounts: 'Błąd ładowania kont: {{.Error}}'
+cli.error_loading_config: 'Błąd ładowania konfiguracji: {{.Error}}'
+cli.error_running: 'Błąd uruchamiania: {{.Error}}'
+cli.unknown_provider: 'Nieznany dostawca: {{.Provider}}'
+cli.available_providers: 'Dostępni dostawcy:'
+cli.logged_out: Wylogowano {{.Email}}
+cli.logout_failed: 'Wylogowanie nie powiodło się: {{.Error}}'
+cli.account_not_found: 'Nie znaleziono konta: {{.Email}}'
+error.auth_hint: 'Aby naprawić: Wygeneruj nowe hasło aplikacji
+
+  Następnie uruchom: maily login'
+error.connection: 'Błąd połączenia: {{.Error}}'
+error.timeout: Przekroczono limit czasu
+error.unknown: Wystąpił nieznany błąd
+error.invalid_input: 'Nieprawidłowe dane: {{.Error}}'
+status.moving_to_trash: Przenoszenie do kosza...
+status.deleting_permanently: Trwałe usuwanie...
+status.changes_saved: Zmiany zapisane

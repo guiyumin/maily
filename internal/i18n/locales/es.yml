@@ -1,0 +1,247 @@
+common.loading: Cargando...
+common.error: Error
+common.success: Éxito
+common.cancel: Cancelar
+common.confirm: Confirmar
+common.save: Guardar
+common.discard: Descartar
+common.quit: Salir
+common.back: Atrás
+common.yes: Sí
+common.no: 'No'
+common.ok: Aceptar
+common.close: Cerrar
+common.done: Hecho
+common.edit: Editar
+common.delete: Eliminar
+common.add: Añadir
+email.count:
+  one: '{{.Count}} correo'
+  other: '{{.Count}} correos'
+email.deleted:
+  one: '{{.Count}} correo eliminado correctamente'
+  other: '{{.Count}} correos eliminados correctamente'
+email.moved:
+  one: '{{.Count}} correo movido a {{.Label}}'
+  other: '{{.Count}} correos movidos a {{.Label}}'
+email.searching: Buscando...
+email.refreshing: Actualizando...
+email.loading: Cargando {{.Count}} correos...
+email.no_results: Sin resultados para '{{.Query}}'
+email.results_count: '{{.Count}} resultados para ''{{.Query}}'''
+email.folder_count: '{{.Label}}: {{.Count}} correos'
+email.selected:
+  one: '{{.Count}} seleccionado'
+  other: '{{.Count}} seleccionados'
+email.auto_refreshing: Actualizando automáticamente...
+email.parse_error: Error de análisis
+email.send_success: ¡Correo enviado!
+email.send_failed: 'Error al enviar: {{.Error}}'
+email.reply_success: ¡Respuesta enviada!
+email.draft_saved: Borrador guardado
+email.draft_failed: 'Error al guardar borrador: {{.Error}}'
+email.load_more: Cargar más correos
+email.no_emails: Sin correos
+email.attachment_count:
+  one: '{{.Count}} adjunto'
+  other: '{{.Count}} adjuntos'
+compose.title: Redactar
+compose.reply: Responder
+compose.forward: Reenviar
+compose.send: Enviar
+compose.save_draft: Guardar borrador
+compose.attach: Adjuntar
+compose.placeholder.to: destinatario@ejemplo.com
+compose.placeholder.cc: cc@ejemplo.com
+compose.placeholder.subject: Asunto
+compose.placeholder.body: Escribe tu mensaje...
+compose.placeholder.reply_body: Escribe tu respuesta...
+compose.hint: 'Tab: siguiente campo · Ctrl+S: enviar · Esc: cancelar'
+compose.reply_hint: 'Tab: siguiente campo · Ctrl+S: enviar · Esc: cancelar'
+dialog.delete.title: ¿Eliminar correo?
+dialog.delete.title_plural: ¿Eliminar {{.Count}} correos?
+dialog.delete.move_trash: Mover a papelera
+dialog.delete.permanent: Eliminar permanentemente
+dialog.delete.hint: ← → seleccionar, Enter confirmar, Esc cancelar
+dialog.ai_setup.title: No se encontró proveedor de IA
+dialog.ai_setup.message: '¿Deseas configurar un proveedor de IA?
+
+
+  Puedes añadir herramientas CLI (claude, codex, gemini) o claves API.'
+dialog.ai_setup.hint: Enter configurar, Esc omitir
+dialog.ai_setup.configure: Configurar
+dialog.ai_setup.skip: Omitir
+dialog.search.title: Buscar
+dialog.search.placeholder: Buscar correos...
+dialog.search.hint: Enter buscar, Esc cancelar
+dialog.quit.title: Cambios sin guardar
+dialog.quit.message: Tienes cambios sin guardar. ¿Qué deseas hacer?
+dialog.quit.save_quit: Guardar y salir
+dialog.quit.discard: Descartar
+dialog.quit.cancel: Cancelar
+label.inbox: Bandeja de entrada
+label.starred: Destacados
+label.sent: Enviados
+label.drafts: Borradores
+label.spam: Spam
+label.trash: Papelera
+label.all_mail: Todos los correos
+label.archive: Archivo
+label.important: Importante
+label.folders: Carpetas
+label.labels: Etiquetas
+label.select: Seleccionar etiqueta
+help.navigate: navegar
+help.open: abrir
+help.new_email: nuevo correo
+help.reply: responder
+help.refresh: actualizar
+help.search: buscar
+help.quit: salir
+help.delete: eliminar
+help.load_more: cargar más
+help.folders: carpetas
+help.commands: comandos
+help.select: seleccionar
+help.select_all: todo
+help.mark_read: marcar leído
+help.attachments: adjuntos
+help.summarize: resumir
+help.extract: extraer
+help.switch_account: cambiar
+help.next_field: siguiente campo
+help.send: enviar
+help.cancel: cancelar
+help.close: cerrar
+help.confirm: confirmar
+help.back: atrás
+help.add_event: añadir evento
+help.edit: editar
+help.toggle: alternar
+help.download: descargar
+login.gmail.title: Iniciar sesión en Gmail
+login.yahoo.title: Iniciar sesión en Yahoo Mail
+login.imap.title: Iniciar sesión IMAP
+login.email_label: 'Correo:'
+login.password_label: 'Contraseña de aplicación:'
+login.server_label: 'Servidor IMAP:'
+login.port_label: 'Puerto:'
+login.verifying: Verificando credenciales...
+login.success: Sesión iniciada como {{.Email}}
+login.failed: 'Error al iniciar sesión: {{.Error}}'
+login.gmail.hint: 'Necesitas una contraseña de aplicación para continuar.
+
+
+  1. Activa la verificación en 2 pasos
+
+  2. Ve a: myaccount.google.com/apppasswords
+
+  3. Escribe un nombre y haz clic en Crear'
+login.yahoo.hint: 'Necesitas una contraseña de aplicación para continuar.
+
+
+  1. Ve a: login.yahoo.com/account/security
+
+  2. Haz clic en ''Generar contraseña de aplicación''
+
+  3. Selecciona ''Otra aplicación'' y genera'
+login.hint_fields: Tab cambiar campo · Enter enviar · Esc cancelar
+login.hint_exit: Presiona Enter para salir.
+provider.select_title: Seleccionar proveedor de correo
+provider.hint: ↑↓ mover · Enter seleccionar · Esc cancelar
+provider.gmail: Gmail
+provider.gmail_desc: Google Mail
+provider.yahoo: Yahoo Mail
+provider.yahoo_desc: Yahoo Mail
+provider.imap: IMAP
+provider.imap_desc: Servidor IMAP personalizado
+config.title: Configuración de Maily
+config.section.general: General
+config.section.ai_providers: Proveedores de IA
+config.section.actions: Acciones
+config.max_emails: Máximo de correos
+config.default_label: Etiqueta predeterminada
+config.theme: Tema
+config.language: Idioma
+config.add_cli_provider: Añadir proveedor CLI (claude, codex, gemini...)
+config.add_api_provider: Añadir proveedor API (OpenAI, etc.)
+config.edit_provider: Editar
+config.delete_provider: Eliminar
+config.unsaved_changes: Cambios sin guardar
+config.save_quit: Guardar y salir
+config.hint: ↑↓ navegar · Enter editar · s guardar · q salir
+config.saved: Cambios guardados
+config.no_providers: No hay proveedores de IA configurados
+config.select_language: Seleccionar idioma
+command.new: Nuevo correo
+command.reply: Responder a este correo
+command.delete: Eliminar este correo
+command.search: Buscar correos
+command.refresh: Actualizar bandeja
+command.labels: Cambiar etiqueta/carpeta
+command.summarize: Resumir este correo (IA)
+command.extract: Extraer evento al calendario (IA)
+command.add: Añadir evento al calendario
+command.palette.title: Comandos
+command.palette.placeholder: Escribe un comando...
+command.no_matching: No hay comandos coincidentes
+summary.title: Resumen
+summary.via: vía {{.Provider}}
+summary.close_hint: Presiona Esc para cerrar
+summary.generating: Generando resumen...
+summary.error: 'Error al generar resumen: {{.Error}}'
+extract.title: Evento extraído
+extract.no_event: No se encontró evento
+extract.input_hint: 'Escribe los detalles del evento para añadir al calendario:'
+extract.field.title: 'Título:'
+extract.field.date: 'Fecha:'
+extract.field.time: 'Hora:'
+extract.field.location: 'Ubicación:'
+extract.field.reminder: 'Recordatorio:'
+extract.no_reminder: Sin recordatorio
+extract.hint: 'Enter: añadir · e: editar · Esc: cerrar'
+extract.edit.title: Editar evento
+extract.edit.hint: 'Tab: siguiente · Enter: seleccionar · Esc: atrás'
+extract.added: Evento añadido al calendario
+extract.failed: 'Error al añadir evento: {{.Error}}'
+extract.parse_hint: Enter analizar · Esc cancelar
+extract.parsing: Analizando con {{.Provider}}...
+attachment.title: Descargar adjuntos
+attachment.download_all: Descargar todo ({{.Count}} archivos, {{.Size}})
+attachment.hint: 'Tab: seleccionar · Enter: descargar · Esc: cancelar'
+attachment.downloaded: '{{.Filename}} descargado en ~/Downloads/maily'
+attachment.download_failed: 'Error al descargar: {{.Error}}'
+attachment.no_attachments: Sin adjuntos
+attachment.total: 'Adjuntos ({{.Count}}, {{.Size}}):'
+calendar.title: Calendario
+calendar.today: Hoy
+calendar.no_events: Sin eventos
+calendar.event_count:
+  one: '{{.Count}} evento'
+  other: '{{.Count}} eventos'
+calendar.not_available: Calendario no disponible
+calendar.adding: Añadiendo al calendario...
+calendar.extracting: Extrayendo evento...
+today.title: Hoy
+today.emails: Correos
+today.events: Eventos
+cli.no_accounts: 'No hay cuentas configuradas. Ejecuta:'
+cli.login_hint: '  maily login'
+cli.error_loading_accounts: 'Error al cargar cuentas: {{.Error}}'
+cli.error_loading_config: 'Error al cargar configuración: {{.Error}}'
+cli.error_running: 'Error al ejecutar programa: {{.Error}}'
+cli.unknown_provider: 'Proveedor desconocido: {{.Provider}}'
+cli.available_providers: 'Proveedores disponibles:'
+cli.logged_out: Sesión cerrada de {{.Email}}
+cli.logout_failed: 'Error al cerrar sesión: {{.Error}}'
+cli.account_not_found: 'Cuenta no encontrada: {{.Email}}'
+error.auth_hint: 'Para solucionar: Genera una nueva contraseña de aplicación
+
+  Luego ejecuta: maily login'
+error.connection: 'Error de conexión: {{.Error}}'
+error.timeout: Tiempo de espera agotado
+error.unknown: Ocurrió un error desconocido
+error.invalid_input: 'Entrada inválida: {{.Error}}'
+status.moving_to_trash: Moviendo a papelera...
+status.deleting_permanently: Eliminando permanentemente...
+status.changes_saved: Cambios guardados

@@ -1,0 +1,259 @@
+common.loading: Загрузка...
+common.error: Ошибка
+common.success: Успешно
+common.cancel: Отмена
+common.confirm: Подтвердить
+common.save: Сохранить
+common.discard: Отменить
+common.quit: Выход
+common.back: Назад
+common.yes: Да
+common.no: Нет
+common.ok: ОК
+common.close: Закрыть
+common.done: Готово
+common.edit: Редактировать
+common.delete: Удалить
+common.add: Добавить
+email.count:
+  one: '{{.Count}} письмо'
+  few: '{{.Count}} письма'
+  many: '{{.Count}} писем'
+  other: '{{.Count}} писем'
+email.deleted:
+  one: Успешно удалено {{.Count}} письмо
+  few: Успешно удалено {{.Count}} письма
+  many: Успешно удалено {{.Count}} писем
+  other: Успешно удалено {{.Count}} писем
+email.moved:
+  one: '{{.Count}} письмо перемещено в {{.Label}}'
+  few: '{{.Count}} письма перемещены в {{.Label}}'
+  many: '{{.Count}} писем перемещено в {{.Label}}'
+  other: '{{.Count}} писем перемещено в {{.Label}}'
+email.searching: Поиск...
+email.refreshing: Обновление...
+email.loading: Загрузка {{.Count}} писем...
+email.no_results: Нет результатов для '{{.Query}}'
+email.results_count: '{{.Count}} результатов для ''{{.Query}}'''
+email.folder_count: '{{.Label}}: {{.Count}} писем'
+email.selected:
+  one: Выбрано {{.Count}}
+  few: Выбрано {{.Count}}
+  many: Выбрано {{.Count}}
+  other: Выбрано {{.Count}}
+email.auto_refreshing: Автообновление...
+email.parse_error: Ошибка разбора
+email.send_success: Письмо отправлено!
+email.send_failed: 'Ошибка отправки: {{.Error}}'
+email.reply_success: Ответ отправлен!
+email.draft_saved: Черновик сохранён
+email.draft_failed: 'Не удалось сохранить черновик: {{.Error}}'
+email.load_more: Загрузить ещё письма
+email.no_emails: Нет писем
+email.attachment_count:
+  one: '{{.Count}} вложение'
+  few: '{{.Count}} вложения'
+  many: '{{.Count}} вложений'
+  other: '{{.Count}} вложений'
+compose.title: Написать
+compose.reply: Ответить
+compose.forward: Переслать
+compose.send: Отправить
+compose.save_draft: Сохранить черновик
+compose.attach: Прикрепить
+compose.placeholder.to: получатель@пример.ru
+compose.placeholder.cc: копия@пример.ru
+compose.placeholder.subject: Тема
+compose.placeholder.body: Введите сообщение...
+compose.placeholder.reply_body: Введите ответ...
+compose.hint: 'Tab: след. поле · Ctrl+S: отправить · Esc: отмена'
+compose.reply_hint: 'Tab: след. поле · Ctrl+S: отправить · Esc: отмена'
+dialog.delete.title: Удалить письмо?
+dialog.delete.title_plural: Удалить {{.Count}} писем?
+dialog.delete.move_trash: В корзину
+dialog.delete.permanent: Удалить навсегда
+dialog.delete.hint: ← → выбрать, Enter подтвердить, Esc отмена
+dialog.ai_setup.title: ИИ-провайдер не найден
+dialog.ai_setup.message: 'Хотите настроить ИИ-провайдер?
+
+
+  Вы можете добавить CLI-инструменты (claude, codex, gemini) или API-ключи.'
+dialog.ai_setup.hint: Enter настроить, Esc пропустить
+dialog.ai_setup.configure: Настроить
+dialog.ai_setup.skip: Пропустить
+dialog.search.title: Поиск
+dialog.search.placeholder: Поиск писем...
+dialog.search.hint: Enter искать, Esc отмена
+dialog.quit.title: Несохранённые изменения
+dialog.quit.message: У вас есть несохранённые изменения. Что вы хотите сделать?
+dialog.quit.save_quit: Сохранить и выйти
+dialog.quit.discard: Отменить
+dialog.quit.cancel: Отмена
+label.inbox: Входящие
+label.starred: Помеченные
+label.sent: Отправленные
+label.drafts: Черновики
+label.spam: Спам
+label.trash: Корзина
+label.all_mail: Вся почта
+label.archive: Архив
+label.important: Важные
+label.folders: Папки
+label.labels: Ярлыки
+label.select: Выбрать ярлык
+help.navigate: навигация
+help.open: открыть
+help.new_email: новое письмо
+help.reply: ответить
+help.refresh: обновить
+help.search: поиск
+help.quit: выход
+help.delete: удалить
+help.load_more: ещё
+help.folders: папки
+help.commands: команды
+help.select: выбрать
+help.select_all: все
+help.mark_read: прочитано
+help.attachments: вложения
+help.summarize: резюме
+help.extract: извлечь
+help.switch_account: сменить
+help.next_field: след. поле
+help.send: отправить
+help.cancel: отмена
+help.close: закрыть
+help.confirm: подтвердить
+help.back: назад
+help.add_event: добавить событие
+help.edit: редактировать
+help.toggle: переключить
+help.download: скачать
+login.gmail.title: Вход в Gmail
+login.yahoo.title: Вход в Yahoo Mail
+login.imap.title: Вход IMAP
+login.email_label: 'Email:'
+login.password_label: 'Пароль приложения:'
+login.server_label: 'IMAP-сервер:'
+login.port_label: 'Порт:'
+login.verifying: Проверка учётных данных...
+login.success: Вход выполнен как {{.Email}}
+login.failed: 'Ошибка входа: {{.Error}}'
+login.gmail.hint: 'Вам нужен пароль приложения для продолжения.
+
+
+  1. Включите двухэтапную аутентификацию
+
+  2. Перейдите: myaccount.google.com/apppasswords
+
+  3. Введите имя и нажмите Создать'
+login.yahoo.hint: 'Вам нужен пароль приложения для продолжения.
+
+
+  1. Перейдите: login.yahoo.com/account/security
+
+  2. Нажмите ''Создать пароль приложения''
+
+  3. Выберите ''Другое приложение'' и создайте'
+login.hint_fields: Tab сменить поле · Enter отправить · Esc отмена
+login.hint_exit: Нажмите Enter для выхода.
+provider.select_title: Выберите почтовый сервис
+provider.hint: ↑↓ перемещение · Enter выбрать · Esc отмена
+provider.gmail: Gmail
+provider.gmail_desc: Google Mail
+provider.yahoo: Yahoo Mail
+provider.yahoo_desc: Yahoo Mail
+provider.imap: IMAP
+provider.imap_desc: Пользовательский IMAP-сервер
+config.title: Настройки Maily
+config.section.general: Общие
+config.section.ai_providers: ИИ-провайдеры
+config.section.actions: Действия
+config.max_emails: Макс. писем
+config.default_label: Ярлык по умолчанию
+config.theme: Тема
+config.language: Язык
+config.add_cli_provider: Добавить CLI-провайдер (claude, codex, gemini...)
+config.add_api_provider: Добавить API-провайдер (OpenAI и др.)
+config.edit_provider: Редактировать
+config.delete_provider: Удалить
+config.unsaved_changes: Несохранённые изменения
+config.save_quit: Сохранить и выйти
+config.hint: ↑↓ навигация · Enter редактировать · s сохранить · q выход
+config.saved: Изменения сохранены
+config.no_providers: ИИ-провайдеры не настроены
+config.select_language: Выбрать язык
+command.new: Новое письмо
+command.reply: Ответить на это письмо
+command.delete: Удалить это письмо
+command.search: Поиск писем
+command.refresh: Обновить входящие
+command.labels: Сменить ярлык/папку
+command.summarize: Резюмировать это письмо (ИИ)
+command.extract: Извлечь событие в календарь (ИИ)
+command.add: Добавить событие в календарь
+command.palette.title: Команды
+command.palette.placeholder: Введите команду...
+command.no_matching: Нет подходящих команд
+summary.title: Резюме
+summary.via: через {{.Provider}}
+summary.close_hint: Нажмите Esc для закрытия
+summary.generating: Создание резюме...
+summary.error: 'Не удалось создать резюме: {{.Error}}'
+extract.title: Извлечённое событие
+extract.no_event: Событие не найдено
+extract.input_hint: 'Введите детали события для добавления в календарь:'
+extract.field.title: 'Название:'
+extract.field.date: 'Дата:'
+extract.field.time: 'Время:'
+extract.field.location: 'Место:'
+extract.field.reminder: 'Напоминание:'
+extract.no_reminder: Без напоминания
+extract.hint: 'Enter: добавить · e: редактировать · Esc: закрыть'
+extract.edit.title: Редактировать событие
+extract.edit.hint: 'Tab: далее · Enter: выбрать · Esc: назад'
+extract.added: Событие добавлено в календарь
+extract.failed: 'Не удалось добавить событие: {{.Error}}'
+extract.parse_hint: Enter разобрать · Esc отмена
+extract.parsing: Анализ с {{.Provider}}...
+attachment.title: Скачать вложения
+attachment.download_all: Скачать всё ({{.Count}} файлов, {{.Size}})
+attachment.hint: 'Tab: выбрать · Enter: скачать · Esc: отмена'
+attachment.downloaded: '{{.Filename}} скачан в ~/Downloads/maily'
+attachment.download_failed: 'Ошибка скачивания: {{.Error}}'
+attachment.no_attachments: Нет вложений
+attachment.total: 'Вложения ({{.Count}}, {{.Size}}):'
+calendar.title: Календарь
+calendar.today: Сегодня
+calendar.no_events: Нет событий
+calendar.event_count:
+  one: '{{.Count}} событие'
+  few: '{{.Count}} события'
+  many: '{{.Count}} событий'
+  other: '{{.Count}} событий'
+calendar.not_available: Календарь недоступен
+calendar.adding: Добавление в календарь...
+calendar.extracting: Извлечение события...
+today.title: Сегодня
+today.emails: Письма
+today.events: События
+cli.no_accounts: 'Нет настроенных аккаунтов. Выполните:'
+cli.login_hint: '  maily login'
+cli.error_loading_accounts: 'Ошибка загрузки аккаунтов: {{.Error}}'
+cli.error_loading_config: 'Ошибка загрузки конфигурации: {{.Error}}'
+cli.error_running: 'Ошибка выполнения: {{.Error}}'
+cli.unknown_provider: 'Неизвестный провайдер: {{.Provider}}'
+cli.available_providers: 'Доступные провайдеры:'
+cli.logged_out: '{{.Email}} отключён'
+cli.logout_failed: 'Ошибка выхода: {{.Error}}'
+cli.account_not_found: 'Аккаунт не найден: {{.Email}}'
+error.auth_hint: 'Для исправления: Создайте новый пароль приложения
+
+  Затем выполните: maily login'
+error.connection: 'Ошибка подключения: {{.Error}}'
+error.timeout: Время ожидания истекло
+error.unknown: Произошла неизвестная ошибка
+error.invalid_input: 'Неверный ввод: {{.Error}}'
+status.moving_to_trash: Перемещение в корзину...
+status.deleting_permanently: Удаление навсегда...
+status.changes_saved: Изменения сохранены

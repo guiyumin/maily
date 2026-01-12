@@ -1,0 +1,340 @@
+# Maily - English Translation
+# This is the default/fallback language
+
+# ============================================
+# Common UI elements
+# ============================================
+common.loading: "Loading..."
+common.error: "Error"
+common.success: "Success"
+common.cancel: "Cancel"
+common.confirm: "Confirm"
+common.save: "Save"
+common.discard: "Discard"
+common.quit: "Quit"
+common.back: "Back"
+common.yes: "Yes"
+common.no: "No"
+common.ok: "OK"
+common.close: "Close"
+common.done: "Done"
+common.edit: "Edit"
+common.delete: "Delete"
+common.add: "Add"
+
+# ============================================
+# Email operations
+# ============================================
+# Pluralization: use "one" and "other" forms
+email.count:
+  one: "{{.Count}} email"
+  other: "{{.Count}} emails"
+
+email.deleted:
+  one: "Successfully deleted {{.Count}} email"
+  other: "Successfully deleted {{.Count}} emails"
+
+email.moved:
+  one: "Moved {{.Count}} email to {{.Label}}"
+  other: "Moved {{.Count}} emails to {{.Label}}"
+
+email.searching: "Searching..."
+email.refreshing: "Refreshing..."
+email.loading: "Loading {{.Count}} emails..."
+email.no_results: "No results for '{{.Query}}'"
+email.results_count: "{{.Count}} results for '{{.Query}}'"
+email.folder_count: "{{.Label}}: {{.Count}} emails"
+
+email.selected:
+  one: "{{.Count}} selected"
+  other: "{{.Count}} selected"
+
+email.auto_refreshing: "Auto-refreshing..."
+email.parse_error: "Parse error"
+email.send_success: "Email sent!"
+email.send_failed: "Send failed: {{.Error}}"
+email.reply_success: "Reply sent!"
+email.draft_saved: "Draft saved"
+email.draft_failed: "Failed to save draft: {{.Error}}"
+email.load_more: "Load more emails"
+email.no_emails: "No emails"
+
+email.attachment_count:
+  one: "{{.Count}} attached"
+  other: "{{.Count}} attached"
+
+# ============================================
+# Compose / Reply
+# ============================================
+compose.title: "Compose"
+compose.reply: "Reply"
+compose.forward: "Forward"
+compose.send: "Send"
+compose.save_draft: "Save Draft"
+compose.attach: "Attach"
+
+# Placeholder text for input fields
+compose.placeholder.to: "recipient@example.com"
+compose.placeholder.cc: "cc@example.com"
+compose.placeholder.subject: "Subject"
+compose.placeholder.body: "Type your message..."
+compose.placeholder.reply_body: "Type your reply..."
+
+# Keyboard hints shown at bottom
+compose.hint: "Tab: next field · Ctrl+S: send · Esc: cancel"
+compose.reply_hint: "Tab: next field · Ctrl+S: send · Esc: cancel"
+
+# ============================================
+# Dialogs
+# ============================================
+# Delete confirmation dialog
+dialog.delete.title: "Delete Email?"
+dialog.delete.title_plural: "Delete {{.Count}} Emails?"
+dialog.delete.move_trash: "Move to Trash"
+dialog.delete.permanent: "Permanent Delete"
+dialog.delete.hint: "← → to select, enter to confirm, esc to cancel"
+
+# AI setup dialog (shown when no AI provider configured)
+dialog.ai_setup.title: "No AI Provider Found"
+dialog.ai_setup.message: "Would you like to configure an AI provider?\n\nYou can add CLI tools (claude, codex, gemini) or API keys."
+dialog.ai_setup.hint: "Enter to configure, Esc to skip"
+dialog.ai_setup.configure: "Configure"
+dialog.ai_setup.skip: "Skip"
+
+# Search dialog
+dialog.search.title: "Search"
+dialog.search.placeholder: "Search emails..."
+dialog.search.hint: "Enter to search, Esc to cancel"
+
+# Quit confirmation (unsaved changes)
+dialog.quit.title: "Unsaved Changes"
+dialog.quit.message: "You have unsaved changes. What would you like to do?"
+dialog.quit.save_quit: "Save & Quit"
+dialog.quit.discard: "Discard"
+dialog.quit.cancel: "Cancel"
+
+# ============================================
+# Folder / Label names
+# ============================================
+label.inbox: "Inbox"
+label.starred: "Starred"
+label.sent: "Sent"
+label.drafts: "Drafts"
+label.spam: "Spam"
+label.trash: "Trash"
+label.all_mail: "All Mail"
+label.archive: "Archive"
+label.important: "Important"
+label.folders: "Folders"
+label.labels: "Labels"
+label.select: "Select Label"
+
+# ============================================
+# Help text / keyboard shortcuts
+# Keep these short - they appear in the status bar
+# ============================================
+help.navigate: "navigate"
+help.open: "open"
+help.new_email: "new email"
+help.reply: "reply"
+help.refresh: "refresh"
+help.search: "search"
+help.quit: "quit"
+help.delete: "delete"
+help.load_more: "load more"
+help.folders: "folders"
+help.commands: "commands"
+help.select: "select"
+help.select_all: "all"
+help.mark_read: "mark read"
+help.attachments: "attachments"
+help.summarize: "summarize"
+help.extract: "extract"
+help.switch_account: "switch"
+help.next_field: "next field"
+help.send: "send"
+help.cancel: "cancel"
+help.close: "close"
+help.confirm: "confirm"
+help.back: "back"
+help.add_event: "add event"
+help.edit: "edit"
+help.toggle: "toggle"
+help.download: "download"
+
+# ============================================
+# Login flow
+# ============================================
+login.gmail.title: "Gmail Login"
+login.yahoo.title: "Yahoo Mail Login"
+login.imap.title: "IMAP Login"
+login.email_label: "Email:"
+login.password_label: "App Password:"
+login.server_label: "IMAP Server:"
+login.port_label: "Port:"
+login.verifying: "Verifying credentials..."
+login.success: "Logged in as {{.Email}}"
+login.failed: "Login failed: {{.Error}}"
+
+# Instructions for getting app passwords (multi-line)
+login.gmail.hint: |
+  You need an App Password to continue.
+
+  1. Enable 2-Step Verification (if not done)
+  2. Go to: myaccount.google.com/apppasswords
+  3. Type a name and click Create
+
+login.yahoo.hint: |
+  You need an App Password to continue.
+
+  1. Go to: login.yahoo.com/account/security
+  2. Click 'Generate app password'
+  3. Select 'Other App' and generate
+
+login.hint_fields: "Tab to switch fields · Enter to submit · Esc to cancel"
+login.hint_exit: "Press Enter to exit."
+
+# ============================================
+# Provider selection
+# ============================================
+provider.select_title: "Select Email Provider"
+provider.hint: "↑↓ to move · Enter to select · Esc to cancel"
+provider.gmail: "Gmail"
+provider.gmail_desc: "Google Mail"
+provider.yahoo: "Yahoo Mail"
+provider.yahoo_desc: "Yahoo Mail"
+provider.imap: "IMAP"
+provider.imap_desc: "Custom IMAP server"
+
+# ============================================
+# Configuration TUI
+# ============================================
+config.title: "Maily Configuration"
+config.section.general: "General"
+config.section.ai_providers: "AI Providers"
+config.section.actions: "Actions"
+config.max_emails: "Max Emails"
+config.default_label: "Default Label"
+config.theme: "Theme"
+config.language: "Language"
+config.add_cli_provider: "Add CLI Provider (claude, codex, gemini...)"
+config.add_api_provider: "Add API Provider (OpenAI, etc.)"
+config.edit_provider: "Edit"
+config.delete_provider: "Delete"
+config.unsaved_changes: "Unsaved Changes"
+config.save_quit: "Save & Quit"
+config.hint: "↑↓ navigate · Enter edit · s save · q quit"
+config.saved: "Changes saved"
+config.no_providers: "No AI providers configured"
+config.select_language: "Select Language"
+
+# ============================================
+# Command palette
+# ============================================
+command.new: "New email"
+command.reply: "Reply to this email"
+command.delete: "Delete this email"
+command.search: "Search emails"
+command.refresh: "Refresh inbox"
+command.labels: "Switch label/folder"
+command.summarize: "Summarize this email (AI)"
+command.extract: "Extract event to calendar (AI)"
+command.add: "Add calendar event"
+command.palette.title: "Commands"
+command.palette.placeholder: "Type a command..."
+command.no_matching: "No matching commands"
+
+# ============================================
+# AI Summary
+# ============================================
+summary.title: "Summary"
+summary.via: "via {{.Provider}}"
+summary.close_hint: "Press Esc to close"
+summary.generating: "Generating summary..."
+summary.error: "Failed to generate summary: {{.Error}}"
+
+# ============================================
+# Event extraction (AI)
+# ============================================
+extract.title: "Extracted Event"
+extract.no_event: "No Event Found"
+extract.input_hint: "Type event details to add to calendar:"
+extract.field.title: "Title:"
+extract.field.date: "Date:"
+extract.field.time: "Time:"
+extract.field.location: "Location:"
+extract.field.reminder: "Reminder:"
+extract.no_reminder: "No reminder set"
+extract.hint: "Enter: add · e: edit · Esc: close"
+extract.edit.title: "Edit Event"
+extract.edit.hint: "Tab: next · Enter: select · Esc: back"
+extract.added: "Event added to calendar"
+extract.failed: "Failed to add event: {{.Error}}"
+extract.parse_hint: "Enter to parse · Esc to cancel"
+extract.parsing: "Parsing with {{.Provider}}..."
+
+# ============================================
+# Attachments
+# ============================================
+attachment.title: "Download Attachments"
+attachment.download_all: "Download All ({{.Count}} files, {{.Size}})"
+attachment.hint: "Tab: select · Enter: download · Esc: cancel"
+attachment.downloaded: "Downloaded {{.Filename}} to ~/Downloads/maily"
+attachment.download_failed: "Download failed: {{.Error}}"
+attachment.no_attachments: "No attachments"
+attachment.total: "Attachments ({{.Count}}, {{.Size}}):"
+
+# ============================================
+# Calendar
+# ============================================
+calendar.title: "Calendar"
+calendar.today: "Today"
+calendar.no_events: "No events"
+
+calendar.event_count:
+  one: "{{.Count}} event"
+  other: "{{.Count}} events"
+
+calendar.not_available: "Calendar not available"
+calendar.adding: "Adding to calendar..."
+calendar.extracting: "Extracting event..."
+
+# ============================================
+# Today view
+# ============================================
+today.title: "Today"
+today.emails: "Emails"
+today.events: "Events"
+
+# ============================================
+# CLI messages
+# ============================================
+cli.no_accounts: "No accounts configured. Run:"
+cli.login_hint: "  maily login"
+cli.error_loading_accounts: "Error loading accounts: {{.Error}}"
+cli.error_loading_config: "Error loading config: {{.Error}}"
+cli.error_running: "Error running program: {{.Error}}"
+cli.unknown_provider: "Unknown provider: {{.Provider}}"
+cli.available_providers: "Available providers:"
+cli.logged_out: "Logged out {{.Email}}"
+cli.logout_failed: "Failed to logout: {{.Error}}"
+cli.account_not_found: "Account not found: {{.Email}}"
+
+# ============================================
+# Error messages
+# ============================================
+error.auth_hint: |
+  To fix: Generate a new App Password for your email provider
+  Then run: maily login
+
+error.connection: "Connection error: {{.Error}}"
+error.timeout: "Request timed out"
+error.unknown: "An unknown error occurred"
+error.invalid_input: "Invalid input: {{.Error}}"
+
+# ============================================
+# Status messages
+# ============================================
+status.moving_to_trash: "Moving to trash..."
+status.deleting_permanently: "Deleting permanently..."
+status.changes_saved: "Changes saved"

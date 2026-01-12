@@ -1,0 +1,323 @@
+# Maily - 简体中文翻译
+# Simplified Chinese Translation
+
+# ============================================
+# 通用 UI 元素
+# ============================================
+common.loading: "加载中..."
+common.error: "错误"
+common.success: "成功"
+common.cancel: "取消"
+common.confirm: "确认"
+common.save: "保存"
+common.discard: "放弃"
+common.quit: "退出"
+common.back: "返回"
+common.yes: "是"
+common.no: "否"
+common.ok: "确定"
+common.close: "关闭"
+common.done: "完成"
+common.edit: "编辑"
+common.delete: "删除"
+common.add: "添加"
+
+# ============================================
+# 邮件操作
+# ============================================
+email.count:
+  other: "{{.Count}}封邮件"
+
+email.deleted:
+  other: "成功删除{{.Count}}封邮件"
+
+email.moved:
+  other: "已将{{.Count}}封邮件移动到{{.Label}}"
+
+email.searching: "搜索中..."
+email.refreshing: "刷新中..."
+email.loading: "正在加载{{.Count}}封邮件..."
+email.no_results: "没有找到'{{.Query}}'的结果"
+email.results_count: "'{{.Query}}'的{{.Count}}个结果"
+email.folder_count: "{{.Label}}: {{.Count}}封邮件"
+
+email.selected:
+  other: "已选择{{.Count}}封"
+
+email.auto_refreshing: "自动刷新中..."
+email.parse_error: "解析错误"
+email.send_success: "邮件已发送！"
+email.send_failed: "发送失败: {{.Error}}"
+email.reply_success: "回复已发送！"
+email.draft_saved: "草稿已保存"
+email.draft_failed: "保存草稿失败: {{.Error}}"
+email.load_more: "加载更多邮件"
+email.no_emails: "没有邮件"
+
+email.attachment_count:
+  other: "{{.Count}}个附件"
+
+# ============================================
+# 撰写 / 回复
+# ============================================
+compose.title: "撰写"
+compose.reply: "回复"
+compose.forward: "转发"
+compose.send: "发送"
+compose.save_draft: "保存草稿"
+compose.attach: "附件"
+compose.placeholder.to: "recipient@example.com"
+compose.placeholder.cc: "cc@example.com"
+compose.placeholder.subject: "主题"
+compose.placeholder.body: "输入邮件内容..."
+compose.placeholder.reply_body: "输入回复内容..."
+compose.hint: "Tab: 下一字段 · Ctrl+S: 发送 · Esc: 取消"
+compose.reply_hint: "Tab: 下一字段 · Ctrl+S: 发送 · Esc: 取消"
+
+# ============================================
+# 对话框
+# ============================================
+dialog.delete.title: "删除邮件？"
+dialog.delete.title_plural: "删除{{.Count}}封邮件？"
+dialog.delete.move_trash: "移至垃圾箱"
+dialog.delete.permanent: "永久删除"
+dialog.delete.hint: "← → 选择，Enter 确认，Esc 取消"
+
+dialog.ai_setup.title: "未找到AI提供商"
+dialog.ai_setup.message: "是否要配置AI提供商？\n\n您可以添加CLI工具（claude、codex、gemini）或API密钥。"
+dialog.ai_setup.hint: "Enter 配置，Esc 跳过"
+dialog.ai_setup.configure: "配置"
+dialog.ai_setup.skip: "跳过"
+
+dialog.search.title: "搜索"
+dialog.search.placeholder: "搜索邮件..."
+dialog.search.hint: "Enter 搜索，Esc 取消"
+
+dialog.quit.title: "未保存的更改"
+dialog.quit.message: "您有未保存的更改。您想怎么做？"
+dialog.quit.save_quit: "保存并退出"
+dialog.quit.discard: "放弃"
+dialog.quit.cancel: "取消"
+
+# ============================================
+# 文件夹 / 标签名称
+# ============================================
+label.inbox: "收件箱"
+label.starred: "已加星标"
+label.sent: "已发送"
+label.drafts: "草稿"
+label.spam: "垃圾邮件"
+label.trash: "垃圾箱"
+label.all_mail: "所有邮件"
+label.archive: "存档"
+label.important: "重要"
+label.folders: "文件夹"
+label.labels: "标签"
+label.select: "选择标签"
+
+# ============================================
+# 帮助文本 / 键盘快捷键
+# ============================================
+help.navigate: "导航"
+help.open: "打开"
+help.new_email: "新邮件"
+help.reply: "回复"
+help.refresh: "刷新"
+help.search: "搜索"
+help.quit: "退出"
+help.delete: "删除"
+help.load_more: "加载更多"
+help.folders: "文件夹"
+help.commands: "命令"
+help.select: "选择"
+help.select_all: "全选"
+help.mark_read: "标记已读"
+help.attachments: "附件"
+help.summarize: "摘要"
+help.extract: "提取"
+help.switch_account: "切换"
+help.next_field: "下一字段"
+help.send: "发送"
+help.cancel: "取消"
+help.close: "关闭"
+help.confirm: "确认"
+help.back: "返回"
+help.add_event: "添加事件"
+help.edit: "编辑"
+help.toggle: "切换"
+help.download: "下载"
+
+# ============================================
+# 登录
+# ============================================
+login.gmail.title: "Gmail登录"
+login.yahoo.title: "Yahoo Mail登录"
+login.imap.title: "IMAP登录"
+login.email_label: "邮箱:"
+login.password_label: "应用密码:"
+login.server_label: "IMAP服务器:"
+login.port_label: "端口:"
+login.verifying: "正在验证凭据..."
+login.success: "已登录为{{.Email}}"
+login.failed: "登录失败: {{.Error}}"
+
+login.gmail.hint: |
+  您需要应用密码才能继续。
+
+  1. 启用两步验证（如果尚未启用）
+  2. 访问: myaccount.google.com/apppasswords
+  3. 输入名称并点击创建
+
+login.yahoo.hint: |
+  您需要应用密码才能继续。
+
+  1. 访问: login.yahoo.com/account/security
+  2. 点击"生成应用密码"
+  3. 选择"其他应用"并生成
+
+login.hint_fields: "Tab 切换字段 · Enter 提交 · Esc 取消"
+login.hint_exit: "按Enter键退出。"
+
+# ============================================
+# 提供商选择
+# ============================================
+provider.select_title: "选择邮件提供商"
+provider.hint: "↑↓ 移动 · Enter 选择 · Esc 取消"
+provider.gmail: "Gmail"
+provider.gmail_desc: "Google邮箱"
+provider.yahoo: "Yahoo Mail"
+provider.yahoo_desc: "Yahoo邮箱"
+provider.imap: "IMAP"
+provider.imap_desc: "自定义IMAP服务器"
+
+# ============================================
+# 设置 TUI
+# ============================================
+config.title: "Maily 设置"
+config.section.general: "常规"
+config.section.ai_providers: "AI提供商"
+config.section.actions: "操作"
+config.max_emails: "最大邮件数"
+config.default_label: "默认标签"
+config.theme: "主题"
+config.language: "语言"
+config.add_cli_provider: "添加CLI提供商 (claude, codex, gemini...)"
+config.add_api_provider: "添加API提供商 (OpenAI等)"
+config.edit_provider: "编辑"
+config.delete_provider: "删除"
+config.unsaved_changes: "未保存的更改"
+config.save_quit: "保存并退出"
+config.hint: "↑↓ 导航 · Enter 编辑 · s 保存 · q 退出"
+config.saved: "更改已保存"
+config.no_providers: "未配置AI提供商"
+config.select_language: "选择语言"
+
+# ============================================
+# 命令面板
+# ============================================
+command.new: "新邮件"
+command.reply: "回复此邮件"
+command.delete: "删除此邮件"
+command.search: "搜索邮件"
+command.refresh: "刷新收件箱"
+command.labels: "切换标签/文件夹"
+command.summarize: "摘要此邮件 (AI)"
+command.extract: "提取事件到日历 (AI)"
+command.add: "添加日历事件"
+command.palette.title: "命令"
+command.palette.placeholder: "输入命令..."
+command.no_matching: "没有匹配的命令"
+
+# ============================================
+# AI 摘要
+# ============================================
+summary.title: "摘要"
+summary.via: "通过{{.Provider}}"
+summary.close_hint: "按Esc关闭"
+summary.generating: "正在生成摘要..."
+summary.error: "生成摘要失败: {{.Error}}"
+
+# ============================================
+# 事件提取 (AI)
+# ============================================
+extract.title: "提取的事件"
+extract.no_event: "未找到事件"
+extract.input_hint: "输入要添加到日历的事件详情:"
+extract.field.title: "标题:"
+extract.field.date: "日期:"
+extract.field.time: "时间:"
+extract.field.location: "地点:"
+extract.field.reminder: "提醒:"
+extract.no_reminder: "未设置提醒"
+extract.hint: "Enter: 添加 · e: 编辑 · Esc: 关闭"
+extract.edit.title: "编辑事件"
+extract.edit.hint: "Tab: 下一个 · Enter: 选择 · Esc: 返回"
+extract.added: "事件已添加到日历"
+extract.failed: "添加事件失败: {{.Error}}"
+extract.parse_hint: "Enter 解析 · Esc 取消"
+extract.parsing: "正在使用{{.Provider}}解析..."
+
+# ============================================
+# 附件
+# ============================================
+attachment.title: "下载附件"
+attachment.download_all: "下载全部 ({{.Count}}个文件，{{.Size}})"
+attachment.hint: "Tab: 选择 · Enter: 下载 · Esc: 取消"
+attachment.downloaded: "{{.Filename}}已下载到~/Downloads/maily"
+attachment.download_failed: "下载失败: {{.Error}}"
+attachment.no_attachments: "没有附件"
+attachment.total: "附件 ({{.Count}}个，{{.Size}}):"
+
+# ============================================
+# 日历
+# ============================================
+calendar.title: "日历"
+calendar.today: "今天"
+calendar.no_events: "没有事件"
+
+calendar.event_count:
+  other: "{{.Count}}个事件"
+
+calendar.not_available: "日历不可用"
+calendar.adding: "正在添加到日历..."
+calendar.extracting: "正在提取事件..."
+
+# ============================================
+# 今日视图
+# ============================================
+today.title: "今天"
+today.emails: "邮件"
+today.events: "事件"
+
+# ============================================
+# CLI 消息
+# ============================================
+cli.no_accounts: "未配置账户。请运行:"
+cli.login_hint: "  maily login"
+cli.error_loading_accounts: "加载账户错误: {{.Error}}"
+cli.error_loading_config: "加载配置错误: {{.Error}}"
+cli.error_running: "运行程序错误: {{.Error}}"
+cli.unknown_provider: "未知提供商: {{.Provider}}"
+cli.available_providers: "可用提供商:"
+cli.logged_out: "已登出{{.Email}}"
+cli.logout_failed: "登出失败: {{.Error}}"
+cli.account_not_found: "未找到账户: {{.Email}}"
+
+# ============================================
+# 错误消息
+# ============================================
+error.auth_hint: |
+  解决方法: 在邮件提供商处生成新的应用密码
+  然后运行: maily login
+
+error.connection: "连接错误: {{.Error}}"
+error.timeout: "请求超时"
+error.unknown: "发生未知错误"
+error.invalid_input: "无效输入: {{.Error}}"
+
+# ============================================
+# 状态消息
+# ============================================
+status.moving_to_trash: "正在移至垃圾箱..."
+status.deleting_permanently: "正在永久删除..."
+status.changes_saved: "更改已保存"

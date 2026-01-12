@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 	"maily/config"
 	"maily/internal/auth"
+	"maily/internal/i18n"
 	"maily/internal/ui"
 )
 
@@ -56,6 +57,12 @@ func runTUI() {
 	if err != nil {
 		fmt.Printf("Error loading config: %v\n", err)
 		os.Exit(1)
+	}
+
+	// Initialize i18n with configured language
+	if err := i18n.Init(cfg.Language); err != nil {
+		// Non-fatal: fall back to English if i18n fails
+		fmt.Printf("Warning: i18n initialization failed: %v\n", err)
 	}
 
 	// Auto-start daemon if not running

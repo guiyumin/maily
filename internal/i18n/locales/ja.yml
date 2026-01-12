@@ -1,0 +1,241 @@
+common.loading: 読み込み中...
+common.error: エラー
+common.success: 成功
+common.cancel: キャンセル
+common.confirm: 確認
+common.save: 保存
+common.discard: 破棄
+common.quit: 終了
+common.back: 戻る
+common.yes: はい
+common.no: いいえ
+common.ok: OK
+common.close: 閉じる
+common.done: 完了
+common.edit: 編集
+common.delete: 削除
+common.add: 追加
+email.count:
+  other: '{{.Count}}通のメール'
+email.deleted:
+  other: '{{.Count}}通のメールを削除しました'
+email.moved:
+  other: '{{.Count}}通のメールを{{.Label}}に移動しました'
+email.searching: 検索中...
+email.refreshing: 更新中...
+email.loading: '{{.Count}}通のメールを読み込み中...'
+email.no_results: '''{{.Query}}''の検索結果なし'
+email.results_count: '''{{.Query}}''の検索結果: {{.Count}}件'
+email.folder_count: '{{.Label}}: {{.Count}}通'
+email.selected:
+  other: '{{.Count}}件選択'
+email.auto_refreshing: 自動更新中...
+email.parse_error: 解析エラー
+email.send_success: メールを送信しました！
+email.send_failed: '送信失敗: {{.Error}}'
+email.reply_success: 返信を送信しました！
+email.draft_saved: 下書きを保存しました
+email.draft_failed: '下書きの保存に失敗: {{.Error}}'
+email.load_more: さらに読み込む
+email.no_emails: メールなし
+email.attachment_count:
+  other: '{{.Count}}件の添付'
+compose.title: 作成
+compose.reply: 返信
+compose.forward: 転送
+compose.send: 送信
+compose.save_draft: 下書き保存
+compose.attach: 添付
+compose.placeholder.to: recipient@example.com
+compose.placeholder.cc: cc@example.com
+compose.placeholder.subject: 件名
+compose.placeholder.body: メッセージを入力...
+compose.placeholder.reply_body: 返信を入力...
+compose.hint: 'Tab: 次のフィールド · Ctrl+S: 送信 · Esc: キャンセル'
+compose.reply_hint: 'Tab: 次のフィールド · Ctrl+S: 送信 · Esc: キャンセル'
+dialog.delete.title: メールを削除しますか？
+dialog.delete.title_plural: '{{.Count}}通のメールを削除しますか？'
+dialog.delete.move_trash: ゴミ箱に移動
+dialog.delete.permanent: 完全に削除
+dialog.delete.hint: ← → 選択、Enter 確認、Esc キャンセル
+dialog.ai_setup.title: AIプロバイダーが見つかりません
+dialog.ai_setup.message: 'AIプロバイダーを設定しますか？
+
+
+  CLIツール（claude、codex、gemini）またはAPIキーを追加できます。'
+dialog.ai_setup.hint: Enter 設定、Esc スキップ
+dialog.ai_setup.configure: 設定
+dialog.ai_setup.skip: スキップ
+dialog.search.title: 検索
+dialog.search.placeholder: メールを検索...
+dialog.search.hint: Enter 検索、Esc キャンセル
+dialog.quit.title: 未保存の変更
+dialog.quit.message: 未保存の変更があります。どうしますか？
+dialog.quit.save_quit: 保存して終了
+dialog.quit.discard: 破棄
+dialog.quit.cancel: キャンセル
+label.inbox: 受信トレイ
+label.starred: スター付き
+label.sent: 送信済み
+label.drafts: 下書き
+label.spam: 迷惑メール
+label.trash: ゴミ箱
+label.all_mail: すべてのメール
+label.archive: アーカイブ
+label.important: 重要
+label.folders: フォルダ
+label.labels: ラベル
+label.select: ラベルを選択
+help.navigate: 移動
+help.open: 開く
+help.new_email: 新規メール
+help.reply: 返信
+help.refresh: 更新
+help.search: 検索
+help.quit: 終了
+help.delete: 削除
+help.load_more: もっと見る
+help.folders: フォルダ
+help.commands: コマンド
+help.select: 選択
+help.select_all: すべて
+help.mark_read: 既読にする
+help.attachments: 添付ファイル
+help.summarize: 要約
+help.extract: 抽出
+help.switch_account: 切り替え
+help.next_field: 次のフィールド
+help.send: 送信
+help.cancel: キャンセル
+help.close: 閉じる
+help.confirm: 確認
+help.back: 戻る
+help.add_event: 予定を追加
+help.edit: 編集
+help.toggle: 切り替え
+help.download: ダウンロード
+login.gmail.title: Gmailログイン
+login.yahoo.title: Yahoo Mailログイン
+login.imap.title: IMAPログイン
+login.email_label: 'メール:'
+login.password_label: 'アプリパスワード:'
+login.server_label: 'IMAPサーバー:'
+login.port_label: 'ポート:'
+login.verifying: 認証情報を確認中...
+login.success: '{{.Email}}でログインしました'
+login.failed: 'ログイン失敗: {{.Error}}'
+login.gmail.hint: '続行するにはアプリパスワードが必要です。
+
+
+  1. 2段階認証を有効にする
+
+  2. myaccount.google.com/apppasswords にアクセス
+
+  3. 名前を入力して作成をクリック'
+login.yahoo.hint: '続行するにはアプリパスワードが必要です。
+
+
+  1. login.yahoo.com/account/security にアクセス
+
+  2. 「アプリパスワードを生成」をクリック
+
+  3. 「その他のアプリ」を選択して生成'
+login.hint_fields: Tab フィールド切り替え · Enter 送信 · Esc キャンセル
+login.hint_exit: Enterキーで終了します。
+provider.select_title: メールプロバイダーを選択
+provider.hint: ↑↓ 移動 · Enter 選択 · Esc キャンセル
+provider.gmail: Gmail
+provider.gmail_desc: Google メール
+provider.yahoo: Yahoo Mail
+provider.yahoo_desc: Yahoo メール
+provider.imap: IMAP
+provider.imap_desc: カスタムIMAPサーバー
+config.title: Maily 設定
+config.section.general: 一般
+config.section.ai_providers: AIプロバイダー
+config.section.actions: アクション
+config.max_emails: 最大メール数
+config.default_label: デフォルトラベル
+config.theme: テーマ
+config.language: 言語
+config.add_cli_provider: CLIプロバイダーを追加 (claude, codex, gemini...)
+config.add_api_provider: APIプロバイダーを追加 (OpenAI等)
+config.edit_provider: 編集
+config.delete_provider: 削除
+config.unsaved_changes: 未保存の変更
+config.save_quit: 保存して終了
+config.hint: ↑↓ 移動 · Enter 編集 · s 保存 · q 終了
+config.saved: 変更を保存しました
+config.no_providers: AIプロバイダーが設定されていません
+config.select_language: 言語を選択
+command.new: 新規メール
+command.reply: このメールに返信
+command.delete: このメールを削除
+command.search: メールを検索
+command.refresh: 受信トレイを更新
+command.labels: ラベル/フォルダを切り替え
+command.summarize: このメールを要約 (AI)
+command.extract: カレンダーに予定を抽出 (AI)
+command.add: カレンダー予定を追加
+command.palette.title: コマンド
+command.palette.placeholder: コマンドを入力...
+command.no_matching: 一致するコマンドなし
+summary.title: 要約
+summary.via: '{{.Provider}}使用'
+summary.close_hint: Escで閉じる
+summary.generating: 要約を生成中...
+summary.error: '要約の生成に失敗: {{.Error}}'
+extract.title: 抽出された予定
+extract.no_event: 予定が見つかりません
+extract.input_hint: 'カレンダーに追加する予定の詳細を入力:'
+extract.field.title: 'タイトル:'
+extract.field.date: '日付:'
+extract.field.time: '時間:'
+extract.field.location: '場所:'
+extract.field.reminder: 'リマインダー:'
+extract.no_reminder: リマインダー未設定
+extract.hint: 'Enter: 追加 · e: 編集 · Esc: 閉じる'
+extract.edit.title: 予定を編集
+extract.edit.hint: 'Tab: 次 · Enter: 選択 · Esc: 戻る'
+extract.added: 予定をカレンダーに追加しました
+extract.failed: '予定の追加に失敗: {{.Error}}'
+extract.parse_hint: Enter 解析 · Esc キャンセル
+extract.parsing: '{{.Provider}}で解析中...'
+attachment.title: 添付ファイルをダウンロード
+attachment.download_all: すべてダウンロード ({{.Count}}ファイル、{{.Size}})
+attachment.hint: 'Tab: 選択 · Enter: ダウンロード · Esc: キャンセル'
+attachment.downloaded: '{{.Filename}}を~/Downloads/mailyにダウンロードしました'
+attachment.download_failed: 'ダウンロード失敗: {{.Error}}'
+attachment.no_attachments: 添付ファイルなし
+attachment.total: '添付ファイル ({{.Count}}件、{{.Size}}):'
+calendar.title: カレンダー
+calendar.today: 今日
+calendar.no_events: 予定なし
+calendar.event_count:
+  other: '{{.Count}}件の予定'
+calendar.not_available: カレンダーは利用できません
+calendar.adding: カレンダーに追加中...
+calendar.extracting: 予定を抽出中...
+today.title: 今日
+today.emails: メール
+today.events: 予定
+cli.no_accounts: 'アカウントが設定されていません。実行してください:'
+cli.login_hint: '  maily login'
+cli.error_loading_accounts: 'アカウント読み込みエラー: {{.Error}}'
+cli.error_loading_config: '設定読み込みエラー: {{.Error}}'
+cli.error_running: 'プログラム実行エラー: {{.Error}}'
+cli.unknown_provider: '不明なプロバイダー: {{.Provider}}'
+cli.available_providers: '利用可能なプロバイダー:'
+cli.logged_out: '{{.Email}}からログアウトしました'
+cli.logout_failed: 'ログアウト失敗: {{.Error}}'
+cli.account_not_found: 'アカウントが見つかりません: {{.Email}}'
+error.auth_hint: '解決方法: メールプロバイダーで新しいアプリパスワードを生成してください
+
+  次に実行: maily login'
+error.connection: '接続エラー: {{.Error}}'
+error.timeout: リクエストがタイムアウトしました
+error.unknown: 不明なエラーが発生しました
+error.invalid_input: '無効な入力: {{.Error}}'
+status.moving_to_trash: ゴミ箱に移動中...
+status.deleting_permanently: 完全に削除中...
+status.changes_saved: 変更を保存しました

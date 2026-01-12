@@ -31,6 +31,7 @@ type Config struct {
 	MaxEmails    int    `yaml:"max_emails"`
 	DefaultLabel string `yaml:"default_label"`
 	Theme        string `yaml:"theme"`
+	Language     string `yaml:"language,omitempty"` // Language code (en, ko, ja, etc.) - empty means auto-detect
 
 	// AI providers - tried in order from first to last
 	// Each provider can be a CLI tool or an OpenAI-compatible API

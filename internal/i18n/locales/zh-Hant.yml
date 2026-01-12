@@ -1,0 +1,241 @@
+common.loading: 載入中...
+common.error: 錯誤
+common.success: 成功
+common.cancel: 取消
+common.confirm: 確認
+common.save: 儲存
+common.discard: 捨棄
+common.quit: 退出
+common.back: 返回
+common.yes: 是
+common.no: 否
+common.ok: 確定
+common.close: 關閉
+common.done: 完成
+common.edit: 編輯
+common.delete: 刪除
+common.add: 新增
+email.count:
+  other: '{{.Count}}封郵件'
+email.deleted:
+  other: 成功刪除{{.Count}}封郵件
+email.moved:
+  other: 已將{{.Count}}封郵件移至{{.Label}}
+email.searching: 搜尋中...
+email.refreshing: 重新整理中...
+email.loading: 正在載入{{.Count}}封郵件...
+email.no_results: 找不到'{{.Query}}'的結果
+email.results_count: '''{{.Query}}''的{{.Count}}個結果'
+email.folder_count: '{{.Label}}: {{.Count}}封郵件'
+email.selected:
+  other: 已選擇{{.Count}}封
+email.auto_refreshing: 自動重新整理中...
+email.parse_error: 解析錯誤
+email.send_success: 郵件已傳送！
+email.send_failed: '傳送失敗: {{.Error}}'
+email.reply_success: 回覆已傳送！
+email.draft_saved: 草稿已儲存
+email.draft_failed: '儲存草稿失敗: {{.Error}}'
+email.load_more: 載入更多郵件
+email.no_emails: 沒有郵件
+email.attachment_count:
+  other: '{{.Count}}個附件'
+compose.title: 撰寫
+compose.reply: 回覆
+compose.forward: 轉寄
+compose.send: 傳送
+compose.save_draft: 儲存草稿
+compose.attach: 附件
+compose.placeholder.to: recipient@example.com
+compose.placeholder.cc: cc@example.com
+compose.placeholder.subject: 主旨
+compose.placeholder.body: 輸入郵件內容...
+compose.placeholder.reply_body: 輸入回覆內容...
+compose.hint: 'Tab: 下一欄位 · Ctrl+S: 傳送 · Esc: 取消'
+compose.reply_hint: 'Tab: 下一欄位 · Ctrl+S: 傳送 · Esc: 取消'
+dialog.delete.title: 刪除郵件？
+dialog.delete.title_plural: 刪除{{.Count}}封郵件？
+dialog.delete.move_trash: 移至垃圾桶
+dialog.delete.permanent: 永久刪除
+dialog.delete.hint: ← → 選擇，Enter 確認，Esc 取消
+dialog.ai_setup.title: 找不到AI供應商
+dialog.ai_setup.message: '是否要設定AI供應商？
+
+
+  您可以新增CLI工具（claude、codex、gemini）或API金鑰。'
+dialog.ai_setup.hint: Enter 設定，Esc 略過
+dialog.ai_setup.configure: 設定
+dialog.ai_setup.skip: 略過
+dialog.search.title: 搜尋
+dialog.search.placeholder: 搜尋郵件...
+dialog.search.hint: Enter 搜尋，Esc 取消
+dialog.quit.title: 未儲存的變更
+dialog.quit.message: 您有未儲存的變更。您想怎麼做？
+dialog.quit.save_quit: 儲存並退出
+dialog.quit.discard: 捨棄
+dialog.quit.cancel: 取消
+label.inbox: 收件匣
+label.starred: 已加星號
+label.sent: 已傳送
+label.drafts: 草稿
+label.spam: 垃圾郵件
+label.trash: 垃圾桶
+label.all_mail: 所有郵件
+label.archive: 封存
+label.important: 重要
+label.folders: 資料夾
+label.labels: 標籤
+label.select: 選擇標籤
+help.navigate: 導覽
+help.open: 開啟
+help.new_email: 新郵件
+help.reply: 回覆
+help.refresh: 重新整理
+help.search: 搜尋
+help.quit: 退出
+help.delete: 刪除
+help.load_more: 載入更多
+help.folders: 資料夾
+help.commands: 指令
+help.select: 選擇
+help.select_all: 全選
+help.mark_read: 標記已讀
+help.attachments: 附件
+help.summarize: 摘要
+help.extract: 擷取
+help.switch_account: 切換
+help.next_field: 下一欄位
+help.send: 傳送
+help.cancel: 取消
+help.close: 關閉
+help.confirm: 確認
+help.back: 返回
+help.add_event: 新增事件
+help.edit: 編輯
+help.toggle: 切換
+help.download: 下載
+login.gmail.title: Gmail登入
+login.yahoo.title: Yahoo Mail登入
+login.imap.title: IMAP登入
+login.email_label: '電子郵件:'
+login.password_label: '應用程式密碼:'
+login.server_label: 'IMAP伺服器:'
+login.port_label: '連接埠:'
+login.verifying: 正在驗證憑證...
+login.success: 已登入為{{.Email}}
+login.failed: '登入失敗: {{.Error}}'
+login.gmail.hint: '您需要應用程式密碼才能繼續。
+
+
+  1. 啟用兩步驟驗證（如果尚未啟用）
+
+  2. 前往: myaccount.google.com/apppasswords
+
+  3. 輸入名稱並點選建立'
+login.yahoo.hint: '您需要應用程式密碼才能繼續。
+
+
+  1. 前往: login.yahoo.com/account/security
+
+  2. 點選「產生應用程式密碼」
+
+  3. 選擇「其他應用程式」並產生'
+login.hint_fields: Tab 切換欄位 · Enter 提交 · Esc 取消
+login.hint_exit: 按Enter鍵退出。
+provider.select_title: 選擇郵件供應商
+provider.hint: ↑↓ 移動 · Enter 選擇 · Esc 取消
+provider.gmail: Gmail
+provider.gmail_desc: Google郵件
+provider.yahoo: Yahoo Mail
+provider.yahoo_desc: Yahoo郵件
+provider.imap: IMAP
+provider.imap_desc: 自訂IMAP伺服器
+config.title: Maily 設定
+config.section.general: 一般
+config.section.ai_providers: AI供應商
+config.section.actions: 動作
+config.max_emails: 最大郵件數
+config.default_label: 預設標籤
+config.theme: 主題
+config.language: 語言
+config.add_cli_provider: 新增CLI供應商 (claude, codex, gemini...)
+config.add_api_provider: 新增API供應商 (OpenAI等)
+config.edit_provider: 編輯
+config.delete_provider: 刪除
+config.unsaved_changes: 未儲存的變更
+config.save_quit: 儲存並退出
+config.hint: ↑↓ 導覽 · Enter 編輯 · s 儲存 · q 退出
+config.saved: 變更已儲存
+config.no_providers: 未設定AI供應商
+config.select_language: 選擇語言
+command.new: 新郵件
+command.reply: 回覆此郵件
+command.delete: 刪除此郵件
+command.search: 搜尋郵件
+command.refresh: 重新整理收件匣
+command.labels: 切換標籤/資料夾
+command.summarize: 摘要此郵件 (AI)
+command.extract: 擷取事件至行事曆 (AI)
+command.add: 新增行事曆事件
+command.palette.title: 指令
+command.palette.placeholder: 輸入指令...
+command.no_matching: 沒有符合的指令
+summary.title: 摘要
+summary.via: 透過{{.Provider}}
+summary.close_hint: 按Esc關閉
+summary.generating: 正在產生摘要...
+summary.error: '產生摘要失敗: {{.Error}}'
+extract.title: 擷取的事件
+extract.no_event: 找不到事件
+extract.input_hint: '輸入要新增至行事曆的事件詳情:'
+extract.field.title: '標題:'
+extract.field.date: '日期:'
+extract.field.time: '時間:'
+extract.field.location: '地點:'
+extract.field.reminder: '提醒:'
+extract.no_reminder: 未設定提醒
+extract.hint: 'Enter: 新增 · e: 編輯 · Esc: 關閉'
+extract.edit.title: 編輯事件
+extract.edit.hint: 'Tab: 下一個 · Enter: 選擇 · Esc: 返回'
+extract.added: 事件已新增至行事曆
+extract.failed: '新增事件失敗: {{.Error}}'
+extract.parse_hint: Enter 解析 · Esc 取消
+extract.parsing: 正在使用{{.Provider}}解析...
+attachment.title: 下載附件
+attachment.download_all: 下載全部 ({{.Count}}個檔案，{{.Size}})
+attachment.hint: 'Tab: 選擇 · Enter: 下載 · Esc: 取消'
+attachment.downloaded: '{{.Filename}}已下載至~/Downloads/maily'
+attachment.download_failed: '下載失敗: {{.Error}}'
+attachment.no_attachments: 沒有附件
+attachment.total: '附件 ({{.Count}}個，{{.Size}}):'
+calendar.title: 行事曆
+calendar.today: 今天
+calendar.no_events: 沒有事件
+calendar.event_count:
+  other: '{{.Count}}個事件'
+calendar.not_available: 行事曆不可用
+calendar.adding: 正在新增至行事曆...
+calendar.extracting: 正在擷取事件...
+today.title: 今天
+today.emails: 郵件
+today.events: 事件
+cli.no_accounts: '未設定帳戶。請執行:'
+cli.login_hint: '  maily login'
+cli.error_loading_accounts: '載入帳戶錯誤: {{.Error}}'
+cli.error_loading_config: '載入設定錯誤: {{.Error}}'
+cli.error_running: '執行程式錯誤: {{.Error}}'
+cli.unknown_provider: '未知供應商: {{.Provider}}'
+cli.available_providers: '可用供應商:'
+cli.logged_out: 已登出{{.Email}}
+cli.logout_failed: '登出失敗: {{.Error}}'
+cli.account_not_found: '找不到帳戶: {{.Email}}'
+error.auth_hint: '解決方法: 在郵件供應商處產生新的應用程式密碼
+
+  然後執行: maily login'
+error.connection: '連線錯誤: {{.Error}}'
+error.timeout: 請求逾時
+error.unknown: 發生未知錯誤
+error.invalid_input: '無效輸入: {{.Error}}'
+status.moving_to_trash: 正在移至垃圾桶...
+status.deleting_permanently: 正在永久刪除...
+status.changes_saved: 變更已儲存

@@ -175,7 +175,7 @@ command.search: メールを検索
 command.refresh: 受信トレイを更新
 command.labels: ラベル/フォルダを切り替え
 command.summarize: このメールを要約 (AI)
-command.extract: カレンダーに予定を抽出 (AI)
+command.event: このメールから予定を作成 (AI)
 command.add: カレンダー予定を追加
 command.palette.title: コマンド
 command.palette.placeholder: コマンドを入力...

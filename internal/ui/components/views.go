@@ -132,7 +132,7 @@ func RenderStatusBar(data StatusBarData) string {
 			HelpKeyStyle.Render("d") + HelpDescStyle.Render(" delete  ") +
 			HelpKeyStyle.Render("a") + HelpDescStyle.Render(" attachments  ") +
 			HelpKeyStyle.Render("s") + HelpDescStyle.Render(" summarize  ") +
-			HelpKeyStyle.Render("e") + HelpDescStyle.Render(" extract  ") +
+			HelpKeyStyle.Render("e") + HelpDescStyle.Render(" create event  ") +
 			HelpKeyStyle.Render("esc") + HelpDescStyle.Render(" back  ") +
 			HelpKeyStyle.Render("q") + HelpDescStyle.Render(" quit")
 	}

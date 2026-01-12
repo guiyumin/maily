@@ -190,7 +190,7 @@ command.search: Поиск писем
 command.refresh: Обновить входящие
 command.labels: Сменить ярлык/папку
 command.summarize: Резюмировать это письмо (ИИ)
-command.extract: Извлечь событие в календарь (ИИ)
+command.event: Создать событие из этого письма (ИИ)
 command.add: Добавить событие в календарь
 command.palette.title: Команды
 command.palette.placeholder: Введите команду...

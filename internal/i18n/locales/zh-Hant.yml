@@ -175,7 +175,7 @@ command.search: 搜尋郵件
 command.refresh: 重新整理收件匣
 command.labels: 切換標籤/資料夾
 command.summarize: 摘要此郵件 (AI)
-command.extract: 擷取事件至行事曆 (AI)
+command.event: 從此郵件建立事件 (AI)
 command.add: 新增行事曆事件
 command.palette.title: 指令
 command.palette.placeholder: 輸入指令...

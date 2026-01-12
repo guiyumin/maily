@@ -180,7 +180,7 @@ command.search: E-mails zoeken
 command.refresh: Postvak IN vernieuwen
 command.labels: Label/map wisselen
 command.summarize: Deze e-mail samenvatten (AI)
-command.extract: Gebeurtenis naar agenda extraheren (AI)
+command.event: Gebeurtenis maken vanuit deze e-mail (AI)
 command.add: Agenda-gebeurtenis toevoegen
 command.palette.title: Commando's
 command.palette.placeholder: Typ een commando...

@@ -30,7 +30,7 @@ var AllCommands = []Command{
 	{Name: "refresh", Description: "Refresh inbox", Shortcut: "R", Views: []string{"list"}},
 	{Name: "labels", Description: "Switch label/folder", Shortcut: "f", Views: []string{"list"}},
 	{Name: "summarize", Description: "Summarize this email (AI)", Shortcut: "s", Views: []string{"today"}},
-	{Name: "extract", Description: "Extract event to calendar (AI)", Shortcut: "e", Views: []string{"today"}},
+	{Name: "event", Description: "Create event from this email (AI)", Shortcut: "e", Views: []string{"today"}},
 	{Name: "add", Description: "Add calendar event", Shortcut: "a", Views: []string{"today"}},
 }
 

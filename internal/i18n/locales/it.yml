@@ -180,7 +180,7 @@ command.search: Cerca email
 command.refresh: Aggiorna posta in arrivo
 command.labels: Cambia etichetta/cartella
 command.summarize: Riassumi questa email (AI)
-command.extract: Estrai evento nel calendario (AI)
+command.event: Crea evento da questa email (AI)
 command.add: Aggiungi evento al calendario
 command.palette.title: Comandi
 command.palette.placeholder: Digita un comando...

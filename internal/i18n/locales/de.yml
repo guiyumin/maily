@@ -180,7 +180,7 @@ command.search: E-Mails suchen
 command.refresh: Posteingang aktualisieren
 command.labels: Label/Ordner wechseln
 command.summarize: Diese E-Mail zusammenfassen (KI)
-command.extract: Termin in Kalender extrahieren (KI)
+command.event: Termin aus dieser E-Mail erstellen (KI)
 command.add: Kalendereintrag hinzufügen
 command.palette.title: Befehle
 command.palette.placeholder: Befehl eingeben...

@@ -180,7 +180,7 @@ command.search: Pesquisar e-mails
 command.refresh: Atualizar caixa de entrada
 command.labels: Trocar marcador/pasta
 command.summarize: Resumir este e-mail (IA)
-command.extract: Extrair evento para calendário (IA)
+command.event: Criar evento a partir deste e-mail (IA)
 command.add: Adicionar evento ao calendário
 command.palette.title: Comandos
 command.palette.placeholder: Digite um comando...

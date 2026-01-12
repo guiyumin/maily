@@ -29,15 +29,16 @@ const maxAttachmentSize = 25 * 1024 * 1024
 const (
 	focusTo = iota
 	focusSubject
+	focusAttach // "Attach" button row under Subject
 	focusBody
-	focusAttachments
+	focusAttachments // List of attached files
 	focusSend
 	focusSaveDraft
 	focusCancel
 )
 
 // numFocusFields is the total number of focus fields for cycling
-const numFocusFields = 7
+const numFocusFields = 8
 
 // Confirmation states
 const (
@@ -308,6 +309,9 @@ func (m *ComposeModel) focusField(field int) tea.Cmd {
 	case focusSubject:
 		m.subjectInput.Focus()
 		return textinput.Blink
+	case focusAttach:
+		// Attach button, no input to focus
+		return nil
 	case focusBody:
 		m.body.Focus()
 		return textarea.Blink
@@ -392,6 +396,9 @@ func (m ComposeModel) Update(msg tea.Msg) (ComposeModel, tea.Cmd) {
 
 		switch msg.String() {
 		case "enter":
+			if m.focused == focusAttach {
+				return m, func() tea.Msg { return OpenFilePickerMsg{} }
+			}
 			if m.focused == focusSend {
 				m.confirming = confirmSend
 				return m, nil
@@ -516,6 +523,30 @@ func (m ComposeModel) View() string {
 	}
 	subjectLine := subjectLabel + " " + m.subjectInput.View()
 
+	// Attach row
+	attachLabel := labelStyle.Render("Attach:")
+	attachBtn := "[+ Add File]"
+	if m.focused == focusAttach {
+		attachLabel = focusedStyle.Render(labelStyle.Render("Attach:"))
+		attachBtn = lipgloss.NewStyle().
+			Background(components.Primary).
+			Foreground(lipgloss.Color("#FFFFFF")).
+			Bold(true).
+			Padding(0, 1).
+			Render("+ Add File")
+	} else {
+		attachBtn = lipgloss.NewStyle().
+			Foreground(components.TextDim).
+			Padding(0, 1).
+			Render("+ Add File")
+	}
+	// Show attachment count if any
+	if len(m.attachments) > 0 {
+		countStyle := lipgloss.NewStyle().Foreground(components.Muted)
+		attachBtn += countStyle.Render(fmt.Sprintf(" (%d attached)", len(m.attachments)))
+	}
+	attachLine := attachLabel + " " + attachBtn
+
 	// Clamp separator width to avoid panic on negative count
 	separatorWidth := m.width - 16
 	if separatorWidth < 0 {
@@ -527,6 +558,7 @@ func (m ComposeModel) View() string {
 		fromLine,
 		toLine,
 		subjectLine,
+		attachLine,
 		strings.Repeat("─", separatorWidth),
 	)
 
@@ -578,6 +610,10 @@ func (m ComposeModel) View() string {
 	// Buttons row
 	buttons := lipgloss.JoinHorizontal(lipgloss.Top, sendBtn, "  ", saveDraftBtn, "  ", cancelBtn)
 
+	// Help hint (always show)
+	hintStyle := lipgloss.NewStyle().Foreground(components.Muted).Italic(true)
+	helpHint := hintStyle.Render("tab: navigate • enter: select")
+
 	// Compose everything
 	var contentParts []string
 	contentParts = append(contentParts, header, "", bodySection)
@@ -585,6 +621,7 @@ func (m ComposeModel) View() string {
 		contentParts = append(contentParts, "", attachSection)
 	}
 	contentParts = append(contentParts, "", buttons)
+	contentParts = append(contentParts, helpHint)
 
 	content := lipgloss.JoinVertical(lipgloss.Left, contentParts...)
 
@@ -600,9 +637,9 @@ func (m ComposeModel) View() string {
 		Width(containerWidth)
 
 	// Title based on compose type
-	titleText := " Compose "
+	titleText := "Compose"
 	if m.isReply {
-		titleText = " Reply "
+		titleText = "Reply"
 	}
 	title := lipgloss.NewStyle().
 		Bold(true).
@@ -611,17 +648,7 @@ func (m ComposeModel) View() string {
 
 	box := containerStyle.Render(content)
 
-	// Add title at top of border
-	lines := strings.Split(box, "\n")
-	if len(lines) > 0 {
-		firstLine := lines[0]
-		if len(firstLine) > 4 {
-			lines[0] = firstLine[:2] + title + firstLine[2+lipgloss.Width(title):]
-		}
-		box = strings.Join(lines, "\n")
-	}
-
-	return box
+	return lipgloss.JoinVertical(lipgloss.Left, title, box)
 }
 
 // GetBody returns the composed email body

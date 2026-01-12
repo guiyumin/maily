@@ -102,46 +102,9 @@ The UI follows Elm architecture with `Init()`, `Update()`, `View()` methods:
 - **Gmail App Passwords**: Uses IMAP/SMTP with App Passwords (not OAuth)
 - **Message-passing**: Commands return `tea.Cmd` for async operations
 
-### Key Bindings (List View)
+### Key Bindings
 
-- `enter` - Open email
-- `n` - New email
-- `r` - Reply to email
-- `R` - Refresh from server
-- `d` - Delete email (with confirmation)
-- `s` - Search
-- `g` - Switch folders/labels
-- `l` - Load more emails
-- `/` - Command palette
-- `tab` - Switch accounts
-- `q` - Quit
-
-### Key Bindings (Read View)
-
-- `r` - Reply
-- `s` - Summarize (AI)
-- `esc` - Back to list
-
-### Key Bindings (Search Results)
-
-- `space` - Toggle selection
-- `a` - Select/deselect all
-- `d` - Delete selected
-- `m` - Mark as read
-- `esc` - Back to list
-
-### Key Bindings (Calendar View)
-
-- `←→` - Previous/next day
-- `↑↓` - Previous/next week
-- `tab` - Cycle through events
-- `m` - Month mode
-- `y` - Year mode
-- `t` - Jump to today
-- `n` - New event (NLP if AI CLI available, otherwise interactive form)
-- `e` - Edit event
-- `x/d` - Delete event
-- `q` - Quit
+See [docs/keybindings.md](docs/keybindings.md) for the full list of key bindings.
 
 ### Delete Flow
 
@@ -204,25 +167,3 @@ Used for:
 - Cache: `~/.config/maily/cache/<email>/<mailbox>/<uid>.json`
 - Daemon PID: `~/.config/maily/daemon.pid`
 - Daemon logs: `~/.config/maily/daemon.log`
-
-## Clean Code Reviewer
-
-**Before generating or modifying code**, you MUST:
-
-1. Check if `.cleancoderules/` exists.
-2. If it exists, read and apply those rules.
-3. If it does not exist, proceed with Level 2/1 rules only.
-
-**After generating or modifying code**, you MUST:
-
-1. Use the `review_code` MCP tool if it is configured in this environment.
-2. Otherwise run `ccr review <file>` for each modified file.
-3. Fix any violations before presenting the code.
-
-### Rule Priority
-
-- Level 3: Team rules in `.cleancoderules/team/` (highest)
-- Level 2: Community rules in `.cleancoderules/community/`
-- Level 1: Base rules (general principles)
-
-If rules conflict, always follow the higher-level rule.

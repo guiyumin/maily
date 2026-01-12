@@ -43,6 +43,8 @@
 - [x] Background sync daemon
 - [x] Self-update functionality
 - [x] No optimistic UI - wait for server confirmation on delete
+- [x] Today view (split panel: emails + events)
+- [x] Extract events from email (`e` key)
 
 ### Better Delete UX
 
@@ -77,11 +79,6 @@ For when the project has more traction. Unverified OAuth apps show scary warning
 - [ ] Implement OAuth 2.0 flow with browser redirect
 - [ ] Handle token storage and refresh
 - [ ] Add `maily login gmail --oauth` option
-
-### Calendar Features (Future)
-
-- [ ] Extract events from email (`e` key)
-- [x] Today view (split panel: emails + events)
 
 ### Notifications
 

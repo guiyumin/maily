@@ -115,7 +115,7 @@ func RenderStatusBar(data StatusBarData) string {
 	} else if data.IsListView {
 		row1 := tabHint +
 			HelpKeyStyle.Render("enter") + HelpDescStyle.Render(" open  ") +
-			HelpKeyStyle.Render("c") + HelpDescStyle.Render(" compose  ") +
+			HelpKeyStyle.Render("n") + HelpDescStyle.Render(" new email  ") +
 			HelpKeyStyle.Render("r") + HelpDescStyle.Render(" reply  ") +
 			HelpKeyStyle.Render("R") + HelpDescStyle.Render(" refresh  ") +
 			HelpKeyStyle.Render("s") + HelpDescStyle.Render(" search  ") +

@@ -68,23 +68,36 @@ func runTUI() {
 	// Auto-start daemon if not running
 	startDaemonBackground()
 
-	p := tea.NewProgram(
-		ui.NewApp(store, &cfg),
-		tea.WithAltScreen(),
-		tea.WithMouseCellMotion(),
-	)
+	// Loop to allow returning from config TUI back to main app
+	for {
+		p := tea.NewProgram(
+			ui.NewApp(store, &cfg),
+			tea.WithAltScreen(),
+			tea.WithMouseCellMotion(),
+		)
 
-	m, err := p.Run()
-	if err != nil {
-		fmt.Printf("Error running program: %v\n", err)
-		os.Exit(1)
-	}
-
-	// Check if we should launch config TUI (e.g., for AI setup)
-	if app, ok := m.(ui.App); ok && app.LaunchConfigUI {
-		if err := RunConfigTUI(); err != nil {
-			fmt.Printf("Error running config: %v\n", err)
+		m, err := p.Run()
+		if err != nil {
+			fmt.Printf("Error running program: %v\n", err)
 			os.Exit(1)
 		}
+
+		// Check if we should launch config TUI (e.g., for AI setup)
+		if app, ok := m.(ui.App); ok && app.LaunchConfigUI {
+			if err := RunConfigTUI(); err != nil {
+				fmt.Printf("Error running config: %v\n", err)
+				os.Exit(1)
+			}
+			// Reload config after changes and continue to restart main TUI
+			cfg, err = config.Load()
+			if err != nil {
+				fmt.Printf("Error reloading config: %v\n", err)
+				os.Exit(1)
+			}
+			continue
+		}
+
+		// Normal exit
+		break
 	}
 }

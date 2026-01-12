@@ -396,17 +396,13 @@ func RenderCentered(width, height int, content string) string {
 	)
 }
 
-func RenderSummaryDialog(width, height int, summary string, provider string) string {
-	dialogWidth := min(width-20, 70)
+func RenderSummaryDialog(width, height int, viewportContent string, provider string, scrollable bool) string {
+	dialogWidth := min(width-20, 110)
 
 	titleStyle := lipgloss.NewStyle().
 		Bold(true).
 		Foreground(Primary).
 		MarginBottom(1)
-
-	contentStyle := lipgloss.NewStyle().
-		Width(dialogWidth - 8).
-		Foreground(Text)
 
 	providerStyle := lipgloss.NewStyle().
 		Foreground(Muted).
@@ -416,15 +412,20 @@ func RenderSummaryDialog(width, height int, summary string, provider string) str
 		Foreground(Muted).
 		MarginTop(1)
 
+	hint := "Press Esc to close"
+	if scrollable {
+		hint = "j/k to scroll • Esc to close"
+	}
+
 	content := lipgloss.JoinVertical(
 		lipgloss.Left,
 		titleStyle.Render("Summary"),
 		"",
-		contentStyle.Render(summary),
+		viewportContent,
 		"",
 		providerStyle.Render("via "+provider),
 		"",
-		hintStyle.Render("Press Esc to close"),
+		hintStyle.Render(hint),
 	)
 
 	dialogStyle := lipgloss.NewStyle().
@@ -756,4 +757,172 @@ func RenderAttachmentPicker(width, height int, attachments []AttachmentInfo, sel
 		lipgloss.Center,
 		dialogStyle.Render(content),
 	)
+}
+
+// WrapWithHangingIndent wraps text with proper hanging indent for list items.
+// Lines starting with list markers (-, *, •, 1.) will have continuation lines
+// indented to align with the text after the marker.
+func WrapWithHangingIndent(text string, width int) string {
+	if width <= 0 {
+		return text
+	}
+
+	lines := strings.Split(text, "\n")
+	var result []string
+
+	for _, line := range lines {
+		if line == "" {
+			result = append(result, "")
+			continue
+		}
+
+		// Detect list item and calculate indent
+		indent := detectListIndent(line)
+		if indent > 0 && indent < width/2 {
+			// Wrap with hanging indent
+			wrapped := wrapLineWithIndent(line, width, indent)
+			result = append(result, wrapped...)
+		} else {
+			// Regular wrap
+			wrapped := wrapLine(line, width)
+			result = append(result, wrapped...)
+		}
+	}
+
+	return strings.Join(result, "\n")
+}
+
+// detectListIndent returns the indent width for continuation lines.
+// Handles list items (-, *, •, 1.) and general indented text.
+func detectListIndent(line string) int {
+	// Count leading spaces
+	leadingSpaces := 0
+	for _, c := range line {
+		if c == ' ' {
+			leadingSpaces++
+		} else if c == '\t' {
+			leadingSpaces += 4
+		} else {
+			break
+		}
+	}
+
+	trimmed := strings.TrimLeft(line, " \t")
+	if trimmed == "" {
+		return 0
+	}
+
+	// Check for bullet markers: -, *, •
+	if len(trimmed) >= 2 && (trimmed[0] == '-' || trimmed[0] == '*' || strings.HasPrefix(trimmed, "•")) {
+		markerLen := 1
+		if strings.HasPrefix(trimmed, "• ") {
+			markerLen = len("• ")
+		} else if len(trimmed) > 1 && trimmed[1] == ' ' {
+			markerLen = 2
+		}
+		return leadingSpaces + markerLen
+	}
+
+	// Check for numbered list: 1. 2. etc.
+	for i, c := range trimmed {
+		if c >= '0' && c <= '9' {
+			continue
+		}
+		if c == '.' && i > 0 && i < len(trimmed)-1 && trimmed[i+1] == ' ' {
+			return leadingSpaces + i + 2 // number + "." + " "
+		}
+		break
+	}
+
+	// Preserve general indentation (e.g., "  summary text")
+	if leadingSpaces > 0 {
+		return leadingSpaces
+	}
+
+	return 0
+}
+
+// wrapLineWithIndent wraps a single line with hanging indent
+func wrapLineWithIndent(line string, width, indent int) []string {
+	if len(line) <= width {
+		return []string{line}
+	}
+
+	var result []string
+	indentStr := strings.Repeat(" ", indent)
+	remaining := line
+	isFirst := true
+
+	for len(remaining) > 0 {
+		maxWidth := width
+		prefix := ""
+		if !isFirst {
+			prefix = indentStr
+			maxWidth = width - indent
+			if maxWidth <= 0 {
+				maxWidth = width / 2
+			}
+		}
+
+		if len(remaining) <= maxWidth {
+			result = append(result, prefix+remaining)
+			break
+		}
+
+		// Find break point (last space within width)
+		breakPoint := maxWidth
+		for i := maxWidth; i > 0; i-- {
+			if remaining[i] == ' ' {
+				breakPoint = i
+				break
+			}
+		}
+
+		// If no space found, force break at width
+		if breakPoint == maxWidth && remaining[breakPoint] != ' ' {
+			for i := maxWidth; i > maxWidth/2; i-- {
+				if remaining[i] == ' ' {
+					breakPoint = i
+					break
+				}
+			}
+		}
+
+		result = append(result, prefix+remaining[:breakPoint])
+		remaining = strings.TrimLeft(remaining[breakPoint:], " ")
+		isFirst = false
+	}
+
+	return result
+}
+
+// wrapLine wraps a single line without special indent
+func wrapLine(line string, width int) []string {
+	if len(line) <= width {
+		return []string{line}
+	}
+
+	var result []string
+	remaining := line
+
+	for len(remaining) > 0 {
+		if len(remaining) <= width {
+			result = append(result, remaining)
+			break
+		}
+
+		// Find break point
+		breakPoint := width
+		for i := width; i > width/2; i-- {
+			if remaining[i] == ' ' {
+				breakPoint = i
+				break
+			}
+		}
+
+		result = append(result, remaining[:breakPoint])
+		remaining = strings.TrimLeft(remaining[breakPoint:], " ")
+	}
+
+	return result
 }

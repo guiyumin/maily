@@ -369,9 +369,20 @@ func (a *App) summarizeEmail(email *mail.Email) tea.Cmd {
 	}
 }
 
-func (a *App) parseManualEvent(input string) tea.Cmd {
+func (a *App) parseManualEvent(input string, email *mail.Email) tea.Cmd {
 	client := a.aiClient
-	prompt := ai.ParseCalendarEventPrompt(input, time.Now())
+
+	// Include email context if available to resolve references like "them"
+	var prompt string
+	if email != nil {
+		body := email.Body
+		if body == "" {
+			body = email.Snippet
+		}
+		prompt = ai.ParseCalendarEventWithContextPrompt(input, email.From, email.Subject, body, time.Now())
+	} else {
+		prompt = ai.ParseCalendarEventPrompt(input, time.Now())
+	}
 	provider := client.Provider()
 
 	return func() tea.Msg {

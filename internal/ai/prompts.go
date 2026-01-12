@@ -59,11 +59,33 @@ func (e *ParsedEvent) GetEndTime() (time.Time, error) {
 
 // ParseCalendarEventPrompt builds a prompt for parsing natural language into a calendar event
 func ParseCalendarEventPrompt(input string, now time.Time) string {
+	return ParseCalendarEventWithContextPrompt(input, "", "", "", now)
+}
+
+// ParseCalendarEventWithContextPrompt builds a prompt for parsing natural language into a calendar event,
+// with optional email context to resolve references like "them", "the meeting", etc.
+func ParseCalendarEventWithContextPrompt(input, emailFrom, emailSubject, emailBody string, now time.Time) string {
+	emailContext := ""
+	if emailFrom != "" || emailSubject != "" || emailBody != "" {
+		// Truncate body if too long
+		body := emailBody
+		if len(body) > 1000 {
+			body = body[:1000] + "..."
+		}
+		emailContext = fmt.Sprintf(`
+Email context (use this to understand references like "them", "the meeting", etc.):
+From: %s
+Subject: %s
+Body: %s
+
+`, emailFrom, emailSubject, body)
+	}
+
 	return fmt.Sprintf(`Parse this natural language into a calendar event.
 
 Current date/time: %s
-
-Input: "%s"
+%s
+User input: "%s"
 
 Respond with ONLY a JSON object (no markdown, no explanation):
 {
@@ -82,8 +104,9 @@ Rules:
 - If no reminder mentioned, set alarm_minutes_before=0 and alarm_specified=false
 - Extract location if mentioned (e.g., "at the coffee shop")
 - Use the current date/time to interpret relative dates like "tomorrow", "next Monday"
+- Use the email context to resolve references (e.g., "them" = sender, "the meeting" = subject)
 
-Respond with ONLY the JSON, no other text.`, now.Format(time.RFC3339), input)
+Respond with ONLY the JSON, no other text.`, now.Format(time.RFC3339), emailContext, input)
 }
 
 // SummarizePrompt builds a prompt for email summarization
@@ -97,17 +120,21 @@ Subject: %s
 
 Format your response exactly like this (skip sections if not applicable):
 
-• Summary: <one sentence summary>
-• Key points:
-  - <point 1>
-  - <point 2>
-• Action items:
-  - <action 1>
-  - <action 2>
-• Dates/Deadlines:
-  - <date/deadline if mentioned>
+Summary:
+    <one sentence summary>
 
-Keep it brief. No preamble, just the bullet points.`, from, subject, body)
+Key Points:
+    - <point 1>
+    - <point 2>
+
+Action Items:
+    - <action 1>
+    - <action 2>
+
+Dates/Deadlines:
+    - <date/deadline if mentioned>
+
+Keep it brief. No preamble, section titles on their own line, content indented with 4 spaces.`, from, subject, body)
 }
 
 // ExtractEventsPrompt builds a prompt for extracting calendar events from email

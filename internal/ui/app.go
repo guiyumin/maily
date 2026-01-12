@@ -86,12 +86,13 @@ type App struct {
 	showCommandPalette bool
 
 	// AI
-	aiClient       *ai.Client
-	showSummary    bool
-	summaryText    string
-	summarySource  string // which AI provider was used
-	showAISetup    bool   // show AI setup confirmation dialog
-	LaunchConfigUI bool   // signal to launch config TUI after exit
+	aiClient        *ai.Client
+	showSummary     bool
+	summaryText     string
+	summarySource   string // which AI provider was used
+	summaryViewport viewport.Model
+	showAISetup     bool // show AI setup confirmation dialog
+	LaunchConfigUI  bool // signal to launch config TUI after exit
 
 	// Extract
 	showExtract       bool
@@ -347,7 +348,9 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					a.extractInput.Blur()
 					a.state = stateLoading
 					a.statusMsg = "Parsing with " + a.aiClient.Provider() + "..."
-					return a, tea.Batch(a.spinner.Tick, a.parseManualEvent(input))
+					// Pass current email for context (helps resolve "them", "the meeting", etc.)
+					email := a.mailList.SelectedEmail()
+					return a, tea.Batch(a.spinner.Tick, a.parseManualEvent(input, email))
 				}
 			default:
 				var cmd tea.Cmd
@@ -498,6 +501,24 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				a.showExtract = false
 				a.extractedEvent = nil
 				a.extractedProvider = ""
+				return a, nil
+			}
+		}
+
+		// Handle summary dialog scrolling
+		if a.showSummary {
+			switch msg.String() {
+			case "j", "down":
+				a.summaryViewport.ScrollDown(1)
+				return a, nil
+			case "k", "up":
+				a.summaryViewport.ScrollUp(1)
+				return a, nil
+			case "g":
+				a.summaryViewport.SetYOffset(0)
+				return a, nil
+			case "G":
+				a.summaryViewport.SetYOffset(a.summaryViewport.TotalLineCount())
 				return a, nil
 			}
 		}
@@ -798,7 +819,9 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return a, tea.Batch(a.spinner.Tick, a.markSelectedAsRead())
 			}
 		case "tab":
-			if len(a.store.Accounts) > 1 && !a.confirmDelete && !a.isSearchResult && !a.showLabelPicker {
+			// Block account switching when any dialog is open
+			if len(a.store.Accounts) > 1 && !a.confirmDelete && !a.isSearchResult && !a.showLabelPicker &&
+				!a.showExtractEdit && !a.showExtract && !a.showExtractInput && !a.showSummary && !a.showAISetup {
 				// Save current emails to cache (only if not in error state)
 				if a.state != stateError {
 					if emails := a.mailList.Emails(); len(emails) > 0 {
@@ -841,6 +864,18 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case tea.MouseMsg:
+		// Handle summary dialog mouse scroll
+		if a.showSummary {
+			switch msg.Button {
+			case tea.MouseButtonWheelUp:
+				a.summaryViewport.ScrollUp(3)
+				return a, nil
+			case tea.MouseButtonWheelDown:
+				a.summaryViewport.ScrollDown(3)
+				return a, nil
+			}
+		}
+
 		if a.state == stateReady && !a.confirmDelete {
 			switch msg.Button {
 			case tea.MouseButtonWheelUp:
@@ -1137,6 +1172,14 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.summaryText = msg.summary
 		a.summarySource = msg.provider
 		a.statusMsg = ""
+		// Initialize summary viewport for scrolling
+		dialogHeight := min(a.height-10, 20) // Max height for summary content
+		vpWidth := min(a.width-30, 100)
+		a.summaryViewport = viewport.New(vpWidth, dialogHeight)
+		a.summaryViewport.MouseWheelEnabled = true
+		// Wrap text with hanging indent for list items
+		wrappedContent := components.WrapWithHangingIndent(msg.summary, vpWidth)
+		a.summaryViewport.SetContent(wrappedContent)
 
 	case summaryErrorMsg:
 		a.state = stateReady
@@ -1293,7 +1336,7 @@ func (a App) View() string {
 
 	// Show summary dialog overlay
 	if a.showSummary {
-		content = components.RenderSummaryDialog(a.width, a.height, a.summaryText, a.summarySource)
+		content = components.RenderSummaryDialog(a.width, a.height, a.summaryViewport.View(), a.summarySource, a.summaryViewport.TotalLineCount() > a.summaryViewport.Height)
 	}
 
 	// Show extract input dialog overlay

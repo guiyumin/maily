@@ -2,6 +2,7 @@ package i18n
 
 import (
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/nicksnyder/go-i18n/v2/i18n"
@@ -101,10 +102,8 @@ func normalizeLanguage(locale string) string {
 	langCode := strings.ToLower(parts[0])
 
 	// Check if it's a supported language
-	for _, supported := range SupportedLanguages {
-		if supported == langCode {
-			return langCode
-		}
+	if slices.Contains(SupportedLanguages, langCode) {
+		return langCode
 	}
 
 	// Default to English for unsupported languages
@@ -112,7 +111,7 @@ func normalizeLanguage(locale string) string {
 }
 
 // T translates a message ID with optional template data
-func T(id string, data ...map[string]interface{}) string {
+func T(id string, data ...map[string]any) string {
 	if localizer == nil {
 		return id // Not initialized, return the ID as fallback
 	}
@@ -130,13 +129,13 @@ func T(id string, data ...map[string]interface{}) string {
 }
 
 // TPlural translates a message with pluralization support
-func TPlural(id string, count int, data map[string]interface{}) string {
+func TPlural(id string, count int, data map[string]any) string {
 	if localizer == nil {
 		return id
 	}
 
 	if data == nil {
-		data = make(map[string]interface{})
+		data = make(map[string]any)
 	}
 	data["Count"] = count
 
@@ -168,10 +167,5 @@ func DisplayName(code string) string {
 
 // IsSupported checks if a language code is supported
 func IsSupported(code string) bool {
-	for _, l := range SupportedLanguages {
-		if l == code {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(SupportedLanguages, code)
 }

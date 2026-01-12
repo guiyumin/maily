@@ -289,6 +289,34 @@ func RenderConfirmDialog(count int, selected DeleteOption) string {
 	)
 }
 
+// RenderAISetupDialog renders a dialog asking user if they want to configure AI
+func RenderAISetupDialog() string {
+	dialogStyle := DialogStyle.BorderForeground(Primary)
+
+	title := DialogTitleStyle.
+		Foreground(Primary).
+		Render("No AI Provider Found")
+
+	message := lipgloss.NewStyle().
+		Foreground(TextDim).
+		Width(40).
+		Align(lipgloss.Center).
+		Render("Would you like to configure an AI provider?\n\nYou can add CLI tools (claude, codex, gemini) or API keys.")
+
+	hint := DialogHintStyle.Render("Enter to configure, Esc to skip")
+
+	return dialogStyle.Render(
+		lipgloss.JoinVertical(
+			lipgloss.Center,
+			title,
+			"",
+			message,
+			"",
+			hint,
+		),
+	)
+}
+
 func RenderSearchInput(inputView string) string {
 	dialogStyle := DialogStyle.BorderForeground(Primary)
 

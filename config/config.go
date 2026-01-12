@@ -9,12 +9,22 @@ import (
 
 const configFileName = "config.yml"
 
-// AIAccount represents an OpenAI-compatible API configuration
-type AIAccount struct {
-	Name    string `yaml:"name,omitempty"`    // friendly name (e.g., "nvidia", "openai")
-	BaseURL string `yaml:"base_url"`          // API base URL
-	APIKey  string `yaml:"api_key"`           // API key
-	Model   string `yaml:"model"`             // model to use
+// AIProviderType represents the type of AI provider
+type AIProviderType string
+
+const (
+	AIProviderTypeCLI AIProviderType = "cli" // CLI tool (codex, gemini, claude, vibe, ollama)
+	AIProviderTypeAPI AIProviderType = "api" // OpenAI-compatible HTTP API
+)
+
+// AIProvider represents a unified AI provider configuration
+// Providers are tried in order from first to last
+type AIProvider struct {
+	Type    AIProviderType `yaml:"type"`              // "cli" or "api"
+	Name    string         `yaml:"name"`              // CLI name (codex, gemini, claude) or friendly name for API
+	Model   string         `yaml:"model"`             // model to use (required)
+	BaseURL string         `yaml:"base_url,omitempty"` // API base URL (required for type: api)
+	APIKey  string         `yaml:"api_key,omitempty"`  // API key (required for type: api)
 }
 
 type Config struct {
@@ -22,8 +32,9 @@ type Config struct {
 	DefaultLabel string `yaml:"default_label"`
 	Theme        string `yaml:"theme"`
 
-	// AI API accounts - tried in order from first to last
-	AIAccounts []AIAccount `yaml:"ai_accounts,omitempty"`
+	// AI providers - tried in order from first to last
+	// Each provider can be a CLI tool or an OpenAI-compatible API
+	AIProviders []AIProvider `yaml:"ai_providers,omitempty"`
 }
 
 func DefaultConfig() Config {

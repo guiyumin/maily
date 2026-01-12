@@ -52,15 +52,33 @@
 - [x] Trash folder discovery (Gmail `[Gmail]/Trash`, standard IMAP `\Trash` attribute, fallbacks)
 - [x] Arrow keys to select option, Enter to confirm
 
+### Configurable AI Providers
+
+- [x] Unified `ai_providers` config supporting both CLI tools and APIs
+- [x] Each provider has: type (cli/api), name, model (required), base_url, api_key
+- [x] Providers tried in order from first to last (fallback chain)
+- [x] Auto-detect CLIs: claude, codex, gemini, opencode, crush, mistral, vibe, ollama
+- [x] Config TUI updated to manage providers
+
+### AI Setup Wizard
+
+- [x] Show confirmation dialog when AI feature used but no provider found
+- [x] Enter to launch config TUI, Esc to skip
+- [x] Config TUI allows adding CLI or API providers
+
 ---
 
 ## Future
 
-### Configurable AI CLI
+### AI Provider Preferences Per Task
 
-- [ ] Allow user to choose AI CLI provider (codex, gemini, claude)
-- [ ] Add config option: `ai_cli: codex | gemini | claude`
-- [ ] Claude Haiku is slow - default to faster option if available
+First-time picker for AI tasks, remembered for next time.
+
+- [ ] TUI: Show provider picker on first use of each task (summarize, extract event, create event)
+- [ ] Save preference per task type to config: `ai_preferences: {summarize: "codex/o4-mini", ...}`
+- [ ] Skip picker on subsequent uses, use saved preference
+- [ ] CLI: Add `--ai-provider` flag to override config (for automation)
+- [ ] Config TUI: Allow viewing/resetting saved preferences
 
 ### CLI Bulk Processing Commands
 

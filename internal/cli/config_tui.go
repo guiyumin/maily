@@ -194,30 +194,39 @@ func (m *ConfigTUI) buildRows() {
 		{key: "theme", label: "Theme", value: m.cfg.Theme, aiIndex: -1, editable: true, rowType: rowTypeField, description: "Color theme (dark, light)"},
 	}
 
-	// AI Accounts
-	for i, acc := range m.cfg.AIAccounts {
-		maskedKey := "••••••••"
-		if len(acc.APIKey) > 8 {
-			maskedKey = acc.APIKey[:4] + "••••" + acc.APIKey[len(acc.APIKey)-4:]
-		} else if acc.APIKey == "" {
-			maskedKey = ""
-		}
-
-		prefix := fmt.Sprintf("AI Account %d", i+1)
+	// AI Providers
+	for i, p := range m.cfg.AIProviders {
+		prefix := fmt.Sprintf("AI Provider %d", i+1)
 		m.rows = append(m.rows,
 			configRow{key: "separator", label: prefix, rowType: rowTypeSeparator},
-			configRow{key: "name", label: "Name", value: acc.Name, aiIndex: i, editable: true, rowType: rowTypeField, description: "Display name for this AI provider"},
-			configRow{key: "base_url", label: "Base URL", value: acc.BaseURL, aiIndex: i, editable: true, rowType: rowTypeField, description: "API endpoint URL"},
-			configRow{key: "model", label: "Model", value: acc.Model, aiIndex: i, editable: true, rowType: rowTypeField, description: "Model identifier (e.g., gpt-4, claude-3)"},
-			configRow{key: "api_key", label: "API Key", value: maskedKey, aiIndex: i, editable: true, isSecret: true, rowType: rowTypeField, description: "Your API key (stored securely)"},
-			configRow{key: "delete", label: "Delete Account", aiIndex: i, rowType: rowTypeAction, description: "Remove this AI account"},
+			configRow{key: "type", label: "Type", value: string(p.Type), aiIndex: i, editable: true, rowType: rowTypeField, description: "Provider type: cli or api"},
+			configRow{key: "name", label: "Name", value: p.Name, aiIndex: i, editable: true, rowType: rowTypeField, description: "CLI name (codex, gemini, claude) or friendly name for API"},
+			configRow{key: "model", label: "Model", value: p.Model, aiIndex: i, editable: true, rowType: rowTypeField, description: "Model identifier (required)"},
+		)
+
+		// Only show base_url and api_key for API providers
+		if p.Type == config.AIProviderTypeAPI {
+			maskedKey := "••••••••"
+			if len(p.APIKey) > 8 {
+				maskedKey = p.APIKey[:4] + "••••" + p.APIKey[len(p.APIKey)-4:]
+			} else if p.APIKey == "" {
+				maskedKey = ""
+			}
+			m.rows = append(m.rows,
+				configRow{key: "base_url", label: "Base URL", value: p.BaseURL, aiIndex: i, editable: true, rowType: rowTypeField, description: "API endpoint URL"},
+				configRow{key: "api_key", label: "API Key", value: maskedKey, aiIndex: i, editable: true, isSecret: true, rowType: rowTypeField, description: "Your API key (stored securely)"},
+			)
+		}
+
+		m.rows = append(m.rows,
+			configRow{key: "delete", label: "Delete Provider", aiIndex: i, rowType: rowTypeAction, description: "Remove this AI provider"},
 		)
 	}
 
 	// Actions
 	m.rows = append(m.rows,
 		configRow{key: "separator", label: "Actions", rowType: rowTypeSeparator},
-		configRow{key: "add", label: "Add AI Account", rowType: rowTypeAction, description: "Add a new AI provider account"},
+		configRow{key: "add", label: "Add AI Provider", rowType: rowTypeAction, description: "Add a new AI provider (CLI or API)"},
 	)
 }
 
@@ -382,14 +391,14 @@ func (m ConfigTUI) handleSelect() (tea.Model, tea.Cmd) {
 
 	switch row.key {
 	case "add":
-		m.cfg.AIAccounts = append(m.cfg.AIAccounts, config.AIAccount{})
+		m.cfg.AIProviders = append(m.cfg.AIProviders, config.AIProvider{Type: config.AIProviderTypeCLI})
 		m.dirty = true
 		m.buildRows()
 		return m, nil
 
 	case "delete":
-		if row.aiIndex >= 0 && row.aiIndex < len(m.cfg.AIAccounts) {
-			m.cfg.AIAccounts = append(m.cfg.AIAccounts[:row.aiIndex], m.cfg.AIAccounts[row.aiIndex+1:]...)
+		if row.aiIndex >= 0 && row.aiIndex < len(m.cfg.AIProviders) {
+			m.cfg.AIProviders = append(m.cfg.AIProviders[:row.aiIndex], m.cfg.AIProviders[row.aiIndex+1:]...)
 			m.dirty = true
 			m.buildRows()
 			m.clampCursor()
@@ -431,17 +440,19 @@ func (m ConfigTUI) getActualValue(row configRow) string {
 		case "theme":
 			return m.cfg.Theme
 		}
-	} else if row.aiIndex >= 0 && row.aiIndex < len(m.cfg.AIAccounts) {
-		acc := m.cfg.AIAccounts[row.aiIndex]
+	} else if row.aiIndex >= 0 && row.aiIndex < len(m.cfg.AIProviders) {
+		p := m.cfg.AIProviders[row.aiIndex]
 		switch row.key {
+		case "type":
+			return string(p.Type)
 		case "name":
-			return acc.Name
+			return p.Name
 		case "base_url":
-			return acc.BaseURL
+			return p.BaseURL
 		case "model":
-			return acc.Model
+			return p.Model
 		case "api_key":
-			return acc.APIKey
+			return p.APIKey
 		}
 	}
 	return ""
@@ -477,27 +488,33 @@ func (m ConfigTUI) saveField() (tea.Model, tea.Cmd) {
 				changed = true
 			}
 		}
-	} else if row.aiIndex >= 0 && row.aiIndex < len(m.cfg.AIAccounts) {
-		acc := &m.cfg.AIAccounts[row.aiIndex]
+	} else if row.aiIndex >= 0 && row.aiIndex < len(m.cfg.AIProviders) {
+		p := &m.cfg.AIProviders[row.aiIndex]
 		switch row.key {
+		case "type":
+			newType := config.AIProviderType(value)
+			if newType != p.Type {
+				p.Type = newType
+				changed = true
+			}
 		case "name":
-			if value != acc.Name {
-				acc.Name = value
+			if value != p.Name {
+				p.Name = value
 				changed = true
 			}
 		case "base_url":
-			if value != acc.BaseURL {
-				acc.BaseURL = value
+			if value != p.BaseURL {
+				p.BaseURL = value
 				changed = true
 			}
 		case "model":
-			if value != acc.Model {
-				acc.Model = value
+			if value != p.Model {
+				p.Model = value
 				changed = true
 			}
 		case "api_key":
-			if value != "" && value != acc.APIKey {
-				acc.APIKey = value
+			if value != "" && value != p.APIKey {
+				p.APIKey = value
 				changed = true
 			}
 		}

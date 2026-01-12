@@ -86,10 +86,12 @@ type App struct {
 	showCommandPalette bool
 
 	// AI
-	aiClient      *ai.Client
-	showSummary   bool
-	summaryText   string
-	summarySource string // which AI provider was used
+	aiClient       *ai.Client
+	showSummary    bool
+	summaryText    string
+	summarySource  string // which AI provider was used
+	showAISetup    bool   // show AI setup confirmation dialog
+	LaunchConfigUI bool   // signal to launch config TUI after exit
 
 	// Extract
 	showExtract       bool
@@ -527,6 +529,8 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				a.showSummary = false
 				a.summaryText = ""
 				a.summarySource = ""
+			} else if a.showAISetup {
+				a.showAISetup = false
 			} else if a.confirmDelete {
 				a.confirmDelete = false
 				a.statusMsg = ""
@@ -576,6 +580,11 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						}
 					}
 				}
+			}
+			// Handle AI setup confirmation dialog
+			if a.showAISetup {
+				a.LaunchConfigUI = true
+				return a, tea.Quit
 			}
 			// Handle delete confirmation dialog
 			if a.confirmDelete {
@@ -684,7 +693,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				} else if a.view == readView {
 					// Summarize with AI
 					if !a.aiClient.Available() {
-						a.statusMsg = "No AI CLI found (install claude, codex, gemini, vibe, or ollama)"
+						a.showAISetup = true
 						return a, nil
 					}
 					email := a.mailList.SelectedEmail()
@@ -699,7 +708,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// Extract event from email (read view only)
 			if a.state == stateReady && a.view == readView && !a.confirmDelete && !a.showExtract {
 				if !a.aiClient.Available() {
-					a.statusMsg = "No AI CLI found (install claude, codex, gemini, vibe, or ollama)"
+					a.showAISetup = true
 					return a, nil
 				}
 				email := a.mailList.SelectedEmail()
@@ -1251,6 +1260,11 @@ func (a App) View() string {
 		default:
 			content = components.RenderListView(a.width, a.height, a.mailList.View())
 		}
+	}
+
+	// Show AI setup dialog overlay
+	if a.showAISetup {
+		content = components.RenderCentered(a.width, a.height, components.RenderAISetupDialog())
 	}
 
 	// Show confirmation dialog overlay

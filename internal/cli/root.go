@@ -67,8 +67,17 @@ func runTUI() {
 		tea.WithMouseCellMotion(),
 	)
 
-	if _, err := p.Run(); err != nil {
+	m, err := p.Run()
+	if err != nil {
 		fmt.Printf("Error running program: %v\n", err)
 		os.Exit(1)
+	}
+
+	// Check if we should launch config TUI (e.g., for AI setup)
+	if app, ok := m.(ui.App); ok && app.LaunchConfigUI {
+		if err := RunConfigTUI(); err != nil {
+			fmt.Printf("Error running config: %v\n", err)
+			os.Exit(1)
+		}
 	}
 }

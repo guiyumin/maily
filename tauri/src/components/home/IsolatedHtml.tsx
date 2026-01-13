@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { openUrl } from "@tauri-apps/plugin-opener";
 
 interface IsolatedHtmlProps {
   html: string;
@@ -40,6 +41,7 @@ export function IsolatedHtml({ html, className }: IsolatedHtmlProps) {
         }
         a {
           color: hsl(var(--primary));
+          cursor: pointer;
         }
         /* Prose-like typography */
         p, li, td, th {
@@ -78,6 +80,24 @@ export function IsolatedHtml({ html, className }: IsolatedHtmlProps) {
     `;
 
     shadowRef.current.innerHTML = styles + html;
+
+    // Handle link clicks to open in external browser
+    const handleClick = (e: Event) => {
+      const target = e.target as HTMLElement;
+      const anchor = target.closest("a");
+      if (anchor) {
+        const href = anchor.getAttribute("href");
+        if (href && (href.startsWith("http://") || href.startsWith("https://"))) {
+          e.preventDefault();
+          openUrl(href).catch(console.error);
+        }
+      }
+    };
+
+    shadowRef.current.addEventListener("click", handleClick);
+    return () => {
+      shadowRef.current?.removeEventListener("click", handleClick);
+    };
   }, [html]);
 
   return <div ref={containerRef} className={className} />;

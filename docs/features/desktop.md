@@ -19,6 +19,94 @@ Maily Desktop bridges the gap between terminal power and GUI convenience. It's n
   - v1.x: Linux (similar enough, audience wants it)
   - Maybe later: Windows (only if demand justifies the pain)
 
+## Architecture
+
+### Dual Backend
+
+The desktop app (Tauri) has its own Rust backend, separate from the Go CLI. Both share:
+- Config: `~/.config/maily/accounts.yml`
+- Cache: `~/.config/maily/cache/{account}/{mailbox}/{uid}.json`
+
+This allows independent development while maintaining data compatibility.
+
+### Three-Layer Caching
+
+```
+┌─────────────────┐
+│  Zustand Store  │  ← Frontend memory cache (instant)
+├─────────────────┤
+│  JSON Files     │  ← Local disk cache (~10ms)
+├─────────────────┤
+│  IMAP Server    │  ← Remote server (100-500ms)
+└─────────────────┘
+```
+
+1. **Zustand (frontend)**: In-memory cache for viewed emails. Clicking a previously-viewed email is instant.
+2. **JSON cache (Rust)**: Parsed emails stored on disk. First view of an email reads from here.
+3. **IMAP server**: Source of truth. Sync fetches new emails and updates flags.
+
+### Background IMAP Queue
+
+IMAP operations (mark read/unread) are queued for background processing:
+
+```
+Frontend                          Rust Backend
+   │                                   │
+   │  mark_email_read_async            │
+   ├──────────────────────────────────►│
+   │                                   │
+   │  ◄─ returns immediately ──────────┤
+   │                                   │
+   │                          ┌────────┴────────┐
+   │                          │  Update local   │
+   │                          │  JSON cache     │
+   │                          └────────┬────────┘
+   │                                   │
+   │                          ┌────────▼────────┐
+   │                          │  Queue IMAP op  │
+   │                          └────────┬────────┘
+   │                                   │
+   │                          ┌────────▼────────┐
+   │                          │ Background      │
+   │                          │ worker thread   │
+   │                          │ (100ms batch)   │
+   │                          └────────┬────────┘
+   │                                   │
+   │                          ┌────────▼────────┐
+   │                          │  IMAP server    │
+   │                          └─────────────────┘
+```
+
+**Benefits:**
+- UI never waits for IMAP
+- Rapid toggles are deduplicated (only final state sent)
+- Operations batched for efficiency
+
+### Optimistic UI
+
+All state changes update the UI immediately:
+
+1. User clicks unread email → dot disappears instantly
+2. User toggles read/unread → icon changes instantly
+3. IMAP sync happens in background
+4. On IMAP failure → operation logged (next sync corrects state)
+
+### Sync Flow
+
+```bash
+# Manual sync (refresh button)
+Frontend → sync_emails command → IMAP fetch → Update cache → Return emails
+
+# Background sync (every 5 min)
+Tokio task → Poll all accounts → Update cache → Emit event → Native notification
+```
+
+### Future: Tokio Migration
+
+The current implementation uses std threads for the IMAP queue. For multi-account parallel sync, background polling, and notifications, we'll migrate to tokio async runtime.
+
+See [tokio.md](tokio.md) for the full migration plan.
+
 ## Core Features
 
 ### Email

@@ -1,10 +1,13 @@
 mod config;
+mod imap_queue;
 mod mail;
 
 use config::{get_config as load_config, save_config as store_config, AIProvider, Config};
+use imap_queue::queue_mark_read;
 use mail::{
     delete_email_from_cache, get_accounts, get_email as fetch_email, get_emails,
-    update_email_read_status, Account, Email,
+    sync_emails as do_sync_emails, update_email_read_status, update_email_cache_only,
+    Account, Email, SyncResult,
 };
 
 #[tauri::command]
@@ -30,6 +33,23 @@ fn delete_email(account: String, mailbox: String, uid: u32) -> Result<(), String
 #[tauri::command]
 fn mark_email_read(account: String, mailbox: String, uid: u32, unread: bool) -> Result<Email, String> {
     update_email_read_status(&account, &mailbox, uid, unread).map_err(|e| e.to_string())
+}
+
+/// Mark email read/unread - updates cache immediately, queues IMAP for background
+#[tauri::command]
+fn mark_email_read_async(account: String, mailbox: String, uid: u32, unread: bool) -> Result<(), String> {
+    // Update local cache immediately
+    update_email_cache_only(&account, &mailbox, uid, unread).map_err(|e| e.to_string())?;
+
+    // Queue IMAP operation for background processing
+    queue_mark_read(account, mailbox, uid, unread);
+
+    Ok(())
+}
+
+#[tauri::command]
+fn sync_emails(account: String, mailbox: String) -> Result<SyncResult, String> {
+    do_sync_emails(&account, &mailbox).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -70,6 +90,8 @@ pub fn run() {
             get_email,
             delete_email,
             mark_email_read,
+            mark_email_read_async,
+            sync_emails,
             get_config,
             save_config,
             add_ai_provider,

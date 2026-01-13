@@ -54,6 +54,13 @@ export function Home() {
 
     setRefreshing(true);
     try {
+      // Sync with IMAP server first
+      await invoke("sync_emails", {
+        account: selectedAccount,
+        mailbox: selectedMailbox,
+      });
+
+      // Then reload from cache
       const newEmails = await invoke<Email[]>("list_emails", {
         account: selectedAccount,
         mailbox: selectedMailbox,

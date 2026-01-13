@@ -26,4 +26,8 @@ serde_yaml = "0.9"
 dirs = "6"
 imap = "2"
 native-tls = "0.2"
+mailparse = "0.15"
+chrono = { version = "0.4", features = ["serde"] }
+html2text = "0.12"
+ammonia = "4"
 

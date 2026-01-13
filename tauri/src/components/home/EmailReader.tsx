@@ -5,6 +5,7 @@ import {
   ChevronRight,
   Download,
   Forward,
+  Loader2,
   Mail,
   MailOpen,
   Paperclip,
@@ -17,7 +18,6 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   Tooltip,
@@ -36,6 +36,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import type { Email as EmailSummary } from "./EmailList";
 import { IsolatedHtml } from "./IsolatedHtml";
+import { useEmailCache } from "@/stores/emailCache";
 
 interface Attachment {
   part_id: string;
@@ -104,12 +105,40 @@ export function EmailReader({
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
+  const cache = useEmailCache();
+
   useEffect(() => {
     if (!emailSummary || !account) {
       setEmailFull(null);
       return;
     }
 
+    // Check frontend cache first
+    const cached = cache.get(account, mailbox, emailSummary.uid);
+    if (cached) {
+      setEmailFull(cached);
+      setLoading(false);
+      setError(null);
+
+      // Still mark as read if unread
+      if (cached.unread) {
+        const updated = { ...cached, unread: false };
+        setEmailFull(updated);
+        cache.set(account, mailbox, updated);
+        onEmailReadChange(emailSummary.uid, false);
+
+        // Queue IMAP update in background - returns immediately
+        invoke("mark_email_read_async", {
+          account,
+          mailbox,
+          uid: emailSummary.uid,
+          unread: false,
+        }).catch(console.error);
+      }
+      return;
+    }
+
+    // Not in cache, fetch from backend
     setLoading(true);
     setError(null);
 
@@ -119,17 +148,23 @@ export function EmailReader({
       uid: emailSummary.uid,
     })
       .then((data) => {
-        setEmailFull(data);
-        // Mark as read when opening
+        // Mark as read optimistically - update UI immediately
         if (data.unread) {
-          invoke("mark_email_read", {
+          const updated = { ...data, unread: false };
+          setEmailFull(updated);
+          cache.set(account, mailbox, updated);
+          onEmailReadChange(emailSummary.uid, false);
+
+          // Queue IMAP update in background - returns immediately
+          invoke("mark_email_read_async", {
             account,
             mailbox,
             uid: emailSummary.uid,
             unread: false,
-          })
-            .then(() => onEmailReadChange(emailSummary.uid, false))
-            .catch(console.error);
+          }).catch(console.error);
+        } else {
+          setEmailFull(data);
+          cache.set(account, mailbox, data);
         }
       })
       .catch((err) => {
@@ -148,6 +183,7 @@ export function EmailReader({
         mailbox,
         uid: emailSummary.uid,
       });
+      cache.invalidate(account, mailbox, emailSummary.uid);
       onEmailDeleted(emailSummary.uid);
     } catch (err) {
       console.error("Failed to delete:", err);
@@ -157,21 +193,23 @@ export function EmailReader({
     }
   };
 
-  const toggleReadStatus = async () => {
+  const toggleReadStatus = () => {
     if (!emailFull) return;
     const newUnread = !emailFull.unread;
-    try {
-      const updated = await invoke<EmailFull>("mark_email_read", {
-        account,
-        mailbox,
-        uid: emailFull.uid,
-        unread: newUnread,
-      });
-      setEmailFull(updated);
-      onEmailReadChange(emailFull.uid, newUnread);
-    } catch (err) {
-      console.error("Failed to update read status:", err);
-    }
+    const updated = { ...emailFull, unread: newUnread };
+
+    // Optimistic update
+    setEmailFull(updated);
+    cache.set(account, mailbox, updated);
+    onEmailReadChange(emailFull.uid, newUnread);
+
+    // Queue IMAP update in background - returns immediately
+    invoke("mark_email_read_async", {
+      account,
+      mailbox,
+      uid: emailFull.uid,
+      unread: newUnread,
+    }).catch(console.error);
   };
 
   // Empty state
@@ -185,43 +223,18 @@ export function EmailReader({
     );
   }
 
-  // Loading state
-  if (loading) {
-    return (
-      <div className="flex flex-1 flex-col bg-background">
-        <div className="flex h-14 items-center justify-between border-b px-4">
-          <div className="flex items-center gap-1">
-            <Skeleton className="h-8 w-8" />
-            <Skeleton className="h-8 w-8" />
-            <Skeleton className="h-8 w-8" />
-          </div>
-        </div>
-        <div className="flex-1 p-8">
-          <Skeleton className="mb-4 h-8 w-3/4" />
-          <Skeleton className="mb-2 h-4 w-1/2" />
-          <Skeleton className="mb-6 h-4 w-1/3" />
-          <div className="space-y-2">
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-2/3" />
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Error state
-  if (error) {
-    return (
-      <div className="flex flex-1 flex-col items-center justify-center bg-background text-destructive">
-        <AlertCircle className="mb-4 h-12 w-12" />
-        <p className="text-lg font-medium">Failed to load email</p>
-        <p className="text-sm">{error}</p>
-      </div>
-    );
-  }
-
-  if (!emailFull) return null;
+  // Use emailFull if available, otherwise use emailSummary for immediate display
+  const displayEmail = emailFull || {
+    ...emailSummary,
+    message_id: "",
+    internal_date: "",
+    reply_to: "",
+    to: "",
+    cc: "",
+    body_html: "",
+    attachments: [],
+  };
+  const isUnread = emailFull?.unread ?? emailSummary.unread;
 
   return (
     <div className="flex flex-1 flex-col bg-background">
@@ -259,8 +272,8 @@ export function EmailReader({
 
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" onClick={toggleReadStatus}>
-                {emailFull.unread ? (
+              <Button variant="ghost" size="icon" onClick={toggleReadStatus} disabled={!emailFull}>
+                {isUnread ? (
                   <MailOpen className="h-4 w-4" />
                 ) : (
                   <Mail className="h-4 w-4" />
@@ -268,7 +281,7 @@ export function EmailReader({
               </Button>
             </TooltipTrigger>
             <TooltipContent>
-              {emailFull.unread ? "Mark as read" : "Mark as unread"}
+              {isUnread ? "Mark as read" : "Mark as unread"}
             </TooltipContent>
           </Tooltip>
 
@@ -342,7 +355,7 @@ export function EmailReader({
         <div className="mx-auto max-w-4xl p-8">
           {/* Subject */}
           <h1 className="text-2xl font-bold leading-tight">
-            {emailFull.subject || "(No subject)"}
+            {displayEmail.subject || "(No subject)"}
           </h1>
 
           {/* Sender info */}
@@ -350,43 +363,45 @@ export function EmailReader({
             <div className="flex items-center gap-3">
               <Avatar className="h-10 w-10">
                 <AvatarFallback className="bg-primary text-primary-foreground">
-                  {getInitials(emailFull.from)}
+                  {getInitials(displayEmail.from)}
                 </AvatarFallback>
               </Avatar>
               <div className="flex flex-col">
-                <span className="font-semibold">{emailFull.from}</span>
-                <span className="text-xs text-muted-foreground">
-                  to {emailFull.to}
-                  {emailFull.cc && `, cc: ${emailFull.cc}`}
-                </span>
+                <span className="font-semibold">{displayEmail.from}</span>
+                {displayEmail.to && (
+                  <span className="text-xs text-muted-foreground">
+                    to {displayEmail.to}
+                    {displayEmail.cc && `, cc: ${displayEmail.cc}`}
+                  </span>
+                )}
               </div>
             </div>
             <span className="text-sm text-muted-foreground">
-              {new Date(emailFull.date).toLocaleString()}
+              {new Date(displayEmail.date).toLocaleString()}
             </span>
           </div>
 
           <Separator className="my-6" />
 
           {/* Attachments */}
-          {emailFull.attachments && emailFull.attachments.length > 0 && (
+          {displayEmail.attachments && displayEmail.attachments.length > 0 && (
             <div className="mb-6">
               <div className="mb-3 flex items-center gap-2">
                 <Paperclip className="h-4 w-4 text-muted-foreground" />
                 <span className="text-sm font-medium">
-                  {emailFull.attachments.length} attachment
-                  {emailFull.attachments.length > 1 ? "s" : ""}
+                  {displayEmail.attachments.length} attachment
+                  {displayEmail.attachments.length > 1 ? "s" : ""}
                 </span>
               </div>
               <div className="flex flex-wrap gap-2">
-                {emailFull.attachments.map((attachment, index) => (
+                {displayEmail.attachments.map((attachment, index) => (
                   <div
                     key={index}
                     className="group flex items-center gap-2 rounded-lg border bg-muted/50 px-3 py-2"
                   >
                     <Paperclip className="h-4 w-4 text-muted-foreground" />
                     <div className="flex flex-col">
-                      <span className="max-w-[200px] truncate text-sm font-medium">
+                      <span className="max-w-50 truncate text-sm font-medium">
                         {attachment.filename}
                       </span>
                       <span className="text-xs text-muted-foreground">
@@ -409,10 +424,20 @@ export function EmailReader({
 
           {/* Body */}
           <div className="text-sm leading-relaxed">
-            {emailFull.body_html ? (
+            {loading ? (
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Loading...</span>
+              </div>
+            ) : error ? (
+              <div className="flex items-center gap-2 text-destructive">
+                <AlertCircle className="h-4 w-4" />
+                <span>{error}</span>
+              </div>
+            ) : displayEmail.body_html ? (
               <IsolatedHtml
-                html={emailFull.body_html}
-                className="min-h-[100px]"
+                html={displayEmail.body_html}
+                className="min-h-25"
               />
             ) : (
               <p className="italic text-muted-foreground">

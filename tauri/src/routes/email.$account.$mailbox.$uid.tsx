@@ -319,7 +319,7 @@ function EmailDetail() {
                     >
                       <Paperclip className="h-4 w-4 text-muted-foreground" />
                       <div className="flex flex-col">
-                        <span className="text-sm font-medium truncate max-w-[200px]">
+                        <span className="text-sm font-medium truncate max-w-50">
                           {attachment.filename}
                         </span>
                         <span className="text-xs text-muted-foreground">

@@ -618,23 +618,7 @@ func (s *Server) searchEmails(account, mailbox, query string) Response {
 	return Response{Type: RespEmails, Emails: cached}
 }
 
-// versionsCompatible checks if client and server versions are compatible.
-// Requires exact version match (ignoring -dirty suffix for dev builds).
+// versionsCompatible checks if client and server versions match
 func versionsCompatible(serverVer, clientVer string) bool {
-	return normalizeVersion(serverVer) == normalizeVersion(clientVer)
-}
-
-// normalizeVersion strips 'v' prefix and '-dirty' suffix for comparison
-func normalizeVersion(ver string) string {
-	// Strip 'v' prefix
-	if len(ver) > 0 && ver[0] == 'v' {
-		ver = ver[1:]
-	}
-	// Strip -dirty suffix (dev builds)
-	for i, c := range ver {
-		if c == '-' {
-			return ver[:i]
-		}
-	}
-	return ver
+	return serverVer == clientVer
 }

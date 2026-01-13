@@ -18,17 +18,9 @@ var (
 	imgRegex     = regexp.MustCompile(`(?is)<img[^>]*>`)
 	multiNewline = regexp.MustCompile(`\n{3,}`)
 	// Clean up markdown artifacts: image links, tracking pixels, link references
-	imgLinkRegex  = regexp.MustCompile(`!\[[^\]]*\]\([^)]*\)`)
-	linkRefRegex  = regexp.MustCompile(`(?m)^\[\d+\]:\s*https?://[^\s]*\.(png|jpg|jpeg|gif|webp|svg)[^\s]*$`)
-	emptyLinkRef  = regexp.MustCompile(`(?m)^\[\d+\]:\s*https?://[^\s]*(imgping|tracking|pixel)[^\s]*$`)
-
-	// Reusable converter (no table plugin - emails use tables for layout)
-	mdConverter = converter.NewConverter(
-		converter.WithPlugins(
-			base.NewBasePlugin(),
-			commonmark.NewCommonmarkPlugin(),
-		),
-	)
+	imgLinkRegex = regexp.MustCompile(`!\[[^\]]*\]\([^)]*\)`)
+	linkRefRegex = regexp.MustCompile(`(?m)^\[\d+\]:\s*https?://[^\s]*\.(png|jpg|jpeg|gif|webp|svg)[^\s]*$`)
+	emptyLinkRef = regexp.MustCompile(`(?m)^\[\d+\]:\s*https?://[^\s]*(imgping|tracking|pixel)[^\s]*$`)
 )
 
 // RenderHTMLBody converts HTML email body to terminal-friendly output
@@ -43,8 +35,14 @@ func RenderHTMLBody(htmlBody string, width int) string {
 	cleaned = headRegex.ReplaceAllString(cleaned, "")
 	cleaned = imgRegex.ReplaceAllString(cleaned, "") // Images don't display in terminal
 
-	// Convert HTML to Markdown
-	markdown, err := mdConverter.ConvertString(cleaned)
+	// Convert HTML to Markdown (fresh converter each time to avoid state issues)
+	conv := converter.NewConverter(
+		converter.WithPlugins(
+			base.NewBasePlugin(),
+			commonmark.NewCommonmarkPlugin(),
+		),
+	)
+	markdown, err := conv.ConvertString(cleaned)
 	if err != nil {
 		return stripHTMLTags(cleaned)
 	}

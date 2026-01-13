@@ -180,17 +180,17 @@ func (m *CalendarApp) renderNLPConfirm() string {
 
 	// Event details box
 	b.WriteString("  ┌────────────────────────────────────────────────┐\n")
-	b.WriteString(fmt.Sprintf("  │  Title:    %-35s│\n", utils.TruncateStr(m.nlpParsed.Title, 35)))
-	b.WriteString(fmt.Sprintf("  │  Date:     %-35s│\n", m.nlpStartTime.Format("Monday, Jan 2, 2006")))
-	b.WriteString(fmt.Sprintf("  │  Time:     %-35s│\n", fmt.Sprintf("%s - %s", m.nlpStartTime.Format("3:04 PM"), m.nlpEndTime.Format("3:04 PM"))))
+	b.WriteString("  │  Title:    " + utils.PadRight(utils.TruncateStr(m.nlpParsed.Title, 35), 35) + "│\n")
+	b.WriteString("  │  Date:     " + utils.PadRight(m.nlpStartTime.Format("Monday, Jan 2, 2006"), 35) + "│\n")
+	b.WriteString("  │  Time:     " + utils.PadRight(fmt.Sprintf("%s - %s", m.nlpStartTime.Format("3:04 PM"), m.nlpEndTime.Format("3:04 PM")), 35) + "│\n")
 	if m.nlpParsed.Location != "" {
-		b.WriteString(fmt.Sprintf("  │  Location: %-35s│\n", utils.TruncateStr(m.nlpParsed.Location, 35)))
+		b.WriteString("  │  Location: " + utils.PadRight(utils.TruncateStr(m.nlpParsed.Location, 35), 35) + "│\n")
 	}
 	calName := "Default"
 	if len(m.calendars) > 0 && m.nlpCalendarIdx < len(m.calendars) {
 		calName = m.calendars[m.nlpCalendarIdx].Title
 	}
-	b.WriteString(fmt.Sprintf("  │  Calendar: %-35s│\n", utils.TruncateStr(calName, 35)))
+	b.WriteString("  │  Calendar: " + utils.PadRight(utils.TruncateStr(calName, 35), 35) + "│\n")
 	reminderStr := "None"
 	if mins := m.getNLPReminderMinutes(); mins > 0 {
 		if mins == 60 {
@@ -199,7 +199,7 @@ func (m *CalendarApp) renderNLPConfirm() string {
 			reminderStr = fmt.Sprintf("%d minutes before", mins)
 		}
 	}
-	b.WriteString(fmt.Sprintf("  │  Reminder: %-35s│\n", reminderStr))
+	b.WriteString("  │  Reminder: " + utils.PadRight(reminderStr, 35) + "│\n")
 	b.WriteString("  └────────────────────────────────────────────────┘\n")
 
 	b.WriteString("\n")
@@ -212,11 +212,11 @@ func (m *CalendarApp) renderNLPEventBox() string {
 	var b strings.Builder
 
 	b.WriteString("  ┌─ Parsed Event ─────────────────────────────────┐\n")
-	b.WriteString(fmt.Sprintf("  │  Title:    %-37s│\n", utils.TruncateStr(m.nlpParsed.Title, 37)))
-	b.WriteString(fmt.Sprintf("  │  Date:     %-37s│\n", m.nlpStartTime.Format("Monday, Jan 2, 2006")))
-	b.WriteString(fmt.Sprintf("  │  Time:     %-37s│\n", fmt.Sprintf("%s - %s", m.nlpStartTime.Format("3:04 PM"), m.nlpEndTime.Format("3:04 PM"))))
+	b.WriteString("  │  Title:    " + utils.PadRight(utils.TruncateStr(m.nlpParsed.Title, 37), 37) + "│\n")
+	b.WriteString("  │  Date:     " + utils.PadRight(m.nlpStartTime.Format("Monday, Jan 2, 2006"), 37) + "│\n")
+	b.WriteString("  │  Time:     " + utils.PadRight(fmt.Sprintf("%s - %s", m.nlpStartTime.Format("3:04 PM"), m.nlpEndTime.Format("3:04 PM")), 37) + "│\n")
 	if m.nlpParsed.Location != "" {
-		b.WriteString(fmt.Sprintf("  │  Location: %-37s│\n", utils.TruncateStr(m.nlpParsed.Location, 37)))
+		b.WriteString("  │  Location: " + utils.PadRight(utils.TruncateStr(m.nlpParsed.Location, 37), 37) + "│\n")
 	}
 	b.WriteString("  └────────────────────────────────────────────────┘")
 
@@ -261,7 +261,7 @@ func (m *CalendarApp) renderFormDateTime() string {
 
 	// Show title
 	b.WriteString("  ┌─ Event ──────────────────────────────────────────┐\n")
-	b.WriteString(fmt.Sprintf("  │  Title: %-41s│\n", utils.TruncateStr(m.formTitleInput.Value(), 41)))
+	b.WriteString("  │  Title: " + utils.PadRight(utils.TruncateStr(m.formTitleInput.Value(), 41), 41) + "│\n")
 	b.WriteString("  └────────────────────────────────────────────────────┘\n\n")
 
 	b.WriteString("  When is it?\n\n")
@@ -405,17 +405,17 @@ func (m *CalendarApp) renderFormConfirm() string {
 
 	// Event details box
 	b.WriteString("  ┌────────────────────────────────────────────────┐\n")
-	b.WriteString(fmt.Sprintf("  │  Title:    %-35s│\n", utils.TruncateStr(m.formTitleInput.Value(), 35)))
-	b.WriteString(fmt.Sprintf("  │  Date:     %-35s│\n", startTime.Format("Monday, Jan 2, 2006")))
-	b.WriteString(fmt.Sprintf("  │  Time:     %-35s│\n", fmt.Sprintf("%s - %s", startTime.Format("3:04 PM"), endTime.Format("3:04 PM"))))
+	b.WriteString("  │  Title:    " + utils.PadRight(utils.TruncateStr(m.formTitleInput.Value(), 35), 35) + "│\n")
+	b.WriteString("  │  Date:     " + utils.PadRight(startTime.Format("Monday, Jan 2, 2006"), 35) + "│\n")
+	b.WriteString("  │  Time:     " + utils.PadRight(fmt.Sprintf("%s - %s", startTime.Format("3:04 PM"), endTime.Format("3:04 PM")), 35) + "│\n")
 	if m.formLocationInput.Value() != "" {
-		b.WriteString(fmt.Sprintf("  │  Location: %-35s│\n", utils.TruncateStr(m.formLocationInput.Value(), 35)))
+		b.WriteString("  │  Location: " + utils.PadRight(utils.TruncateStr(m.formLocationInput.Value(), 35), 35) + "│\n")
 	}
 	calName := "Default"
 	if len(m.calendars) > 0 && m.formCalendarIdx < len(m.calendars) {
 		calName = m.calendars[m.formCalendarIdx].Title
 	}
-	b.WriteString(fmt.Sprintf("  │  Calendar: %-35s│\n", utils.TruncateStr(calName, 35)))
+	b.WriteString("  │  Calendar: " + utils.PadRight(utils.TruncateStr(calName, 35), 35) + "│\n")
 	reminderStr := "None"
 	if mins := m.getFormReminderMinutes(); mins > 0 {
 		if mins == 60 {
@@ -424,7 +424,7 @@ func (m *CalendarApp) renderFormConfirm() string {
 			reminderStr = fmt.Sprintf("%d minutes before", mins)
 		}
 	}
-	b.WriteString(fmt.Sprintf("  │  Reminder: %-35s│\n", reminderStr))
+	b.WriteString("  │  Reminder: " + utils.PadRight(reminderStr, 35) + "│\n")
 	b.WriteString("  └────────────────────────────────────────────────┘\n")
 
 	b.WriteString("\n")
@@ -440,11 +440,11 @@ func (m *CalendarApp) renderFormEventBox() string {
 	endTime := m.getFormEndTime()
 
 	b.WriteString("  ┌─ Event ──────────────────────────────────────────┐\n")
-	b.WriteString(fmt.Sprintf("  │  Title:    %-39s│\n", utils.TruncateStr(m.formTitleInput.Value(), 39)))
-	b.WriteString(fmt.Sprintf("  │  Date:     %-39s│\n", startTime.Format("Monday, Jan 2, 2006")))
-	b.WriteString(fmt.Sprintf("  │  Time:     %-39s│\n", fmt.Sprintf("%s - %s", startTime.Format("3:04 PM"), endTime.Format("3:04 PM"))))
+	b.WriteString("  │  Title:    " + utils.PadRight(utils.TruncateStr(m.formTitleInput.Value(), 39), 39) + "│\n")
+	b.WriteString("  │  Date:     " + utils.PadRight(startTime.Format("Monday, Jan 2, 2006"), 39) + "│\n")
+	b.WriteString("  │  Time:     " + utils.PadRight(fmt.Sprintf("%s - %s", startTime.Format("3:04 PM"), endTime.Format("3:04 PM")), 39) + "│\n")
 	if m.formLocationInput.Value() != "" {
-		b.WriteString(fmt.Sprintf("  │  Location: %-39s│\n", utils.TruncateStr(m.formLocationInput.Value(), 39)))
+		b.WriteString("  │  Location: " + utils.PadRight(utils.TruncateStr(m.formLocationInput.Value(), 39), 39) + "│\n")
 	}
 	b.WriteString("  └────────────────────────────────────────────────────┘")
 

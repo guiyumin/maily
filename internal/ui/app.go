@@ -650,14 +650,15 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if a.view == listView && a.state == stateReady {
 				if email := a.mailList.SelectedEmail(); email != nil {
 					a.view = readView
-					// Adjust viewport height for email header (From/To/Subject/Date/separator = ~6 lines)
+					// Create fresh viewport for each email to avoid state issues
 					emailHeaderHeight := 6
 					if len(email.Attachments) > 0 {
 						emailHeaderHeight = 7
 					}
-					a.viewport.Height = a.height - 10 - emailHeaderHeight
+					vpHeight := max(5, a.height-10-emailHeaderHeight)
+					a.viewport = viewport.New(a.width-8, vpHeight)
+					a.viewport.Style = lipgloss.NewStyle().Padding(1, 4, 3, 4)
 					a.viewport.SetContent(a.renderEmailContent(*email))
-					a.viewport.GotoTop()
 
 					if email.Unread {
 						uid := email.UID
@@ -1432,11 +1433,14 @@ func (a App) View() string {
 		SelectionCount: a.selectedCount(),
 	}
 
+	header := components.RenderHeader(headerData)
+	status := components.RenderStatusBar(statusData)
+
 	return lipgloss.JoinVertical(
 		lipgloss.Left,
-		components.RenderHeader(headerData),
+		header,
 		content,
-		components.RenderStatusBar(statusData),
+		status,
 	)
 }
 

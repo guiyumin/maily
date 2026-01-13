@@ -44,3 +44,12 @@ func FormatEmailDate(t time.Time) string {
 	}
 	return t.Format("02/01/06")
 }
+
+// PadRight pads a string to targetWidth using visual width (handles double-width chars)
+func PadRight(s string, targetWidth int) string {
+	currentWidth := lipgloss.Width(s)
+	if currentWidth >= targetWidth {
+		return s
+	}
+	return s + strings.Repeat(" ", targetWidth-currentWidth)
+}

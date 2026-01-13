@@ -71,6 +71,15 @@ export function Home() {
     setSelectedEmail((prev) => (prev?.uid === uid ? null : prev));
   }, []);
 
+  const handleEmailReadChange = useCallback((uid: number, unread: boolean) => {
+    setEmails((prev) =>
+      prev.map((e) => (e.uid === uid ? { ...e, unread } : e))
+    );
+    setSelectedEmail((prev) =>
+      prev?.uid === uid ? { ...prev, unread } : prev
+    );
+  }, []);
+
   const handleNavigate = useCallback(
     (direction: "prev" | "next") => {
       if (!selectedEmail) return;
@@ -162,6 +171,7 @@ export function Home() {
           account={selectedAccount}
           mailbox={selectedMailbox}
           onEmailDeleted={handleEmailDeleted}
+          onEmailReadChange={handleEmailReadChange}
           onNavigate={handleNavigate}
           canNavigatePrev={canNavigatePrev}
           canNavigateNext={canNavigateNext}

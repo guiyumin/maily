@@ -66,6 +66,7 @@ interface EmailReaderProps {
   account: string;
   mailbox: string;
   onEmailDeleted: (uid: number) => void;
+  onEmailReadChange: (uid: number, unread: boolean) => void;
   onNavigate: (direction: "prev" | "next") => void;
   canNavigatePrev: boolean;
   canNavigateNext: boolean;
@@ -92,6 +93,7 @@ export function EmailReader({
   account,
   mailbox,
   onEmailDeleted,
+  onEmailReadChange,
   onNavigate,
   canNavigatePrev,
   canNavigateNext,
@@ -125,7 +127,9 @@ export function EmailReader({
             mailbox,
             uid: emailSummary.uid,
             unread: false,
-          }).catch(console.error);
+          })
+            .then(() => onEmailReadChange(emailSummary.uid, false))
+            .catch(console.error);
         }
       })
       .catch((err) => {
@@ -155,14 +159,16 @@ export function EmailReader({
 
   const toggleReadStatus = async () => {
     if (!emailFull) return;
+    const newUnread = !emailFull.unread;
     try {
       const updated = await invoke<EmailFull>("mark_email_read", {
         account,
         mailbox,
         uid: emailFull.uid,
-        unread: !emailFull.unread,
+        unread: newUnread,
       });
       setEmailFull(updated);
+      onEmailReadChange(emailFull.uid, newUnread);
     } catch (err) {
       console.error("Failed to update read status:", err);
     }

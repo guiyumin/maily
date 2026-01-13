@@ -149,9 +149,12 @@ function Settings() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="sticky top-0 z-10 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <header className="sticky top-0 z-10 border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60">
         <div className="flex h-14 items-center gap-4 px-6">
-          <Link to="/" className="flex items-center gap-2 text-muted-foreground hover:text-foreground">
+          <Link
+            to="/"
+            className="flex items-center gap-2 text-muted-foreground hover:text-foreground"
+          >
             <ArrowLeft className="h-4 w-4" />
             <span>Back</span>
           </Link>
@@ -159,7 +162,9 @@ function Settings() {
           <h1 className="text-lg font-semibold">Settings</h1>
           <div className="ml-auto flex items-center gap-2">
             {dirty && (
-              <span className="text-sm text-muted-foreground">Unsaved changes</span>
+              <span className="text-sm text-muted-foreground">
+                Unsaved changes
+              </span>
             )}
             <Button onClick={saveConfig} disabled={!dirty || saving}>
               {saving ? "Saving..." : "Save"}
@@ -197,7 +202,9 @@ function Settings() {
               <Input
                 id="default_label"
                 value={config.default_label}
-                onChange={(e) => updateConfig({ default_label: e.target.value })}
+                onChange={(e) =>
+                  updateConfig({ default_label: e.target.value })
+                }
               />
               <p className="text-sm text-muted-foreground">
                 Default mailbox to open on startup
@@ -233,7 +240,9 @@ function Settings() {
                   <SelectValue placeholder="Select language" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="auto">Auto (detect from system)</SelectItem>
+                  <SelectItem value="auto">
+                    Auto (detect from system)
+                  </SelectItem>
                   <SelectItem value="en">English</SelectItem>
                   <SelectItem value="ko">한국어</SelectItem>
                   <SelectItem value="ja">日本語</SelectItem>
@@ -285,7 +294,10 @@ function Settings() {
               </div>
             )}
 
-            <Dialog open={providerDialogOpen} onOpenChange={setProviderDialogOpen}>
+            <Dialog
+              open={providerDialogOpen}
+              onOpenChange={setProviderDialogOpen}
+            >
               <DialogTrigger asChild>
                 <Button variant="outline" className="w-full">
                   <Plus className="mr-2 h-4 w-4" />
@@ -314,8 +326,12 @@ function Settings() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="cli">CLI Tool (claude, codex, gemini...)</SelectItem>
-                        <SelectItem value="api">API (OpenAI-compatible)</SelectItem>
+                        <SelectItem value="cli">
+                          CLI Tool (claude, codex, gemini...)
+                        </SelectItem>
+                        <SelectItem value="api">
+                          API (OpenAI-compatible)
+                        </SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -324,7 +340,11 @@ function Settings() {
                     <Label htmlFor="provider_name">Name</Label>
                     <Input
                       id="provider_name"
-                      placeholder={providerType === "cli" ? "claude, codex, gemini..." : "openai, groq..."}
+                      placeholder={
+                        providerType === "cli"
+                          ? "claude, codex, gemini..."
+                          : "openai, groq..."
+                      }
                       value={providerName}
                       onChange={(e) => setProviderName(e.target.value)}
                     />
@@ -334,7 +354,11 @@ function Settings() {
                     <Label htmlFor="provider_model">Model</Label>
                     <Input
                       id="provider_model"
-                      placeholder={providerType === "cli" ? "haiku, o4-mini, flash..." : "gpt-4o-mini, llama-3.1-8b..."}
+                      placeholder={
+                        providerType === "cli"
+                          ? "haiku, o4-mini, flash..."
+                          : "gpt-4o-mini, llama-3.1-8b..."
+                      }
                       value={providerModel}
                       onChange={(e) => setProviderModel(e.target.value)}
                     />
@@ -367,10 +391,16 @@ function Settings() {
                 </div>
 
                 <DialogFooter>
-                  <Button variant="outline" onClick={() => setProviderDialogOpen(false)}>
+                  <Button
+                    variant="outline"
+                    onClick={() => setProviderDialogOpen(false)}
+                  >
                     Cancel
                   </Button>
-                  <Button onClick={addProvider} disabled={!providerName || !providerModel}>
+                  <Button
+                    onClick={addProvider}
+                    disabled={!providerName || !providerModel}
+                  >
                     Add Provider
                   </Button>
                 </DialogFooter>
@@ -383,14 +413,14 @@ function Settings() {
         <Card>
           <CardHeader>
             <CardTitle>Accounts</CardTitle>
-            <CardDescription>
-              Manage your email accounts
-            </CardDescription>
+            <CardDescription>Manage your email accounts</CardDescription>
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground">
               Account management coming soon. For now, use the CLI:{" "}
-              <code className="rounded bg-muted px-1 py-0.5">maily login gmail</code>
+              <code className="rounded bg-muted px-1 py-0.5">
+                maily login gmail
+              </code>
             </p>
           </CardContent>
         </Card>

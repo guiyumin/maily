@@ -809,14 +809,19 @@ func (m *TodayApp) renderEmailView() string {
 }
 
 func (m *TodayApp) renderEmailContent(email mail.Email) string {
-	body := email.Body
+	body := email.BodyHTML
 	if body == "" {
 		body = email.Snippet
 	}
 	if body == "" {
-		body = "(no content)"
+		return "(no content)"
 	}
-	return body
+	// Render HTML with glamour
+	width := m.viewport.Width - 4
+	if width < 40 {
+		width = 40
+	}
+	return components.RenderHTMLBody(body, width)
 }
 
 // Helper functions for delete/edit

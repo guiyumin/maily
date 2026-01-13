@@ -192,9 +192,15 @@ function Index() {
           ) : (
             <div className="divide-y">
               {emails.map((email) => (
-                <div
+                <Link
                   key={email.uid}
-                  className={`cursor-pointer px-6 py-4 transition-colors hover:bg-accent/50 ${
+                  to="/email/$account/$mailbox/$uid"
+                  params={{
+                    account: selectedAccount,
+                    mailbox: "INBOX",
+                    uid: String(email.uid),
+                  }}
+                  className={`block px-6 py-4 transition-colors hover:bg-accent/50 ${
                     email.unread ? "bg-accent/20" : ""
                   }`}
                 >
@@ -227,7 +233,7 @@ function Index() {
                       {formatDate(email.date)}
                     </time>
                   </div>
-                </div>
+                </Link>
               ))}
             </div>
           )}

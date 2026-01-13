@@ -210,7 +210,7 @@ func buildQuotedBody(email *mail.Email) string {
 	sb.WriteString(fmt.Sprintf("On %s, %s wrote:\n", dateStr, sanitizedFrom))
 
 	// Quote body with > prefix
-	body := email.Body
+	body := email.BodyHTML
 	if body == "" {
 		body = email.Snippet
 	}

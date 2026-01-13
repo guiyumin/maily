@@ -36,7 +36,7 @@ type CachedEmail struct {
 	Subject      string       `json:"subject"`
 	Date         time.Time    `json:"date"`
 	Snippet      string       `json:"snippet"`
-	Body         string       `json:"body"`
+	BodyHTML     string       `json:"body_html"`
 	Unread       bool         `json:"unread"`
 	References   string       `json:"references,omitempty"`
 	Attachments  []Attachment `json:"attachments,omitempty"`

@@ -1430,7 +1430,7 @@ func (a App) View() string {
 }
 
 func (a App) renderEmailContent(email mail.Email) string {
-	body := email.Body
+	body := email.BodyHTML
 	if body == "" {
 		body = email.Snippet
 	}
@@ -1441,12 +1441,14 @@ func (a App) renderEmailContent(email mail.Email) string {
 		wrapWidth = 40
 	}
 
+	// Render HTML body with glamour
+	rendered := components.RenderHTMLBody(body, wrapWidth)
+
 	contentStyle := lipgloss.NewStyle().
-		Width(wrapWidth).
 		PaddingLeft(4).
 		PaddingRight(4)
 
-	return contentStyle.Render(body)
+	return contentStyle.Render(rendered)
 }
 
 func (a App) selectedCount() int {

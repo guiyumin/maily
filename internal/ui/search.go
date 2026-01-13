@@ -535,11 +535,19 @@ func (a SearchApp) handleReadViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func (a SearchApp) renderEmailContent(email mail.Email) string {
-	body := email.Body
+	body := email.BodyHTML
 	if body == "" {
 		body = email.Snippet
 	}
-	return body
+	if body == "" {
+		return ""
+	}
+	// Render HTML with glamour
+	width := a.viewport.Width - 4
+	if width < 40 {
+		width = 40
+	}
+	return components.RenderHTMLBody(body, width)
 }
 
 func (a SearchApp) handleConfirmKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {

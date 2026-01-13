@@ -27,6 +27,16 @@ struct AccountsFile {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Attachment {
+    pub part_id: String,
+    pub filename: String,
+    pub content_type: String,
+    pub size: i64,
+    #[serde(default)]
+    pub encoding: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Email {
     pub uid: u32,
     pub message_id: String,
@@ -35,14 +45,18 @@ pub struct Email {
     #[serde(default)]
     pub reply_to: String,
     pub to: String,
+    #[serde(default)]
+    pub cc: String,
     pub subject: String,
     pub date: String,
     #[serde(default)]
     pub snippet: String,
     #[serde(default)]
-    pub body: String,
+    pub body_html: String,
     #[serde(default)]
     pub unread: bool,
+    #[serde(default)]
+    pub attachments: Vec<Attachment>,
 }
 
 fn config_dir() -> PathBuf {
@@ -84,4 +98,54 @@ pub fn get_emails(account: &str, mailbox: &str) -> Result<Vec<Email>, Box<dyn st
     emails.sort_by(|a, b| b.uid.cmp(&a.uid));
 
     Ok(emails)
+}
+
+pub fn get_email(account: &str, mailbox: &str, uid: u32) -> Result<Email, Box<dyn std::error::Error>> {
+    let cache_path = config_dir()
+        .join("cache")
+        .join(account)
+        .join(mailbox)
+        .join(format!("{}.json", uid));
+
+    if !cache_path.exists() {
+        return Err(format!("Email {} not found in cache", uid).into());
+    }
+
+    let contents = fs::read_to_string(&cache_path)?;
+    let email: Email = serde_json::from_str(&contents)?;
+    Ok(email)
+}
+
+pub fn delete_email_from_cache(account: &str, mailbox: &str, uid: u32) -> Result<(), Box<dyn std::error::Error>> {
+    let cache_path = config_dir()
+        .join("cache")
+        .join(account)
+        .join(mailbox)
+        .join(format!("{}.json", uid));
+
+    if cache_path.exists() {
+        fs::remove_file(&cache_path)?;
+    }
+    Ok(())
+}
+
+pub fn update_email_read_status(account: &str, mailbox: &str, uid: u32, unread: bool) -> Result<Email, Box<dyn std::error::Error>> {
+    let cache_path = config_dir()
+        .join("cache")
+        .join(account)
+        .join(mailbox)
+        .join(format!("{}.json", uid));
+
+    if !cache_path.exists() {
+        return Err(format!("Email {} not found in cache", uid).into());
+    }
+
+    let contents = fs::read_to_string(&cache_path)?;
+    let mut email: Email = serde_json::from_str(&contents)?;
+    email.unread = unread;
+
+    let updated = serde_json::to_string_pretty(&email)?;
+    fs::write(&cache_path, updated)?;
+
+    Ok(email)
 }

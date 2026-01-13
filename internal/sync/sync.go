@@ -233,7 +233,7 @@ func emailToCached(e mail.Email) cache.CachedEmail {
 		Subject:      e.Subject,
 		Date:         e.Date,
 		Snippet:      e.Snippet,
-		Body:         e.Body,
+		BodyHTML:     e.BodyHTML,
 		Unread:       e.Unread,
 		References:   e.References,
 		Attachments:  attachments,

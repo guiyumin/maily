@@ -353,7 +353,7 @@ func (a *App) saveDraft() tea.Cmd {
 
 func (a *App) summarizeEmail(email *mail.Email) tea.Cmd {
 	client := a.aiClient
-	body := email.Body
+	body := email.BodyHTML
 	if body == "" {
 		body = email.Snippet
 	}
@@ -375,7 +375,7 @@ func (a *App) parseManualEvent(input string, email *mail.Email) tea.Cmd {
 	// Include email context if available to resolve references like "them"
 	var prompt string
 	if email != nil {
-		body := email.Body
+		body := email.BodyHTML
 		if body == "" {
 			body = email.Snippet
 		}
@@ -419,7 +419,7 @@ func (a *App) parseManualEvent(input string, email *mail.Email) tea.Cmd {
 
 func (a *App) doExtractEvent(email *mail.Email) tea.Cmd {
 	client := a.aiClient
-	body := email.Body
+	body := email.BodyHTML
 	if body == "" {
 		body = email.Snippet
 	}
@@ -707,7 +707,7 @@ func cachedToGmail(c cache.CachedEmail) mail.Email {
 		Subject:      c.Subject,
 		Date:         c.Date,
 		Snippet:      c.Snippet,
-		Body:         c.Body,
+		BodyHTML:     c.BodyHTML,
 		Unread:       c.Unread,
 		References:   c.References,
 		Attachments:  attachments,

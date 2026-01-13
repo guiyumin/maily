@@ -40,7 +40,7 @@ type Email struct {
 	Subject      string
 	Date         time.Time
 	Snippet      string
-	Body         string
+	BodyHTML     string       // HTML body content
 	Unread       bool
 	References   string       // For threading
 	Attachments  []Attachment // Attachment metadata (content fetched on demand)
@@ -344,8 +344,8 @@ func (c *IMAPClient) parseMessage(msg *imapclient.FetchMessageBuffer) Email {
 	}
 
 	if len(msg.BodySection) > 0 {
-		body, snippet := c.parseBody(msg.BodySection[0].Bytes)
-		email.Body = body
+		bodyHTML, snippet := c.parseBody(msg.BodySection[0].Bytes)
+		email.BodyHTML = bodyHTML
 		email.Snippet = snippet
 	}
 
@@ -355,9 +355,10 @@ func (c *IMAPClient) parseMessage(msg *imapclient.FetchMessageBuffer) Email {
 func (c *IMAPClient) parseBody(body []byte) (string, string) {
 	mr, err := mail.CreateReader(strings.NewReader(string(body)))
 	if err != nil {
-		return string(body), truncateSnippet(string(body))
+		return string(body), truncateSnippet(stripHTML(string(body)))
 	}
 
+	var htmlBody string
 	var textBody string
 	for {
 		part, err := mr.NextPart()
@@ -371,21 +372,37 @@ func (c *IMAPClient) parseBody(body []byte) (string, string) {
 		switch h := part.Header.(type) {
 		case *mail.InlineHeader:
 			contentType, _, _ := h.ContentType()
-			if strings.HasPrefix(contentType, "text/plain") {
+			if strings.HasPrefix(contentType, "text/html") {
+				b, _ := io.ReadAll(part.Body)
+				htmlBody = string(b)
+			} else if strings.HasPrefix(contentType, "text/plain") {
 				b, _ := io.ReadAll(part.Body)
 				textBody = string(b)
-			} else if strings.HasPrefix(contentType, "text/html") && textBody == "" {
-				b, _ := io.ReadAll(part.Body)
-				textBody = stripHTML(string(b))
 			}
 		}
 	}
 
-	if textBody == "" {
-		textBody = string(body)
+	// Prefer HTML, fall back to plain text wrapped in <pre>
+	if htmlBody != "" {
+		snippet := truncateSnippet(stripHTML(htmlBody))
+		return htmlBody, snippet
+	}
+	if textBody != "" {
+		// Wrap plain text in pre tag for proper rendering
+		htmlBody = "<pre style=\"white-space: pre-wrap; font-family: inherit;\">" + escapeHTML(textBody) + "</pre>"
+		return htmlBody, truncateSnippet(textBody)
 	}
 
-	return textBody, truncateSnippet(textBody)
+	// Fallback to raw body
+	return string(body), truncateSnippet(stripHTML(string(body)))
+}
+
+func escapeHTML(s string) string {
+	s = strings.ReplaceAll(s, "&", "&amp;")
+	s = strings.ReplaceAll(s, "<", "&lt;")
+	s = strings.ReplaceAll(s, ">", "&gt;")
+	s = strings.ReplaceAll(s, "\"", "&quot;")
+	return s
 }
 
 func truncateSnippet(s string) string {
@@ -945,8 +962,8 @@ func (c *IMAPClient) SearchMessages(mailbox string, query string) ([]Email, erro
 		email := c.parseMessageHeader(msg)
 		// Parse body if available
 		if len(msg.BodySection) > 0 {
-			body, snippet := c.parseBody(msg.BodySection[0].Bytes)
-			email.Body = body
+			bodyHTML, snippet := c.parseBody(msg.BodySection[0].Bytes)
+			email.BodyHTML = bodyHTML
 			email.Snippet = snippet
 		}
 		emails = append(emails, email)

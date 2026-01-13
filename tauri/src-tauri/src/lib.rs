@@ -2,7 +2,10 @@ mod config;
 mod mail;
 
 use config::{get_config as load_config, save_config as store_config, AIProvider, Config};
-use mail::{get_accounts, get_emails, Account, Email};
+use mail::{
+    delete_email_from_cache, get_accounts, get_email as fetch_email, get_emails,
+    update_email_read_status, Account, Email,
+};
 
 #[tauri::command]
 fn list_accounts() -> Result<Vec<Account>, String> {
@@ -12,6 +15,21 @@ fn list_accounts() -> Result<Vec<Account>, String> {
 #[tauri::command]
 fn list_emails(account: String, mailbox: String) -> Result<Vec<Email>, String> {
     get_emails(&account, &mailbox).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn get_email(account: String, mailbox: String, uid: u32) -> Result<Email, String> {
+    fetch_email(&account, &mailbox, uid).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn delete_email(account: String, mailbox: String, uid: u32) -> Result<(), String> {
+    delete_email_from_cache(&account, &mailbox, uid).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn mark_email_read(account: String, mailbox: String, uid: u32, unread: bool) -> Result<Email, String> {
+    update_email_read_status(&account, &mailbox, uid, unread).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -49,6 +67,9 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             list_accounts,
             list_emails,
+            get_email,
+            delete_email,
+            mark_email_read,
             get_config,
             save_config,
             add_ai_provider,

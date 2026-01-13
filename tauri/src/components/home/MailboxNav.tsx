@@ -22,7 +22,7 @@ export function MailboxNav({
   unreadCount,
 }: MailboxNavProps) {
   return (
-    <nav className="flex w-55 shrink-0 flex-col border-r bg-background">
+    <nav className="flex w-50 shrink-0 flex-col border-r bg-background">
       <div className="flex h-14 items-center gap-2 px-4">
         <Mail className="h-5 w-5" />
         <span className="text-lg font-semibold tracking-tight">Mail</span>

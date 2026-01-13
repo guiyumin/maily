@@ -45,42 +45,58 @@ This allows independent development while maintaining data compatibility.
 2. **JSON cache (Rust)**: Parsed emails stored on disk. First view of an email reads from here.
 3. **IMAP server**: Source of truth. Sync fetches new emails and updates flags.
 
-### Background IMAP Queue
+### Per-Account IMAP Threads
 
-IMAP operations (mark read/unread) are queued for background processing:
+Each account gets its own dedicated background thread for all IMAP operations (sync, mark read/unread, etc.):
 
+```
+┌─────────────────────────────────────────────────────────────┐
+│                        Rust Backend                         │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  Account Queues: HashMap<AccountName, Sender<ImapOp>>       │
+│                                                             │
+│  "user@gmail.com"  ──► Thread 1 ──► IMAP (gmail)            │
+│                        [sync, mark-read, mark-read, ...]    │
+│                                                             │
+│  "work@yahoo.com"  ──► Thread 2 ──► IMAP (yahoo)            │
+│                        [sync, mark-read, ...]               │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Per-account isolation:**
+- Operations for same account are serialized (no race conditions)
+- Operations for different accounts run in parallel
+- One IMAP connection per account at a time
+
+**Example flow:**
 ```
 Frontend                          Rust Backend
    │                                   │
-   │  mark_email_read_async            │
+   │  start_sync("user@gmail.com")     │
    ├──────────────────────────────────►│
+   │  ◄─ returns immediately ──────────┤
    │                                   │
+   │  mark_read_async(same account)    │
+   ├──────────────────────────────────►│
    │  ◄─ returns immediately ──────────┤
    │                                   │
    │                          ┌────────┴────────┐
-   │                          │  Update local   │
-   │                          │  JSON cache     │
+   │                          │ Account thread  │
+   │                          │ processes queue │
+   │                          │ sequentially    │
    │                          └────────┬────────┘
    │                                   │
-   │                          ┌────────▼────────┐
-   │                          │  Queue IMAP op  │
-   │                          └────────┬────────┘
+   │  ◄─── sync-complete event ────────┤
    │                                   │
-   │                          ┌────────▼────────┐
-   │                          │ Background      │
-   │                          │ worker thread   │
-   │                          │ (100ms batch)   │
-   │                          └────────┬────────┘
-   │                                   │
-   │                          ┌────────▼────────┐
-   │                          │  IMAP server    │
-   │                          └─────────────────┘
 ```
 
 **Benefits:**
-- UI never waits for IMAP
+- UI never blocks on IMAP operations
+- Syncing Account A doesn't block Account B
 - Rapid toggles are deduplicated (only final state sent)
-- Operations batched for efficiency
+- No concurrent IMAP connections per account (prevents race conditions)
 
 ### Optimistic UI
 
@@ -94,18 +110,50 @@ All state changes update the UI immediately:
 ### Sync Flow
 
 ```bash
-# Manual sync (refresh button)
-Frontend → sync_emails command → IMAP fetch → Update cache → Return emails
+# Manual sync (refresh button) - non-blocking
+Frontend → start_sync command → Queue operation → Returns immediately
+                                     ↓
+                              Account thread processes
+                                     ↓
+                              IMAP fetch → Update cache
+                                     ↓
+                              Emit "sync-complete" event → Frontend updates UI
 
 # Background sync (every 5 min)
-Tokio task → Poll all accounts → Update cache → Emit event → Native notification
+Timer → Queue sync for each account → Threads process in parallel
+                                           ↓
+                                    Emit events → Native notification
 ```
 
-### Future: Tokio Migration
+### Sync Scope: Last 90 Days
 
-The current implementation uses std threads for the IMAP queue. For multi-account parallel sync, background polling, and notifications, we'll migrate to tokio async runtime.
+Sync only fetches emails from the last 90 days using IMAP `SINCE` search:
 
-See [tokio.md](tokio.md) for the full migration plan.
+```
+IMAP: UID SEARCH SINCE 15-Oct-2024
+      → Returns UIDs of emails from last 90 days only
+      → Compare with cache, download new ones
+```
+
+**Why 90 days:**
+- Covers most active email (recent conversations, pending items)
+- Fast sync (~hundreds of emails, not thousands)
+- Older emails rarely needed in daily workflow
+
+**Accessing older emails:**
+- Search can query server directly (not limited to cache)
+- Future: "Load more" button to fetch older batches on demand
+
+### Threading Model
+
+The current implementation uses std threads (one per account) for IMAP operations. This is sufficient for:
+- Per-account operation queues
+- Parallel sync across accounts
+- Non-blocking UI
+
+**Future consideration:** Tokio async runtime may be useful for background polling timers and WebSocket connections, but std threads work well for IMAP which is inherently synchronous.
+
+See [tokio.md](tokio.md) for async migration considerations.
 
 ## Core Features
 

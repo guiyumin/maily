@@ -1,5 +1,6 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AccountRail } from "./AccountRail";
 import { MailboxNav } from "./MailboxNav";
@@ -11,6 +12,30 @@ interface Account {
   provider: string;
 }
 
+interface ListEmailsResult {
+  emails: Email[];
+  total: number;
+  offset: number;
+  has_more: boolean;
+}
+
+interface SyncCompleteEvent {
+  account: string;
+  mailbox: string;
+  new_emails: number;
+  updated_emails: number;
+  total_emails: number;
+}
+
+interface SyncErrorEvent {
+  account: string;
+  mailbox: string;
+  error: string;
+}
+
+const INITIAL_LOAD = 50;
+const BATCH_SIZE = 50;
+
 export function Home() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [selectedAccount, setSelectedAccount] = useState<string>("");
@@ -19,6 +44,13 @@ export function Home() {
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  // Pagination state
+  const [total, setTotal] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const count14DaysRef = useRef(0);
+  const backgroundLoadingRef = useRef(false);
 
   // Load accounts on mount
   useEffect(() => {
@@ -39,43 +71,183 @@ export function Home() {
 
     setLoading(true);
     setSelectedEmail(null);
+    setEmails([]);
+    setTotal(0);
+    setHasMore(false);
+    backgroundLoadingRef.current = false;
 
-    invoke<Email[]>("list_emails", {
+    // 1. Load first 50 emails immediately
+    invoke<ListEmailsResult>("list_emails_page", {
       account: selectedAccount,
       mailbox: selectedMailbox,
+      offset: 0,
+      limit: INITIAL_LOAD,
     })
-      .then(setEmails)
-      .catch(console.error)
-      .finally(() => setLoading(false));
+      .then(async (result) => {
+        setEmails(result.emails);
+        setTotal(result.total);
+        setHasMore(result.has_more);
+        setLoading(false);
+
+        // 2. Get 14-day count and start background loading
+        const count = await invoke<number>("get_email_count_days", {
+          account: selectedAccount,
+          mailbox: selectedMailbox,
+          days: 14,
+        });
+        count14DaysRef.current = count;
+
+        // 3. Background load remaining 14-day emails
+        if (result.emails.length < count && !backgroundLoadingRef.current) {
+          backgroundLoadingRef.current = true;
+          backgroundLoadEmails(selectedAccount, selectedMailbox, result.emails.length, count);
+        }
+      })
+      .catch((err) => {
+        console.error(err);
+        setLoading(false);
+      });
   }, [selectedAccount, selectedMailbox]);
 
-  const handleRefresh = useCallback(async () => {
+  // Background load emails up to 14-day count
+  const backgroundLoadEmails = async (
+    account: string,
+    mailbox: string,
+    startOffset: number,
+    targetCount: number
+  ) => {
+    let offset = startOffset;
+
+    while (offset < targetCount && backgroundLoadingRef.current) {
+      try {
+        const result = await invoke<ListEmailsResult>("list_emails_page", {
+          account,
+          mailbox,
+          offset,
+          limit: BATCH_SIZE,
+        });
+
+        // Check if account/mailbox changed while loading
+        if (!backgroundLoadingRef.current) break;
+
+        setEmails((prev) => [...prev, ...result.emails]);
+        setHasMore(result.has_more);
+        offset += result.emails.length;
+
+        // Small delay to avoid blocking
+        await new Promise((r) => setTimeout(r, 10));
+      } catch (err) {
+        console.error("Background load error:", err);
+        break;
+      }
+    }
+
+    backgroundLoadingRef.current = false;
+  };
+
+  // Handle "Load more" button for emails older than 14 days
+  const handleLoadMore = useCallback(async () => {
+    if (loadingMore || !hasMore) return;
+
+    setLoadingMore(true);
+    try {
+      const result = await invoke<ListEmailsResult>("list_emails_page", {
+        account: selectedAccount,
+        mailbox: selectedMailbox,
+        offset: emails.length,
+        limit: BATCH_SIZE,
+      });
+
+      setEmails((prev) => [...prev, ...result.emails]);
+      setHasMore(result.has_more);
+    } catch (err) {
+      console.error("Load more error:", err);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [selectedAccount, selectedMailbox, emails.length, loadingMore, hasMore]);
+
+  // Track which account/mailbox we're syncing
+  const syncingRef = useRef<{ account: string; mailbox: string } | null>(null);
+
+  // Listen for sync events
+  useEffect(() => {
+    const unlisteners: UnlistenFn[] = [];
+
+    const setupListeners = async () => {
+      // Sync started
+      unlisteners.push(
+        await listen("sync-started", () => {
+          // Already showing spinner via refreshing state
+        })
+      );
+
+      // Sync complete - reload emails from cache
+      unlisteners.push(
+        await listen<SyncCompleteEvent>("sync-complete", async (event) => {
+          const { account, mailbox, new_emails, updated_emails } = event.payload;
+          console.log(`[sync] Complete: ${new_emails} new, ${updated_emails} updated`);
+
+          // Only reload if this is for the currently selected account/mailbox
+          if (account === selectedAccount && mailbox === selectedMailbox) {
+            // Reload from the beginning
+            const result = await invoke<ListEmailsResult>("list_emails_page", {
+              account,
+              mailbox,
+              offset: 0,
+              limit: Math.max(emails.length, INITIAL_LOAD),
+            });
+            setEmails(result.emails);
+            setTotal(result.total);
+            setHasMore(result.has_more);
+            setRefreshing(false);
+            syncingRef.current = null;
+          }
+        })
+      );
+
+      // Sync error
+      unlisteners.push(
+        await listen<SyncErrorEvent>("sync-error", (event) => {
+          const { account, mailbox, error } = event.payload;
+          console.error(`[sync] Error for ${account}/${mailbox}: ${error}`);
+
+          if (account === selectedAccount && mailbox === selectedMailbox) {
+            setRefreshing(false);
+            syncingRef.current = null;
+          }
+        })
+      );
+    };
+
+    setupListeners();
+
+    return () => {
+      unlisteners.forEach((unlisten) => unlisten());
+    };
+  }, [selectedAccount, selectedMailbox, emails.length]);
+
+  const handleRefresh = useCallback(() => {
     if (!selectedAccount || refreshing) return;
 
     setRefreshing(true);
-    try {
-      // Sync with IMAP server first
-      await invoke("sync_emails", {
-        account: selectedAccount,
-        mailbox: selectedMailbox,
-      });
+    syncingRef.current = { account: selectedAccount, mailbox: selectedMailbox };
 
-      // Then reload from cache
-      const newEmails = await invoke<Email[]>("list_emails", {
-        account: selectedAccount,
-        mailbox: selectedMailbox,
-      });
-      setEmails(newEmails);
-    } catch (err) {
-      console.error(err);
-    } finally {
+    // Queue sync - returns immediately, events will notify when done
+    invoke("start_sync", {
+      account: selectedAccount,
+      mailbox: selectedMailbox,
+    }).catch((err) => {
+      console.error("Failed to start sync:", err);
       setRefreshing(false);
-    }
+      syncingRef.current = null;
+    });
   }, [selectedAccount, selectedMailbox, refreshing]);
 
   const handleEmailDeleted = useCallback((uid: number) => {
     setEmails((prev) => prev.filter((e) => e.uid !== uid));
     setSelectedEmail((prev) => (prev?.uid === uid ? null : prev));
+    setTotal((prev) => Math.max(0, prev - 1));
   }, []);
 
   const handleEmailReadChange = useCallback((uid: number, unread: boolean) => {
@@ -171,6 +343,10 @@ export function Home() {
           refreshing={refreshing}
           onRefresh={handleRefresh}
           mailboxName={selectedMailbox === "INBOX" ? "Inbox" : selectedMailbox}
+          total={total}
+          hasMore={hasMore}
+          loadingMore={loadingMore}
+          onLoadMore={handleLoadMore}
         />
 
         <EmailReader

@@ -3,11 +3,12 @@ mod imap_queue;
 mod mail;
 
 use config::{get_config as load_config, save_config as store_config, AIProvider, Config};
-use imap_queue::queue_mark_read;
+use imap_queue::{init as init_imap_queue, queue_mark_read, queue_sync};
 use mail::{
     delete_email_from_cache, get_accounts, get_email as fetch_email, get_emails,
+    list_emails_paginated, get_emails_count_since_days,
     sync_emails as do_sync_emails, update_email_read_status, update_email_cache_only,
-    Account, Email, SyncResult,
+    Account, Email, ListEmailsResult, SyncResult,
 };
 
 #[tauri::command]
@@ -18,6 +19,23 @@ fn list_accounts() -> Result<Vec<Account>, String> {
 #[tauri::command]
 fn list_emails(account: String, mailbox: String) -> Result<Vec<Email>, String> {
     get_emails(&account, &mailbox).map_err(|e| e.to_string())
+}
+
+/// Paginated email list (returns lightweight summaries)
+#[tauri::command]
+fn list_emails_page(
+    account: String,
+    mailbox: String,
+    offset: usize,
+    limit: usize,
+) -> Result<ListEmailsResult, String> {
+    list_emails_paginated(&account, &mailbox, offset, limit).map_err(|e| e.to_string())
+}
+
+/// Get count of emails within last N days
+#[tauri::command]
+fn get_email_count_days(account: String, mailbox: String, days: i64) -> Result<usize, String> {
+    get_emails_count_since_days(&account, &mailbox, days).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -52,6 +70,13 @@ fn sync_emails(account: String, mailbox: String) -> Result<SyncResult, String> {
     do_sync_emails(&account, &mailbox).map_err(|e| e.to_string())
 }
 
+/// Start async sync - queues operation and returns immediately
+/// Frontend should listen for sync-started, sync-complete, sync-error events
+#[tauri::command]
+fn start_sync(account: String, mailbox: String) {
+    queue_sync(account, mailbox);
+}
+
 #[tauri::command]
 fn get_config() -> Result<Config, String> {
     load_config().map_err(|e| e.to_string())
@@ -82,16 +107,33 @@ fn remove_ai_provider(index: usize) -> Result<Config, String> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // Initialize tokio runtime for background tasks
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .expect("Failed to create tokio runtime");
+
+    // Enter the runtime context so tokio::spawn works
+    let _guard = runtime.enter();
+
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .setup(|app| {
+            // Initialize IMAP queue with app handle for events
+            init_imap_queue(app.handle().clone());
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             list_accounts,
             list_emails,
+            list_emails_page,
+            get_email_count_days,
             get_email,
             delete_email,
             mark_email_read,
             mark_email_read_async,
             sync_emails,
+            start_sync,
             get_config,
             save_config,
             add_ai_provider,

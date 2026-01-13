@@ -1,5 +1,6 @@
+import { useEffect, useRef } from "react";
 import { decode } from "he";
-import { RefreshCw, Search } from "lucide-react";
+import { Loader2, RefreshCw, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -22,6 +23,10 @@ interface EmailListProps {
   refreshing: boolean;
   onRefresh: () => void;
   mailboxName: string;
+  total: number;
+  hasMore: boolean;
+  loadingMore: boolean;
+  onLoadMore: () => void;
 }
 
 function formatDate(dateString: string): string {
@@ -79,8 +84,33 @@ export function EmailList({
   refreshing,
   onRefresh,
   mailboxName,
+  total,
+  hasMore,
+  loadingMore,
+  onLoadMore,
 }: EmailListProps) {
   const unreadCount = emails.filter((e) => e.unread).length;
+  const loadMoreRef = useRef<HTMLDivElement>(null);
+
+  // IntersectionObserver for infinite scroll
+  useEffect(() => {
+    if (!hasMore || loadingMore) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          onLoadMore();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (loadMoreRef.current) {
+      observer.observe(loadMoreRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, [hasMore, loadingMore, onLoadMore]);
 
   return (
     <div className="flex w-95 shrink-0 flex-col border-r bg-background">
@@ -90,7 +120,9 @@ export function EmailList({
           <div>
             <h2 className="text-xl font-bold">{mailboxName}</h2>
             <span className="text-sm text-muted-foreground">
-              {emails.length} emails
+              {emails.length === total
+                ? `${emails.length} emails`
+                : `${emails.length} of ${total} emails`}
               {unreadCount > 0 && ` · ${unreadCount} unread`}
             </span>
           </div>
@@ -179,6 +211,23 @@ export function EmailList({
                 </button>
               );
             })}
+
+            {/* Infinite scroll sentinel */}
+            {hasMore && (
+              <div
+                ref={loadMoreRef}
+                className="flex items-center justify-center p-4 text-sm text-muted-foreground"
+              >
+                {loadingMore ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Loading...
+                  </>
+                ) : (
+                  <span>{total - emails.length} more emails</span>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>

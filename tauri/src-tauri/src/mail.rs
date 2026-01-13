@@ -6,6 +6,7 @@ use std::collections::HashSet;
 use std::fs;
 use std::net::TcpStream;
 use std::path::PathBuf;
+use std::time::Duration;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Credentials {
@@ -64,6 +65,47 @@ pub struct Email {
     pub attachments: Vec<Attachment>,
 }
 
+/// Lightweight email summary for list view (no body)
+#[derive(Debug, Serialize, Clone)]
+pub struct EmailSummary {
+    pub uid: u32,
+    pub message_id: String,
+    pub internal_date: String,
+    pub from: String,
+    pub to: String,
+    pub subject: String,
+    pub date: String,
+    pub snippet: String,
+    pub unread: bool,
+    pub has_attachments: bool,
+}
+
+impl From<&Email> for EmailSummary {
+    fn from(email: &Email) -> Self {
+        EmailSummary {
+            uid: email.uid,
+            message_id: email.message_id.clone(),
+            internal_date: email.internal_date.clone(),
+            from: email.from.clone(),
+            to: email.to.clone(),
+            subject: email.subject.clone(),
+            date: email.date.clone(),
+            snippet: email.snippet.clone(),
+            unread: email.unread,
+            has_attachments: !email.attachments.is_empty(),
+        }
+    }
+}
+
+/// Result of paginated email list
+#[derive(Debug, Serialize, Clone)]
+pub struct ListEmailsResult {
+    pub emails: Vec<EmailSummary>,
+    pub total: usize,
+    pub offset: usize,
+    pub has_more: bool,
+}
+
 fn config_dir() -> PathBuf {
     dirs::home_dir()
         .expect("Could not find home directory")
@@ -87,9 +129,26 @@ fn get_account(name: &str) -> Result<Account, Box<dyn std::error::Error>> {
 }
 
 fn connect_imap(account: &Account) -> Result<Session<TlsStream<TcpStream>>, Box<dyn std::error::Error>> {
+    use std::net::ToSocketAddrs;
+
     let creds = &account.credentials;
+
+    // Resolve hostname to IP address
+    let addr = format!("{}:{}", creds.imap_host, creds.imap_port);
+    let socket_addr = addr
+        .to_socket_addrs()?
+        .next()
+        .ok_or("Failed to resolve IMAP host")?;
+
+    // Connect with timeout
+    let tcp = TcpStream::connect_timeout(&socket_addr, Duration::from_secs(30))?;
+    tcp.set_read_timeout(Some(Duration::from_secs(60)))?;
+    tcp.set_write_timeout(Some(Duration::from_secs(30)))?;
+
     let tls = native_tls::TlsConnector::builder().build()?;
-    let client = imap::connect((creds.imap_host.as_str(), creds.imap_port), &creds.imap_host, &tls)?;
+    let tls_stream = tls.connect(&creds.imap_host, tcp)?;
+
+    let client = imap::Client::new(tls_stream);
     let session = client.login(&creds.email, &creds.password)
         .map_err(|e| e.0)?;
     Ok(session)
@@ -120,6 +179,97 @@ pub fn get_emails(account: &str, mailbox: &str) -> Result<Vec<Email>, Box<dyn st
     emails.sort_by(|a, b| b.uid.cmp(&a.uid));
 
     Ok(emails)
+}
+
+/// Get paginated email list (lightweight summaries)
+pub fn list_emails_paginated(
+    account: &str,
+    mailbox: &str,
+    offset: usize,
+    limit: usize,
+) -> Result<ListEmailsResult, Box<dyn std::error::Error>> {
+    let cache_dir = config_dir().join("cache").join(account).join(mailbox);
+
+    if !cache_dir.exists() {
+        return Ok(ListEmailsResult {
+            emails: vec![],
+            total: 0,
+            offset,
+            has_more: false,
+        });
+    }
+
+    // Read all emails (we need to sort by date)
+    // TODO: Optimize with index file for large mailboxes
+    let mut emails: Vec<Email> = vec![];
+
+    for entry in fs::read_dir(&cache_dir)? {
+        let entry = entry?;
+        let path = entry.path();
+
+        if path.extension().map_or(false, |ext| ext == "json") {
+            let contents = fs::read_to_string(&path)?;
+            if let Ok(email) = serde_json::from_str::<Email>(&contents) {
+                emails.push(email);
+            }
+        }
+    }
+
+    // Sort by internal_date descending (newest first)
+    emails.sort_by(|a, b| b.internal_date.cmp(&a.internal_date));
+
+    let total = emails.len();
+    let has_more = offset + limit < total;
+
+    // Get the requested slice and convert to summaries
+    let summaries: Vec<EmailSummary> = emails
+        .iter()
+        .skip(offset)
+        .take(limit)
+        .map(EmailSummary::from)
+        .collect();
+
+    Ok(ListEmailsResult {
+        emails: summaries,
+        total,
+        offset,
+        has_more,
+    })
+}
+
+/// Count emails within the last N days
+pub fn get_emails_count_since_days(
+    account: &str,
+    mailbox: &str,
+    days: i64,
+) -> Result<usize, Box<dyn std::error::Error>> {
+    let cache_dir = config_dir().join("cache").join(account).join(mailbox);
+
+    if !cache_dir.exists() {
+        return Ok(0);
+    }
+
+    let cutoff = chrono::Utc::now() - chrono::Duration::days(days);
+    let mut count = 0;
+
+    for entry in fs::read_dir(&cache_dir)? {
+        let entry = entry?;
+        let path = entry.path();
+
+        if path.extension().map_or(false, |ext| ext == "json") {
+            let contents = fs::read_to_string(&path)?;
+            if let Ok(email) = serde_json::from_str::<Email>(&contents) {
+                // Parse internal_date and compare
+                if let Ok(date) = chrono::DateTime::parse_from_rfc3339(&email.internal_date) {
+                    if date >= cutoff {
+                        count += 1;
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(count)
 }
 
 pub fn get_email(account: &str, mailbox: &str, uid: u32) -> Result<Email, Box<dyn std::error::Error>> {
@@ -219,12 +369,18 @@ pub struct SyncResult {
 }
 
 pub fn sync_emails(account_name: &str, mailbox: &str) -> Result<SyncResult, Box<dyn std::error::Error>> {
+    eprintln!("[sync] Starting sync for {} / {}", account_name, mailbox);
+
     let account = get_account(account_name)?;
+    eprintln!("[sync] Connecting to IMAP...");
     let mut session = connect_imap(&account)?;
+    eprintln!("[sync] Connected!");
 
     // Select mailbox
+    eprintln!("[sync] Selecting mailbox...");
     let mailbox_info = session.select(mailbox)?;
     let total = mailbox_info.exists as usize;
+    eprintln!("[sync] Mailbox has {} messages", total);
 
     if total == 0 {
         session.logout()?;
@@ -236,8 +392,10 @@ pub fn sync_emails(account_name: &str, mailbox: &str) -> Result<SyncResult, Box<
     }
 
     // Fetch all UIDs and flags
+    eprintln!("[sync] Fetching UIDs and flags...");
     let fetch_range = "1:*";
     let messages = session.fetch(fetch_range, "(UID FLAGS)")?;
+    eprintln!("[sync] Got {} messages", messages.len());
 
     // Build map of UID -> is_unread
     let mut server_emails: Vec<(u32, bool)> = Vec::new();
@@ -275,12 +433,16 @@ pub fn sync_emails(account_name: &str, mailbox: &str) -> Result<SyncResult, Box<
         .map(|(uid, _)| *uid)
         .collect();
 
+    eprintln!("[sync] Found {} new emails to download, {} cached", new_uids.len(), cached_uids.len());
+
     let mut new_count = 0;
     let mut updated_count = 0;
 
     // Fetch new emails in batches
     if !new_uids.is_empty() {
-        for chunk in new_uids.chunks(50) {
+        let total_batches = (new_uids.len() + 49) / 50;
+        for (batch_idx, chunk) in new_uids.chunks(50).enumerate() {
+            eprintln!("[sync] Downloading batch {}/{} ({} emails)...", batch_idx + 1, total_batches, chunk.len());
             let uid_set: String = chunk
                 .iter()
                 .map(|u| u.to_string())
@@ -331,6 +493,158 @@ pub fn sync_emails(account_name: &str, mailbox: &str) -> Result<SyncResult, Box<
     }
 
     session.logout()?;
+
+    eprintln!("[sync] Done! {} new, {} updated, {} total", new_count, updated_count, server_emails.len());
+
+    Ok(SyncResult {
+        new_emails: new_count,
+        updated_emails: updated_count,
+        total_emails: server_emails.len(),
+    })
+}
+
+/// Sync emails from the last N days only (uses IMAP SINCE search)
+pub fn sync_emails_since(
+    account_name: &str,
+    mailbox: &str,
+    days: u32,
+) -> Result<SyncResult, Box<dyn std::error::Error + Send + Sync>> {
+    eprintln!("[sync] Starting sync for {} / {} (last {} days)", account_name, mailbox, days);
+
+    let account = get_account(account_name).map_err(|e| e.to_string())?;
+    eprintln!("[sync] Connecting to IMAP...");
+    let mut session = connect_imap(&account).map_err(|e| e.to_string())?;
+    eprintln!("[sync] Connected!");
+
+    // Select mailbox
+    eprintln!("[sync] Selecting mailbox...");
+    session.select(mailbox).map_err(|e| e.to_string())?;
+
+    // Calculate date for SINCE search (N days ago)
+    let since_date = chrono::Utc::now() - chrono::Duration::days(days as i64);
+    let since_str = since_date.format("%d-%b-%Y").to_string(); // e.g., "15-Oct-2024"
+    eprintln!("[sync] Searching for emails since {}", since_str);
+
+    // Search for UIDs since date
+    let search_query = format!("SINCE {}", since_str);
+    let uids = session.uid_search(&search_query).map_err(|e| e.to_string())?;
+    let uid_list: Vec<u32> = uids.into_iter().collect();
+    eprintln!("[sync] Found {} emails in date range", uid_list.len());
+
+    if uid_list.is_empty() {
+        session.logout().map_err(|e| e.to_string())?;
+        return Ok(SyncResult {
+            new_emails: 0,
+            updated_emails: 0,
+            total_emails: 0,
+        });
+    }
+
+    // Fetch flags for these UIDs
+    let uid_set: String = uid_list.iter().map(|u| u.to_string()).collect::<Vec<_>>().join(",");
+    let messages = session.uid_fetch(&uid_set, "(UID FLAGS)").map_err(|e| e.to_string())?;
+
+    // Build map of UID -> is_unread
+    let mut server_emails: Vec<(u32, bool)> = Vec::new();
+    for msg in messages.iter() {
+        if let Some(uid) = msg.uid {
+            let flags = msg.flags();
+            let is_unread = !flags.iter().any(|f| matches!(f, imap::types::Flag::Seen));
+            server_emails.push((uid, is_unread));
+        }
+    }
+    eprintln!("[sync] Got flags for {} emails", server_emails.len());
+
+    // Get cached UIDs
+    let cache_dir = config_dir().join("cache").join(account_name).join(mailbox);
+    fs::create_dir_all(&cache_dir).map_err(|e| e.to_string())?;
+
+    let mut cached_uids: HashSet<u32> = HashSet::new();
+    if cache_dir.exists() {
+        for entry in fs::read_dir(&cache_dir).map_err(|e| e.to_string())? {
+            let entry = entry.map_err(|e| e.to_string())?;
+            let path = entry.path();
+            if path.extension().map_or(false, |ext| ext == "json") {
+                if let Some(stem) = path.file_stem() {
+                    if let Ok(uid) = stem.to_string_lossy().parse::<u32>() {
+                        cached_uids.insert(uid);
+                    }
+                }
+            }
+        }
+    }
+
+    // Find new UIDs to fetch
+    let new_uids: Vec<u32> = server_emails
+        .iter()
+        .filter(|(uid, _)| !cached_uids.contains(uid))
+        .map(|(uid, _)| *uid)
+        .collect();
+
+    eprintln!("[sync] Found {} new emails to download, {} already cached", new_uids.len(), cached_uids.len());
+
+    let mut new_count = 0;
+    let mut updated_count = 0;
+
+    // Fetch new emails in batches
+    if !new_uids.is_empty() {
+        let total_batches = (new_uids.len() + 49) / 50;
+        for (batch_idx, chunk) in new_uids.chunks(50).enumerate() {
+            eprintln!("[sync] Downloading batch {}/{} ({} emails)...", batch_idx + 1, total_batches, chunk.len());
+            let batch_uid_set: String = chunk
+                .iter()
+                .map(|u| u.to_string())
+                .collect::<Vec<_>>()
+                .join(",");
+
+            let fetched = session
+                .uid_fetch(&batch_uid_set, "(UID FLAGS INTERNALDATE RFC822)")
+                .map_err(|e| e.to_string())?;
+
+            for msg in fetched.iter() {
+                if let Some(uid) = msg.uid {
+                    let flags = msg.flags();
+                    let is_unread = !flags.iter().any(|f| matches!(f, imap::types::Flag::Seen));
+
+                    let internal_date = msg
+                        .internal_date()
+                        .map(|d| d.to_rfc3339())
+                        .unwrap_or_default();
+
+                    if let Some(body) = msg.body() {
+                        if let Ok(email) = parse_email_body(uid, body, is_unread, &internal_date) {
+                            let cache_path = cache_dir.join(format!("{}.json", uid));
+                            let json = serde_json::to_string_pretty(&email).map_err(|e| e.to_string())?;
+                            fs::write(&cache_path, json).map_err(|e| e.to_string())?;
+                            new_count += 1;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Update flags for existing emails (only those in the date range)
+    for (uid, is_unread) in &server_emails {
+        if cached_uids.contains(uid) {
+            let cache_path = cache_dir.join(format!("{}.json", uid));
+            if cache_path.exists() {
+                let contents = fs::read_to_string(&cache_path).map_err(|e| e.to_string())?;
+                if let Ok(mut email) = serde_json::from_str::<Email>(&contents) {
+                    if email.unread != *is_unread {
+                        email.unread = *is_unread;
+                        let json = serde_json::to_string_pretty(&email).map_err(|e| e.to_string())?;
+                        fs::write(&cache_path, json).map_err(|e| e.to_string())?;
+                        updated_count += 1;
+                    }
+                }
+            }
+        }
+    }
+
+    session.logout().map_err(|e| e.to_string())?;
+
+    eprintln!("[sync] Done! {} new, {} updated, {} total", new_count, updated_count, server_emails.len());
 
     Ok(SyncResult {
         new_emails: new_count,

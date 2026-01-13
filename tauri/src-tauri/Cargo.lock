@@ -3819,12 +3819,14 @@ dependencies = [
  "imap",
  "mailparse",
  "native-tls",
+ "once_cell",
  "serde",
  "serde_json",
  "serde_yaml",
  "tauri 2.9.5",
  "tauri-build",
  "tauri-plugin-opener",
+ "tokio",
 ]
 
 [[package]]

@@ -5,39 +5,59 @@ import (
 	"strings"
 
 	"github.com/JohannesKaufmann/html-to-markdown/v2/converter"
+	"github.com/JohannesKaufmann/html-to-markdown/v2/plugin/base"
+	"github.com/JohannesKaufmann/html-to-markdown/v2/plugin/commonmark"
 	"github.com/charmbracelet/glamour"
+	"github.com/charmbracelet/lipgloss"
 )
 
 var (
-	// Patterns to strip style/script tags and their contents
-	styleRegex  = regexp.MustCompile(`(?is)<style[^>]*>.*?</style>`)
-	scriptRegex = regexp.MustCompile(`(?is)<script[^>]*>.*?</script>`)
-	headRegex   = regexp.MustCompile(`(?is)<head[^>]*>.*?</head>`)
+	styleRegex   = regexp.MustCompile(`(?is)<style[^>]*>.*?</style>`)
+	scriptRegex  = regexp.MustCompile(`(?is)<script[^>]*>.*?</script>`)
+	headRegex    = regexp.MustCompile(`(?is)<head[^>]*>.*?</head>`)
+	imgRegex     = regexp.MustCompile(`(?is)<img[^>]*>`)
+	multiNewline = regexp.MustCompile(`\n{3,}`)
+	// Clean up markdown artifacts: image links, tracking pixels, link references
+	imgLinkRegex  = regexp.MustCompile(`!\[[^\]]*\]\([^)]*\)`)
+	linkRefRegex  = regexp.MustCompile(`(?m)^\[\d+\]:\s*https?://[^\s]*\.(png|jpg|jpeg|gif|webp|svg)[^\s]*$`)
+	emptyLinkRef  = regexp.MustCompile(`(?m)^\[\d+\]:\s*https?://[^\s]*(imgping|tracking|pixel)[^\s]*$`)
+
+	// Reusable converter (no table plugin - emails use tables for layout)
+	mdConverter = converter.NewConverter(
+		converter.WithPlugins(
+			base.NewBasePlugin(),
+			commonmark.NewCommonmarkPlugin(),
+		),
+	)
 )
 
 // RenderHTMLBody converts HTML email body to terminal-friendly output
-// using glamour for rich markdown rendering
 func RenderHTMLBody(htmlBody string, width int) string {
 	if htmlBody == "" {
 		return ""
 	}
 
-	// Strip style, script, and head tags before conversion
+	// Strip non-content HTML tags
 	cleaned := styleRegex.ReplaceAllString(htmlBody, "")
 	cleaned = scriptRegex.ReplaceAllString(cleaned, "")
 	cleaned = headRegex.ReplaceAllString(cleaned, "")
+	cleaned = imgRegex.ReplaceAllString(cleaned, "") // Images don't display in terminal
 
 	// Convert HTML to Markdown
-	conv := converter.NewConverter()
-	markdown, err := conv.ConvertString(cleaned)
+	markdown, err := mdConverter.ConvertString(cleaned)
 	if err != nil {
-		// Fallback: strip tags and return plain text
 		return stripHTMLTags(cleaned)
 	}
 
-	// Render Markdown with glamour
+	// Clean up markdown artifacts
+	markdown = imgLinkRegex.ReplaceAllString(markdown, "")   // Remove image links
+	markdown = linkRefRegex.ReplaceAllString(markdown, "")   // Remove image URL references
+	markdown = emptyLinkRef.ReplaceAllString(markdown, "")   // Remove tracking pixel references
+	markdown = multiNewline.ReplaceAllString(markdown, "\n\n")
+
+	// Render with glamour
 	renderer, err := glamour.NewTermRenderer(
-		glamour.WithAutoStyle(),
+		glamour.WithColorProfile(lipgloss.ColorProfile()),
 		glamour.WithWordWrap(width),
 	)
 	if err != nil {
@@ -52,7 +72,6 @@ func RenderHTMLBody(htmlBody string, width int) string {
 	return strings.TrimSpace(rendered)
 }
 
-// stripHTMLTags is a simple fallback HTML stripper
 func stripHTMLTags(html string) string {
 	var result strings.Builder
 	inTag := false

@@ -1,10 +1,18 @@
 package components
 
 import (
+	"regexp"
 	"strings"
 
 	"github.com/JohannesKaufmann/html-to-markdown/v2/converter"
 	"github.com/charmbracelet/glamour"
+)
+
+var (
+	// Patterns to strip style/script tags and their contents
+	styleRegex  = regexp.MustCompile(`(?is)<style[^>]*>.*?</style>`)
+	scriptRegex = regexp.MustCompile(`(?is)<script[^>]*>.*?</script>`)
+	headRegex   = regexp.MustCompile(`(?is)<head[^>]*>.*?</head>`)
 )
 
 // RenderHTMLBody converts HTML email body to terminal-friendly output
@@ -14,12 +22,17 @@ func RenderHTMLBody(htmlBody string, width int) string {
 		return ""
 	}
 
+	// Strip style, script, and head tags before conversion
+	cleaned := styleRegex.ReplaceAllString(htmlBody, "")
+	cleaned = scriptRegex.ReplaceAllString(cleaned, "")
+	cleaned = headRegex.ReplaceAllString(cleaned, "")
+
 	// Convert HTML to Markdown
 	conv := converter.NewConverter()
-	markdown, err := conv.ConvertString(htmlBody)
+	markdown, err := conv.ConvertString(cleaned)
 	if err != nil {
 		// Fallback: strip tags and return plain text
-		return stripHTMLTags(htmlBody)
+		return stripHTMLTags(cleaned)
 	}
 
 	// Render Markdown with glamour

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"maily/internal/cache"
 	"maily/internal/proc"
 	"maily/internal/updater"
 )
@@ -57,15 +58,14 @@ var updateCmd = &cobra.Command{
 
 // stopRunningSyncs stops any running sync operations gracefully
 func stopRunningSyncs() error {
-	homeDir, err := os.UserHomeDir()
+	c, err := cache.New()
 	if err != nil {
 		return nil // Can't check, proceed with update
 	}
-
-	cacheDir := filepath.Join(homeDir, ".config", "maily", "cache")
+	defer c.Close()
 
 	// Find and stop sync processes
-	pids := findSyncPIDs(cacheDir)
+	pids := findSyncPIDs(c)
 	if len(pids) == 0 {
 		return nil
 	}
@@ -82,7 +82,7 @@ func stopRunningSyncs() error {
 	// Wait up to 5 seconds for graceful shutdown
 	for i := 0; i < 5; i++ {
 		time.Sleep(1 * time.Second)
-		pids = findSyncPIDs(cacheDir)
+		pids = findSyncPIDs(c)
 		if len(pids) == 0 {
 			return nil
 		}
@@ -95,38 +95,23 @@ func stopRunningSyncs() error {
 		}
 	}
 
-	// Clean up stale lock files
+	// Clean up stale locks
 	time.Sleep(100 * time.Millisecond)
-	cleanupStaleLocks(cacheDir)
+	c.CleanupStaleLocks()
 
 	return nil
 }
 
-// findSyncPIDs returns PIDs of running sync processes
-func findSyncPIDs(cacheDir string) []int {
+// findSyncPIDs returns PIDs of running sync processes from SQLite database
+func findSyncPIDs(c *cache.Cache) []int {
 	var pids []int
 
-	entries, err := os.ReadDir(cacheDir)
+	locks, err := c.GetSyncLocks()
 	if err != nil {
 		return nil
 	}
 
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
-		}
-
-		lockPath := filepath.Join(cacheDir, entry.Name(), ".sync.lock")
-		data, err := os.ReadFile(lockPath)
-		if err != nil {
-			continue
-		}
-
-		info, err := proc.ParseLockInfo(data)
-		if err != nil {
-			continue
-		}
-
+	for _, info := range locks {
 		if !proc.IsMailyProcess(info.PID) {
 			continue
 		}
@@ -142,45 +127,4 @@ func findSyncPIDs(cacheDir string) []int {
 	}
 
 	return pids
-}
-
-// cleanupStaleLocks removes lock files for dead processes
-func cleanupStaleLocks(cacheDir string) {
-	entries, err := os.ReadDir(cacheDir)
-	if err != nil {
-		return
-	}
-
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
-		}
-
-		lockPath := filepath.Join(cacheDir, entry.Name(), ".sync.lock")
-		data, err := os.ReadFile(lockPath)
-		if err != nil {
-			continue
-		}
-
-		info, err := proc.ParseLockInfo(data)
-		if err != nil {
-			os.Remove(lockPath)
-			continue
-		}
-
-		if !proc.IsMailyProcess(info.PID) {
-			os.Remove(lockPath)
-			continue
-		}
-
-		if info.Start != "" {
-			start, err := proc.StartTime(info.PID)
-			if err != nil || start == "" {
-				continue
-			}
-			if start != info.Start {
-				os.Remove(lockPath)
-			}
-		}
-	}
 }

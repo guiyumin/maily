@@ -26,7 +26,7 @@
 - Can trigger manual refresh: `R` (Shift+R) to fetch from server
 - First run (empty cache): auto-triggers sync, user waits once
 - Auto-reloads after sync completes:
-  - Watches metadata.json for changes (updated at end of sync)
+  - Checks `last_sync` in mailbox_metadata table
   - Only reloads when no lock exists (ensures coherent snapshot)
 
 ### 2. maily server
@@ -49,30 +49,33 @@
 
 ## Cache Structure
 
+The cache uses SQLite for efficient storage and querying:
+
 ```
-~/.config/maily/cache/
-  user@gmail.com/
-    INBOX/
-      metadata.json    # {uidvalidity, last_sync}
-      12345.json       # email by UID
-      12346.json
-    %5BGmail%5D%2FSent/
-      ...
+~/.config/maily/maily.db
 ```
 
-### Email JSON format
-```json
-{
-  "uid": 12345,
-  "internal_date": "2024-01-15T10:30:00Z",
-  "from": "...",
-  "to": "...",
-  "subject": "...",
-  "body": "...",
-  "unread": true,
-  "attachments": [...]
-}
+### Database Schema
+
+```sql
+-- Mailbox metadata (UIDVALIDITY, last sync time)
+mailbox_metadata (account, mailbox, uid_validity, last_sync)
+
+-- Email storage
+emails (account, mailbox, uid, message_id, internal_date, from_addr,
+        reply_to, to_addr, subject, date, snippet, body_html, unread, ...)
+
+-- Attachment metadata
+attachments (account, mailbox, email_uid, part_id, filename,
+             content_type, size, encoding)
+
+-- Sync locks (per-account)
+sync_locks (account, pid, start_time, locked_at)
 ```
+
+### Indexes
+- `idx_emails_date` on `(account, mailbox, internal_date DESC)` - fast pagination
+- `idx_emails_internal_date` on `(internal_date)` - efficient date-range queries
 
 `internal_date` is used for ordering and 14-day cleanup.
 
@@ -99,13 +102,14 @@ This handles:
 - Flag changes synced on next refresh
 
 ### Atomic Writes
-- Write to temp file first, then rename
-- Prevents TUI from reading partial JSON during sync
+- SQLite transactions ensure atomic updates
+- WAL mode enables concurrent reads during writes
 
 ### Sync Lock
-- In-memory mutex per account (no file locks needed)
+- Stored in `sync_locks` table with PID and start time
 - Prevents overlapping syncs for same account
 - Per-account lock allows parallel sync of different accounts
+- Stale locks auto-detected by checking if process still exists
 
 ## Delete Flow
 
@@ -172,7 +176,7 @@ When running `maily update`:
 3. Restart server if it was previously running
 ```
 
-Safe because we use atomic writes - interrupted sync just means incomplete sync, next sync will fix it.
+Safe because SQLite uses transactions - interrupted sync just means incomplete sync, next sync will fix it.
 
 ## That's it.
 

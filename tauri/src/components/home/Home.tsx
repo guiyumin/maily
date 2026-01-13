@@ -19,6 +19,26 @@ interface ListEmailsResult {
   has_more: boolean;
 }
 
+interface InitialState {
+  accounts: Account[];
+  selected_account: string | null;
+  emails: ListEmailsResult;
+}
+
+// Read initial state injected by Rust (synchronous - no IPC wait)
+declare global {
+  interface Window {
+    __MAILY_INITIAL_STATE__?: InitialState;
+  }
+}
+
+function getInitialState(): InitialState | null {
+  const state = window.__MAILY_INITIAL_STATE__;
+  // Clear it so we don't accidentally reuse stale data
+  delete window.__MAILY_INITIAL_STATE__;
+  return state || null;
+}
+
 interface SyncCompleteEvent {
   account: string;
   mailbox: string;
@@ -36,38 +56,78 @@ interface SyncErrorEvent {
 const INITIAL_LOAD = 50;
 const BATCH_SIZE = 50;
 
+// Get initial state BEFORE component renders (synchronous)
+const PRELOADED_STATE = getInitialState();
+
 export function Home() {
-  const [accounts, setAccounts] = useState<Account[]>([]);
-  const [selectedAccount, setSelectedAccount] = useState<string>("");
+  // Initialize with preloaded data if available - INSTANT first render
+  const [accounts, setAccounts] = useState<Account[]>(
+    PRELOADED_STATE?.accounts ?? []
+  );
+  const [selectedAccount, setSelectedAccount] = useState<string>(
+    PRELOADED_STATE?.selected_account ?? ""
+  );
   const [selectedMailbox, setSelectedMailbox] = useState<string>("INBOX");
-  const [emails, setEmails] = useState<Email[]>([]);
+  const [emails, setEmails] = useState<Email[]>(
+    PRELOADED_STATE?.emails.emails ?? []
+  );
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!PRELOADED_STATE);
   const [refreshing, setRefreshing] = useState(false);
 
   // Pagination state
-  const [total, setTotal] = useState(0);
-  const [hasMore, setHasMore] = useState(false);
+  const [total, setTotal] = useState(PRELOADED_STATE?.emails.total ?? 0);
+  const [hasMore, setHasMore] = useState(PRELOADED_STATE?.emails.has_more ?? false);
   const [loadingMore, setLoadingMore] = useState(false);
   const count14DaysRef = useRef(0);
   const backgroundLoadingRef = useRef(false);
+  const initialLoadDoneRef = useRef(!!PRELOADED_STATE);
 
-  // Load accounts on mount
+  // Fallback: load via IPC if preloaded state wasn't available
   useEffect(() => {
-    invoke<Account[]>("list_accounts")
-      .then((accts) => {
-        setAccounts(accts);
-        if (accts.length > 0) {
-          setSelectedAccount(accts[0].name);
+    if (PRELOADED_STATE) return; // Already have data
+
+    invoke<InitialState>("get_startup_state")
+      .then((state) => {
+        setAccounts(state.accounts);
+        if (state.selected_account) {
+          setSelectedAccount(state.selected_account);
+          setEmails(state.emails.emails);
+          setTotal(state.emails.total);
+          setHasMore(state.emails.has_more);
+          initialLoadDoneRef.current = true;
         }
       })
       .catch(console.error)
       .finally(() => setLoading(false));
   }, []);
 
-  // Load emails when account or mailbox changes
+  // Load emails when account or mailbox changes (skip initial INBOX - already loaded)
   useEffect(() => {
     if (!selectedAccount) return;
+
+    // Skip if this is the initial INBOX load (already loaded by get_startup_state)
+    const isInitialInbox = initialLoadDoneRef.current && selectedMailbox === "INBOX";
+    if (isInitialInbox) {
+      // Mark initial load as consumed, so subsequent INBOX selections will reload
+      initialLoadDoneRef.current = false;
+
+      // Still start background loading for initial emails
+      (async () => {
+        const count = await invoke<number>("get_email_count_days", {
+          account: selectedAccount,
+          mailbox: selectedMailbox,
+          days: 14,
+        });
+        count14DaysRef.current = count;
+
+        if (emails.length < count && !backgroundLoadingRef.current) {
+          backgroundLoadingRef.current = true;
+          backgroundLoadEmails(selectedAccount, selectedMailbox, emails.length, count);
+        }
+      })();
+      return;
+    }
 
     setLoading(true);
     setSelectedEmail(null);
@@ -75,6 +135,10 @@ export function Home() {
     setTotal(0);
     setHasMore(false);
     backgroundLoadingRef.current = false;
+
+    // Reset refreshing state when switching accounts/mailboxes
+    setRefreshing(false);
+    syncingRef.current = null;
 
     // 1. Load first 50 emails immediately
     invoke<ListEmailsResult>("list_emails_page", {

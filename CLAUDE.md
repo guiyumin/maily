@@ -182,6 +182,6 @@ Used for:
 
 - Accounts: `~/.config/maily/accounts.yml` (0600 permissions)
 - Config: `~/.config/maily/config.yml`
-- Cache: `~/.config/maily/cache/<email>/<mailbox>/<uid>.json`
+- Cache: `~/.config/maily/maily.db` (SQLite database)
 - Server PID: `~/.config/maily/server.pid`
 - Server socket: `~/.config/maily/maily.sock`

@@ -1,9 +1,7 @@
 package cache
 
 import (
-	"fmt"
 	"os"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -26,6 +24,7 @@ func TestCacheSaveLoadAndFlags(t *testing.T) {
 	if err != nil {
 		t.Fatalf("New() error: %v", err)
 	}
+	defer c.Close()
 
 	account := "user@example.com"
 	mailbox := "INBOX"
@@ -90,6 +89,7 @@ func TestCacheCleanup(t *testing.T) {
 	if err != nil {
 		t.Fatalf("New() error: %v", err)
 	}
+	defer c.Close()
 
 	account := "user@example.com"
 	mailbox := "INBOX"
@@ -145,6 +145,7 @@ func TestCacheAcquireLock(t *testing.T) {
 	if err != nil {
 		t.Fatalf("New() error: %v", err)
 	}
+	defer c.Close()
 
 	account := "user@example.com"
 
@@ -188,15 +189,17 @@ func TestCacheAcquireLockMismatchedStart(t *testing.T) {
 	if err != nil {
 		t.Fatalf("New() error: %v", err)
 	}
+	defer c.Close()
 
 	account := "user@example.com"
-	lockPath := filepath.Join(c.baseDir, account, ".sync.lock")
-	if err := os.MkdirAll(filepath.Dir(lockPath), 0700); err != nil {
-		t.Fatalf("MkdirAll error: %v", err)
-	}
 
-	if err := os.WriteFile(lockPath, []byte(fmt.Sprintf("%d:bogus", os.Getpid())), 0600); err != nil {
-		t.Fatalf("WriteFile error: %v", err)
+	// Insert a lock with mismatched start time directly into DB
+	_, err = c.db.Exec(
+		"INSERT INTO sync_locks (account, pid, start_time, locked_at) VALUES (?, ?, ?, ?)",
+		account, os.Getpid(), "bogus", time.Now().Unix(),
+	)
+	if err != nil {
+		t.Fatalf("Insert lock error: %v", err)
 	}
 
 	originalStartTime := proc.StartTime
@@ -217,5 +220,123 @@ func TestCacheAcquireLockMismatchedStart(t *testing.T) {
 
 	if err := c.ReleaseLock(account); err != nil && !os.IsNotExist(err) {
 		t.Fatalf("ReleaseLock error: %v", err)
+	}
+}
+
+func TestCacheAttachments(t *testing.T) {
+	setTempHome(t)
+
+	c, err := New()
+	if err != nil {
+		t.Fatalf("New() error: %v", err)
+	}
+	defer c.Close()
+
+	account := "user@example.com"
+	mailbox := "INBOX"
+
+	email := CachedEmail{
+		UID:          imap.UID(100),
+		InternalDate: time.Now(),
+		Subject:      "with attachments",
+		Attachments: []Attachment{
+			{PartID: "1", Filename: "doc.pdf", ContentType: "application/pdf", Size: 1024},
+			{PartID: "2", Filename: "image.png", ContentType: "image/png", Size: 2048},
+		},
+	}
+
+	if err := c.SaveEmail(account, mailbox, email); err != nil {
+		t.Fatalf("SaveEmail error: %v", err)
+	}
+
+	loaded, err := c.GetEmail(account, mailbox, email.UID)
+	if err != nil {
+		t.Fatalf("GetEmail error: %v", err)
+	}
+	if loaded == nil {
+		t.Fatalf("expected email to be loaded")
+	}
+	if len(loaded.Attachments) != 2 {
+		t.Fatalf("expected 2 attachments, got %d", len(loaded.Attachments))
+	}
+	if loaded.Attachments[0].Filename != "doc.pdf" {
+		t.Fatalf("expected first attachment to be doc.pdf, got %s", loaded.Attachments[0].Filename)
+	}
+}
+
+func TestCacheMetadata(t *testing.T) {
+	setTempHome(t)
+
+	c, err := New()
+	if err != nil {
+		t.Fatalf("New() error: %v", err)
+	}
+	defer c.Close()
+
+	account := "user@example.com"
+	mailbox := "INBOX"
+
+	meta := &Metadata{
+		UIDValidity: 12345,
+		LastSync:    time.Now().Truncate(time.Second),
+	}
+
+	if err := c.SaveMetadata(account, mailbox, meta); err != nil {
+		t.Fatalf("SaveMetadata error: %v", err)
+	}
+
+	loaded, err := c.LoadMetadata(account, mailbox)
+	if err != nil {
+		t.Fatalf("LoadMetadata error: %v", err)
+	}
+	if loaded == nil {
+		t.Fatalf("expected metadata to be loaded")
+	}
+	if loaded.UIDValidity != meta.UIDValidity {
+		t.Fatalf("expected UIDValidity %d, got %d", meta.UIDValidity, loaded.UIDValidity)
+	}
+	if !loaded.LastSync.Equal(meta.LastSync) {
+		t.Fatalf("expected LastSync %v, got %v", meta.LastSync, loaded.LastSync)
+	}
+}
+
+func TestCacheIsFresh(t *testing.T) {
+	setTempHome(t)
+
+	c, err := New()
+	if err != nil {
+		t.Fatalf("New() error: %v", err)
+	}
+	defer c.Close()
+
+	account := "user@example.com"
+	mailbox := "INBOX"
+
+	// No metadata - not fresh
+	if c.IsFresh(account, mailbox, time.Hour) {
+		t.Fatalf("expected not fresh without metadata")
+	}
+
+	// Fresh metadata
+	meta := &Metadata{
+		UIDValidity: 1,
+		LastSync:    time.Now(),
+	}
+	if err := c.SaveMetadata(account, mailbox, meta); err != nil {
+		t.Fatalf("SaveMetadata error: %v", err)
+	}
+
+	if !c.IsFresh(account, mailbox, time.Hour) {
+		t.Fatalf("expected fresh with recent metadata")
+	}
+
+	// Stale metadata
+	meta.LastSync = time.Now().Add(-2 * time.Hour)
+	if err := c.SaveMetadata(account, mailbox, meta); err != nil {
+		t.Fatalf("SaveMetadata error: %v", err)
+	}
+
+	if c.IsFresh(account, mailbox, time.Hour) {
+		t.Fatalf("expected not fresh with old metadata")
 	}
 }

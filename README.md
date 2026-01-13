@@ -111,7 +111,7 @@ Configuration is stored in `~/.config/maily/`:
 
 - `accounts.yml` - Email accounts and credentials
 - `config.yml` - Application settings
-- `cache/` - Email cache
+- `maily.db` - Email cache (SQLite)
 - `server.pid` - Background server PID
 
 ### Settings

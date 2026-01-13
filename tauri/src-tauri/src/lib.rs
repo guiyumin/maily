@@ -2,18 +2,25 @@ mod config;
 mod imap_queue;
 mod mail;
 
+use tauri::WebviewWindowBuilder;
 use config::{get_config as load_config, save_config as store_config, AIProvider, Config};
 use imap_queue::{init as init_imap_queue, queue_mark_read, queue_sync};
 use mail::{
     delete_email_from_cache, get_accounts, get_email as fetch_email, get_emails,
-    list_emails_paginated, get_emails_count_since_days,
+    list_emails_paginated, get_emails_count_since_days, init_db, get_initial_state,
     sync_emails as do_sync_emails, update_email_read_status, update_email_cache_only,
-    Account, Email, ListEmailsResult, SyncResult,
+    Account, Email, ListEmailsResult, SyncResult, InitialState,
 };
 
 #[tauri::command]
 fn list_accounts() -> Result<Vec<Account>, String> {
     get_accounts().map_err(|e| e.to_string())
+}
+
+/// Get everything needed to render on startup - ONE call instead of multiple
+#[tauri::command]
+fn get_startup_state() -> Result<InitialState, String> {
+    get_initial_state().map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -119,12 +126,42 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
+            // Initialize database eagerly
+            init_db();
+
+            // Get initial state for injection
+            let initial_state = get_initial_state().ok();
+            let init_script = match initial_state {
+                Some(state) => {
+                    let json = serde_json::to_string(&state).unwrap_or_default();
+                    format!("window.__MAILY_INITIAL_STATE__ = {};", json)
+                }
+                None => String::new(),
+            };
+
+            // Create window with initialization script (data injected before React loads)
+            let mut builder = WebviewWindowBuilder::new(
+                app,
+                "main",
+                tauri::WebviewUrl::App("index.html".into()),
+            )
+            .title("Maily")
+            .inner_size(1200.0, 800.0);
+
+            if !init_script.is_empty() {
+                builder = builder.initialization_script(&init_script);
+            }
+
+            builder.build()?;
+
             // Initialize IMAP queue with app handle for events
             init_imap_queue(app.handle().clone());
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             list_accounts,
+            get_startup_state,
             list_emails,
             list_emails_page,
             get_email_count_days,

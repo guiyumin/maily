@@ -30,13 +30,6 @@ pub struct SyncStartedEvent {
 }
 
 #[derive(Debug, Clone, Serialize)]
-pub struct SyncProgressEvent {
-    pub account: String,
-    pub mailbox: String,
-    pub message: String,
-}
-
-#[derive(Debug, Clone, Serialize)]
 pub struct SyncCompleteEvent {
     pub account: String,
     pub mailbox: String,

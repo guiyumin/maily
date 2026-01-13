@@ -11,7 +11,6 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as IndexRouteImport } from './routes/index'
-import { Route as EmailAccountMailboxUidRouteImport } from './routes/email.$account.$mailbox.$uid'
 
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
@@ -23,40 +22,31 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const EmailAccountMailboxUidRoute = EmailAccountMailboxUidRouteImport.update({
-  id: '/email/$account/$mailbox/$uid',
-  path: '/email/$account/$mailbox/$uid',
-  getParentRoute: () => rootRouteImport,
-} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/settings': typeof SettingsRoute
-  '/email/$account/$mailbox/$uid': typeof EmailAccountMailboxUidRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/settings': typeof SettingsRoute
-  '/email/$account/$mailbox/$uid': typeof EmailAccountMailboxUidRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/settings': typeof SettingsRoute
-  '/email/$account/$mailbox/$uid': typeof EmailAccountMailboxUidRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/settings' | '/email/$account/$mailbox/$uid'
+  fullPaths: '/' | '/settings'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/settings' | '/email/$account/$mailbox/$uid'
-  id: '__root__' | '/' | '/settings' | '/email/$account/$mailbox/$uid'
+  to: '/' | '/settings'
+  id: '__root__' | '/' | '/settings'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   SettingsRoute: typeof SettingsRoute
-  EmailAccountMailboxUidRoute: typeof EmailAccountMailboxUidRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -75,20 +65,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/email/$account/$mailbox/$uid': {
-      id: '/email/$account/$mailbox/$uid'
-      path: '/email/$account/$mailbox/$uid'
-      fullPath: '/email/$account/$mailbox/$uid'
-      preLoaderRoute: typeof EmailAccountMailboxUidRouteImport
-      parentRoute: typeof rootRouteImport
-    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   SettingsRoute: SettingsRoute,
-  EmailAccountMailboxUidRoute: EmailAccountMailboxUidRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

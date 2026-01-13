@@ -29,15 +29,14 @@
   - Watches metadata.json for changes (updated at end of sync)
   - Only reloads when no lock exists (ensures coherent snapshot)
 
-### 2. maily daemon
+### 2. maily server
 - Starts automatically when you open maily
 - Runs in background, syncs every 30 minutes
-- Fetches latest 14 days from server
-- Saves to local cache
-- Deletes cache files older than 14 days
-- Check status: `maily daemon status`
-- Stop: `maily daemon stop`
-- Debug mode: `maily daemon start` (runs in foreground with visible output)
+- Uses `max(14 days, 100 emails)` sync strategy
+- In-memory cache for instant TUI startup
+- Also persists to disk for cold starts
+- Check status: `maily server status`
+- Stop: `maily server stop`
 
 ### 3. Manual refresh (`R` in TUI)
 - Fetches emails from IMAP server directly
@@ -45,7 +44,7 @@
 - Updates UI with fresh data from server
 
 ### 4. Full sync (`maily sync` from terminal)
-- Same logic as daemon sync (full 14 days)
+- Same logic as server sync: `max(14 days, 100 emails)`
 - Use when you need complete refresh
 
 ## Cache Structure
@@ -77,38 +76,36 @@
 
 `internal_date` is used for ordering and 14-day cleanup.
 
-## Sync Logic (daemon or manual)
+## Sync Logic (server)
 
-**Timestamp**: Uses INTERNALDATE (server receive time), consistent across all operations.
+**Strategy**: `max(last 14 days, last 100 emails)`
+
+This ensures:
+- **Minimum coverage**: Always at least 100 emails (useful for low-activity accounts)
+- **Recency coverage**: Never miss recent emails even during high-activity periods
 
 ```
 1. Connect to IMAP
-2. Check UIDVALIDITY (if changed, wipe cache, do full sync)
-3. Fetch UID + FLAGS for last 14 days by INTERNALDATE (lightweight)
-4. Compare with cached UIDs:
-   - New UIDs on server → fetch full email, save to cache
-   - UIDs in cache but not on server → delete from cache
-   - Existing UIDs with changed flags → update cache
-5. Delete cache files older than 14 days (by INTERNALDATE in JSON, not file mtime)
-6. Update metadata.json with last_sync time
+2. Fetch last 100 emails by sequence number (guaranteed minimum)
+3. Fetch UIDs from last 14 days
+4. Find any recent emails not in the 100 already fetched
+5. Fetch those additional emails
+6. Store union in memory cache and persist to disk
 ```
 
 This handles:
-- New emails (fetched)
-- Deleted emails on other clients (removed from cache)
-- Flag changes (read/unread synced)
+- Low-activity accounts: always have 100 emails to browse
+- High-activity accounts: never miss recent emails from last 14 days
+- Flag changes synced on next refresh
 
 ### Atomic Writes
 - Write to temp file first, then rename
 - Prevents TUI from reading partial JSON during sync
 
 ### Sync Lock
-- Lock file: `~/.config/maily/cache/<account>/.sync.lock`
-- Contains PID of sync process
-- Created when sync starts, deleted when sync finishes
+- In-memory mutex per account (no file locks needed)
+- Prevents overlapping syncs for same account
 - Per-account lock allows parallel sync of different accounts
-- Prevents overlapping syncs for same account (daemon vs manual)
-- Stale lock detection: if PID in lock file is not running, delete lock and proceed
 
 ## Delete Flow
 
@@ -170,14 +167,9 @@ This keeps cache small while having attachment metadata.
 When running `maily update`:
 
 ```
-1. Stop daemon if running
-2. Stop any running sync (graceful kill)
-   - Send SIGTERM to sync processes
-   - Wait up to 5s for graceful shutdown
-   - Force kill (SIGKILL) if still running
-   - Clean up stale lock files
-3. Download and install new binary
-4. Restart daemon if it was previously running
+1. Stop server if running
+2. Download and install new binary
+3. Restart server if it was previously running
 ```
 
 Safe because we use atomic writes - interrupted sync just means incomplete sync, next sync will fix it.
@@ -188,4 +180,4 @@ No complex foreground/background sync.
 No dedup logic.
 No write queues.
 No optimistic UI - wait for server confirmation.
-Daemon handles everything.
+Server handles everything.

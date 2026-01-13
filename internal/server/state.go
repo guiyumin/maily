@@ -11,6 +11,13 @@ import (
 	"maily/internal/mail"
 )
 
+const (
+	// SyncDays is the number of days to look back for emails
+	SyncDays = 14
+	// MinSyncEmails is the minimum number of emails to sync
+	MinSyncEmails = 100
+)
+
 // AccountState holds the runtime state for one account
 type AccountState struct {
 	Account   *auth.Account
@@ -229,7 +236,8 @@ func (sm *StateManager) GetLabels(email string) ([]string, error) {
 	return client.ListMailboxes()
 }
 
-// Sync performs a full sync for an account
+// Sync performs a full sync for an account using max(14 days, 100 emails)
+// This ensures we always have at least 100 emails while never missing recent ones
 func (sm *StateManager) Sync(email, mailbox string) error {
 	acquired, err := sm.TryStartSync(email)
 	if err != nil {
@@ -253,11 +261,41 @@ func (sm *StateManager) Sync(email, mailbox string) error {
 	}
 	defer client.Close()
 
-	// Fetch emails
-	emails, err := client.FetchMessages(mailbox, 100)
+	// Step 1: Fetch last 100 emails by sequence number
+	emails, err := client.FetchMessages(mailbox, MinSyncEmails)
 	if err != nil {
 		sm.EndSync(email, err)
 		return err
+	}
+
+	// Build map of fetched UIDs
+	fetchedUIDs := make(map[imap.UID]bool)
+	for _, e := range emails {
+		fetchedUIDs[e.UID] = true
+	}
+
+	// Step 2: Get UIDs from last 14 days
+	since := time.Now().AddDate(0, 0, -SyncDays)
+	recentUIDs, err := client.FetchUIDsAndFlags(mailbox, since)
+	if err != nil {
+		// Non-fatal: we still have the 100 emails
+		recentUIDs = nil
+	}
+
+	// Step 3: Find UIDs in 14-day window not already fetched
+	var missingUIDs []imap.UID
+	for uid := range recentUIDs {
+		if !fetchedUIDs[uid] {
+			missingUIDs = append(missingUIDs, uid)
+		}
+	}
+
+	// Step 4: Fetch any missing recent emails
+	if len(missingUIDs) > 0 {
+		additional, err := client.FetchMessagesByUIDs(mailbox, missingUIDs)
+		if err == nil {
+			emails = append(emails, additional...)
+		}
 	}
 
 	// Convert to cached format and store

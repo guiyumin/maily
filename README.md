@@ -5,7 +5,7 @@ A fast, keyboard-driven terminal email client with calendar integration.
 ## Features
 
 - **Multi-account support** - Gmail, Yahoo, and custom IMAP providers
-- **Fast startup** - Local caching with background sync daemon
+- **Fast startup** - Local caching with background sync server
 - **Keyboard-driven interface** - Vim-inspired navigation, command palette
 - **Email operations** - Compose, reply, delete, search, folder/label navigation
 - **Calendar integration** - macOS EventKit with natural language event creation
@@ -58,7 +58,7 @@ maily login imap       # For other IMAP providers
 maily
 ```
 
-The background sync daemon starts automatically when you open maily.
+The background server starts automatically when you open maily.
 
 ## Key Bindings
 
@@ -92,10 +92,10 @@ maily c add "..."      # Create event with natural language
 maily today            # Combined email + calendar view
 maily t                # Short alias
 
-# Daemon
-maily daemon status    # Check daemon status and logs
-maily daemon stop      # Stop the daemon
-maily daemon start     # Run daemon in foreground (for debugging)
+# Server
+maily server status    # Check server status
+maily server stop      # Stop the server
+maily server start     # Start server manually
 
 # Configuration
 maily config           # Interactive config TUI
@@ -111,8 +111,8 @@ Configuration is stored in `~/.config/maily/`:
 
 - `accounts.yml` - Email accounts and credentials
 - `config.yml` - Application settings
-- `cache/` - Email cache (14-day retention)
-- `daemon.pid` - Background daemon PID
+- `cache/` - Email cache
+- `server.pid` - Background server PID
 
 ### Settings
 
@@ -142,6 +142,8 @@ ai_accounts:
 2. Generate an App Password: Account Security > Generate app password
 3. Use the App Password when running `maily login yahoo`
 
+See [docs/features/yahoo-mail.md](docs/features/yahoo-mail.md) for detailed instructions.
+
 ## AI Integration
 
 Maily supports AI-powered features through multiple providers:
@@ -158,7 +160,7 @@ Features:
 
 - Built with Go and [Bubbletea](https://github.com/charmbracelet/bubbletea) (Elm-architecture TUI framework)
 - Uses [go-imap/v2](https://github.com/emersion/go-imap) for IMAP and SMTP
-- Local cache for fast startup, background daemon for sync (30-min interval)
+- Local cache for fast startup, background server for sync (30-min interval)
 - No optimistic UI - server operations wait for confirmation
 - macOS calendar via EventKit (CGO)
 

@@ -17,9 +17,11 @@ Similar to Gmail, Yahoo requires an **App Password** instead of your regular acc
    - Same page: scroll to "Generate and manage app passwords"
    - Click "Get started"
    - Enter an app name (e.g., "Maily")
-   - Yahoo generates a 16-character password
+   - Yahoo generates a 16-character password (format: `xxxx xxxx xxxx xxxx`)
 
-3. **Use that App Password** when logging into Maily (not your normal Yahoo password)
+3. **Use that App Password** when logging into Maily
+   - Enter it with or without spaces - both work
+   - Do NOT use your normal Yahoo password
 
 ## Server Settings
 
@@ -34,7 +36,7 @@ Similar to Gmail, Yahoo requires an **App Password** instead of your regular acc
 
 - App passwords stay valid even if you change your main password
 - To revoke access, delete the app password from Yahoo's security page
-- Yahoo has a limit of 500 emails/day
+- Yahoo has a limit of 500 outgoing emails/day via SMTP
 
 ## References
 

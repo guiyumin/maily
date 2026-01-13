@@ -9,6 +9,7 @@ import (
 
 // Request types
 const (
+	ReqHello           = "hello"
 	ReqGetEmails       = "get_emails"
 	ReqGetEmail        = "get_email"
 	ReqSync            = "sync"
@@ -32,6 +33,7 @@ const (
 type Request struct {
 	Type    string   `json:"type"`
 	ID      string   `json:"id,omitempty"` // for request/response matching
+	Version string   `json:"version,omitempty"` // client version for hello handshake
 	Account string   `json:"account,omitempty"`
 	Mailbox string   `json:"mailbox,omitempty"`
 	UID     uint32   `json:"uid,omitempty"`
@@ -45,6 +47,7 @@ type Request struct {
 const (
 	RespOK       = "ok"
 	RespError    = "error"
+	RespHello    = "hello"
 	RespEmails   = "emails"
 	RespEmail    = "email"
 	RespLabels   = "labels"
@@ -57,6 +60,7 @@ const (
 type Response struct {
 	Type     string         `json:"type"`
 	ID       string         `json:"id,omitempty"`
+	Version  string         `json:"version,omitempty"` // server version for hello response
 	Error    string         `json:"error,omitempty"`
 	Emails   []cache.CachedEmail `json:"emails,omitempty"`
 	Email    *cache.CachedEmail  `json:"email,omitempty"`

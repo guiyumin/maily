@@ -31,7 +31,7 @@ maily/
 │   │   ├── accounts.go       # List accounts
 │   │   ├── calendar.go       # Calendar TUI launcher
 │   │   ├── today.go          # Today view launcher
-│   │   ├── daemon.go         # Background sync daemon
+│   │   ├── server_cmd.go     # Server start/stop/status commands
 │   │   ├── sync_cmd.go       # Manual sync command
 │   │   ├── config.go         # Config TUI launcher
 │   │   ├── config_tui.go     # Config TUI implementation
@@ -65,7 +65,14 @@ maily/
 │   ├── cache/                 # Local email storage
 │   │   └── cache.go          # Per-account disk cache
 │   ├── sync/                  # Email synchronization
-│   │   └── sync.go           # Daemon/manual sync logic
+│   │   └── sync.go           # Sync logic (used by server)
+│   ├── server/                # Long-running server process
+│   │   ├── server.go         # Unix socket server, background poller
+│   │   ├── state.go          # Account state, sync logic
+│   │   ├── memory.go         # In-memory email cache
+│   │   └── protocol.go       # Client-server protocol
+│   ├── client/                # TUI client for server
+│   │   └── client.go         # Unix socket client
 │   ├── calendar/              # Calendar integration
 │   │   ├── calendar.go       # Abstract interface
 │   │   ├── eventkit_darwin.go # macOS EventKit (CGO)
@@ -97,7 +104,7 @@ The UI follows Elm architecture with `Init()`, `Update()`, `View()` methods:
 ### Key Patterns
 
 - **Multi-account support**: Accounts in `AccountStore`, Tab key switches
-- **Local cache**: Emails cached to disk for fast startup, daemon syncs in background
+- **Local cache**: Emails cached to disk for fast startup, server syncs in background
 - **No optimistic UI**: Server operations wait for confirmation before updating UI
 - **Gmail App Passwords**: Uses IMAP/SMTP with App Passwords (not OAuth)
 - **Message-passing**: Commands return `tea.Cmd` for async operations
@@ -146,7 +153,7 @@ See `docs/cache.md` for detailed cache architecture. Key points:
 
 - Server is single source of truth
 - Local cache is just a mirror for fast startup
-- Daemon syncs every 30 minutes
+- Server syncs every 30 minutes
 - Manual refresh with `R` fetches from server
 - 14-day retention by INTERNALDATE
 - UIDVALIDITY change detection (clears cache if UIDs reassigned)
@@ -176,5 +183,5 @@ Used for:
 - Accounts: `~/.config/maily/accounts.yml` (0600 permissions)
 - Config: `~/.config/maily/config.yml`
 - Cache: `~/.config/maily/cache/<email>/<mailbox>/<uid>.json`
-- Daemon PID: `~/.config/maily/daemon.pid`
-- Daemon logs: `~/.config/maily/daemon.log`
+- Server PID: `~/.config/maily/server.pid`
+- Server socket: `~/.config/maily/maily.sock`

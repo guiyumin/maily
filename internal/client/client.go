@@ -12,6 +12,7 @@ import (
 	"github.com/emersion/go-imap/v2"
 	"maily/internal/cache"
 	"maily/internal/server"
+	"maily/internal/version"
 )
 
 // Client connects to the maily server
@@ -24,6 +25,16 @@ type Client struct {
 	events  chan server.Event
 	mu      sync.Mutex
 	closed  bool
+}
+
+// ErrVersionMismatch is returned when client and server versions are incompatible
+type ErrVersionMismatch struct {
+	ClientVersion string
+	ServerVersion string
+}
+
+func (e ErrVersionMismatch) Error() string {
+	return fmt.Sprintf("version mismatch: client=%s, server=%s - please run 'maily server stop' and restart", e.ClientVersion, e.ServerVersion)
 }
 
 // Connect creates a new client connection to the server
@@ -45,7 +56,34 @@ func Connect() (*Client, error) {
 	// Start reader goroutine
 	go c.readLoop()
 
+	// Perform version handshake
+	if err := c.hello(); err != nil {
+		c.Close()
+		return nil, err
+	}
+
 	return c, nil
+}
+
+// hello performs the version handshake with the server
+func (c *Client) hello() error {
+	resp, err := c.request(server.Request{
+		Type:    server.ReqHello,
+		Version: version.Version,
+	}, 5*time.Second)
+
+	if err != nil {
+		// Check if it's a version mismatch error
+		if resp.Version != "" && resp.Type == server.RespError {
+			return ErrVersionMismatch{
+				ClientVersion: version.Version,
+				ServerVersion: resp.Version,
+			}
+		}
+		return err
+	}
+
+	return nil
 }
 
 // Close closes the connection

@@ -650,6 +650,12 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if a.view == listView && a.state == stateReady {
 				if email := a.mailList.SelectedEmail(); email != nil {
 					a.view = readView
+					// Adjust viewport height for email header (From/To/Subject/Date/separator = ~6 lines)
+					emailHeaderHeight := 6
+					if len(email.Attachments) > 0 {
+						emailHeaderHeight = 7
+					}
+					a.viewport.Height = a.height - 10 - emailHeaderHeight
 					a.viewport.SetContent(a.renderEmailContent(*email))
 					a.viewport.GotoTop()
 
@@ -915,7 +921,12 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.mailList.SetSize(msg.Width, msg.Height-7) // account for 2-row status bar
 		a.labelPicker.SetSize(msg.Width, msg.Height)
 		a.viewport.Width = msg.Width - 8
-		a.viewport.Height = msg.Height - 8
+		// Viewport height depends on view (readView has email header)
+		if a.view == readView {
+			a.viewport.Height = msg.Height - 16 // account for app header, email header, status bar
+		} else {
+			a.viewport.Height = msg.Height - 8
+		}
 		// Update compose model size (Update is called at end of function)
 		if a.view == composeView {
 			a.compose.setSize(msg.Width, msg.Height)

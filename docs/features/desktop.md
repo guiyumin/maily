@@ -332,3 +332,72 @@ For v0.1, ship the basics well:
 7. Single account
 
 Everything else comes after validating people want this.
+
+## Appendix: Per-Account Sync Locking
+
+The cache uses per-account lock files to prevent concurrent sync operations from corrupting data.
+
+### Problem
+
+```
+Daemon syncing user@gmail.com...
+    ↓ (writing 12345.json)
+User triggers manual refresh...
+    ↓ (also writing 12345.json)
+= corrupted file or race condition
+```
+
+### Solution
+
+```
+~/.config/maily/cache/<account>/.sync.lock
+Contents: "12345:1704067200"
+          ↑PID   ↑process start time
+```
+
+### Flow
+
+```go
+func (s *Syncer) FullSync(mailbox string) error {
+    acquired, err := s.cache.AcquireLock(email)
+    if !acquired {
+        return fmt.Errorf("sync already in progress")
+    }
+    defer s.cache.ReleaseLock(email)
+
+    // ... do sync work ...
+}
+```
+
+### Scenarios
+
+**Daemon syncing, user presses refresh:**
+```
+Daemon:  AcquireLock("user@gmail.com") → true ✓
+         ... syncing ...
+User:    AcquireLock("user@gmail.com") → false ✗
+         Returns "sync already in progress"
+Daemon:  ReleaseLock()
+```
+
+**Multi-account parallel sync:**
+```
+Account1: AcquireLock("user1@gmail.com") → true ✓
+Account2: AcquireLock("user2@yahoo.com") → true ✓
+          Both sync in parallel, no conflict
+```
+
+**Stale lock detection (process crashed):**
+```
+Daemon PID 1234: AcquireLock() → writes "1234:163000000"
+                 ... CRASH (no ReleaseLock called)
+
+Later sync attempt:
+  AcquireLock() → reads "1234:163000000"
+               → checks if PID 1234 still running
+               → process dead or start time differs
+               → removes stale lock
+               → acquires new lock ✓
+```
+
+The start time check prevents false positives when the OS recycles PIDs.

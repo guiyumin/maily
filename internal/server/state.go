@@ -1,0 +1,309 @@
+package server
+
+import (
+	"fmt"
+	"sync"
+	"time"
+
+	"github.com/emersion/go-imap/v2"
+	"maily/internal/auth"
+	"maily/internal/cache"
+	"maily/internal/mail"
+)
+
+// AccountState holds the runtime state for one account
+type AccountState struct {
+	Account   *auth.Account
+	Syncing   bool
+	LastSync  time.Time
+	LastError error
+	mu        sync.Mutex
+}
+
+// StateManager manages all account states and provides in-memory locking
+type StateManager struct {
+	accounts map[string]*AccountState // keyed by email
+	store    *auth.AccountStore
+	cache    *cache.Cache
+	memory   *MemoryCache
+	mu       sync.RWMutex
+}
+
+// NewStateManager creates a new state manager
+func NewStateManager(store *auth.AccountStore, diskCache *cache.Cache) *StateManager {
+	sm := &StateManager{
+		accounts: make(map[string]*AccountState),
+		store:    store,
+		cache:    diskCache,
+		memory:   NewMemoryCache(),
+	}
+
+	// Initialize state for each account
+	for i := range store.Accounts {
+		acc := &store.Accounts[i]
+		sm.accounts[acc.Credentials.Email] = &AccountState{
+			Account: acc,
+		}
+	}
+
+	return sm
+}
+
+// GetAccounts returns info about all accounts
+func (sm *StateManager) GetAccounts() []AccountInfo {
+	sm.mu.RLock()
+	defer sm.mu.RUnlock()
+
+	var infos []AccountInfo
+	for email, state := range sm.accounts {
+		state.mu.Lock()
+		info := AccountInfo{
+			Email:      email,
+			Provider:   state.Account.Credentials.Provider,
+			Syncing:    state.Syncing,
+			LastSync:   state.LastSync,
+			EmailCount: sm.memory.Count(email, "INBOX"),
+		}
+		state.mu.Unlock()
+		infos = append(infos, info)
+	}
+	return infos
+}
+
+// GetSyncStatus returns sync status for an account
+func (sm *StateManager) GetSyncStatus(email string) (*SyncStatus, error) {
+	sm.mu.RLock()
+	state, ok := sm.accounts[email]
+	sm.mu.RUnlock()
+
+	if !ok {
+		return nil, fmt.Errorf("account not found: %s", email)
+	}
+
+	state.mu.Lock()
+	defer state.mu.Unlock()
+
+	status := &SyncStatus{
+		Account:  email,
+		Syncing:  state.Syncing,
+		LastSync: state.LastSync,
+	}
+	if state.LastError != nil {
+		status.LastError = state.LastError.Error()
+	}
+	return status, nil
+}
+
+// TryStartSync attempts to start a sync for an account (in-memory lock)
+func (sm *StateManager) TryStartSync(email string) (bool, error) {
+	sm.mu.RLock()
+	state, ok := sm.accounts[email]
+	sm.mu.RUnlock()
+
+	if !ok {
+		return false, fmt.Errorf("account not found: %s", email)
+	}
+
+	state.mu.Lock()
+	defer state.mu.Unlock()
+
+	if state.Syncing {
+		return false, nil // Already syncing
+	}
+
+	state.Syncing = true
+	return true, nil
+}
+
+// EndSync marks sync as complete for an account
+func (sm *StateManager) EndSync(email string, err error) {
+	sm.mu.RLock()
+	state, ok := sm.accounts[email]
+	sm.mu.RUnlock()
+
+	if !ok {
+		return
+	}
+
+	state.mu.Lock()
+	defer state.mu.Unlock()
+
+	state.Syncing = false
+	state.LastSync = time.Now()
+	state.LastError = err
+}
+
+// GetEmails returns emails from memory cache, falling back to disk
+func (sm *StateManager) GetEmails(email, mailbox string, limit int) ([]cache.CachedEmail, error) {
+	// Try memory first
+	emails := sm.memory.Get(email, mailbox)
+	if len(emails) > 0 {
+		if limit > 0 && len(emails) > limit {
+			return emails[:limit], nil
+		}
+		return emails, nil
+	}
+
+	// Fall back to disk cache
+	if sm.cache != nil {
+		diskEmails, err := sm.cache.LoadEmails(email, mailbox)
+		if err != nil {
+			return nil, err
+		}
+		// Store in memory for next time
+		sm.memory.Set(email, mailbox, diskEmails)
+		if limit > 0 && len(diskEmails) > limit {
+			return diskEmails[:limit], nil
+		}
+		return diskEmails, nil
+	}
+
+	return nil, nil
+}
+
+// GetEmail returns a single email by UID
+func (sm *StateManager) GetEmail(email, mailbox string, uid imap.UID) (*cache.CachedEmail, error) {
+	// Try memory first
+	cached := sm.memory.GetByUID(email, mailbox, uid)
+	if cached != nil {
+		return cached, nil
+	}
+
+	// Fall back to disk
+	if sm.cache != nil {
+		return sm.cache.GetEmail(email, mailbox, uid)
+	}
+
+	return nil, nil
+}
+
+// UpdateEmail updates an email in both memory and disk cache
+func (sm *StateManager) UpdateEmail(email, mailbox string, cached cache.CachedEmail) error {
+	sm.memory.Update(email, mailbox, cached)
+	if sm.cache != nil {
+		return sm.cache.SaveEmail(email, mailbox, cached)
+	}
+	return nil
+}
+
+// DeleteEmail removes an email from both memory and disk cache
+func (sm *StateManager) DeleteEmail(email, mailbox string, uid imap.UID) error {
+	sm.memory.Delete(email, mailbox, uid)
+	if sm.cache != nil {
+		return sm.cache.DeleteEmail(email, mailbox, uid)
+	}
+	return nil
+}
+
+// SetEmails stores emails in memory cache
+func (sm *StateManager) SetEmails(email, mailbox string, emails []cache.CachedEmail) {
+	sm.memory.Set(email, mailbox, emails)
+}
+
+// GetAccountCredentials returns credentials for an account
+func (sm *StateManager) GetAccountCredentials(email string) (*auth.Credentials, error) {
+	sm.mu.RLock()
+	state, ok := sm.accounts[email]
+	sm.mu.RUnlock()
+
+	if !ok {
+		return nil, fmt.Errorf("account not found: %s", email)
+	}
+
+	return &state.Account.Credentials, nil
+}
+
+// GetLabels fetches labels from IMAP
+func (sm *StateManager) GetLabels(email string) ([]string, error) {
+	creds, err := sm.GetAccountCredentials(email)
+	if err != nil {
+		return nil, err
+	}
+
+	client, err := mail.NewIMAPClient(creds)
+	if err != nil {
+		return nil, err
+	}
+	defer client.Close()
+
+	return client.ListMailboxes()
+}
+
+// Sync performs a full sync for an account
+func (sm *StateManager) Sync(email, mailbox string) error {
+	acquired, err := sm.TryStartSync(email)
+	if err != nil {
+		return err
+	}
+	if !acquired {
+		return fmt.Errorf("sync already in progress")
+	}
+	defer sm.EndSync(email, nil)
+
+	creds, err := sm.GetAccountCredentials(email)
+	if err != nil {
+		sm.EndSync(email, err)
+		return err
+	}
+
+	client, err := mail.NewIMAPClient(creds)
+	if err != nil {
+		sm.EndSync(email, err)
+		return err
+	}
+	defer client.Close()
+
+	// Fetch emails
+	emails, err := client.FetchMessages(mailbox, 100)
+	if err != nil {
+		sm.EndSync(email, err)
+		return err
+	}
+
+	// Convert to cached format and store
+	cached := make([]cache.CachedEmail, len(emails))
+	for i, e := range emails {
+		cached[i] = emailToCached(e)
+	}
+
+	sm.SetEmails(email, mailbox, cached)
+
+	// Also persist to disk
+	if sm.cache != nil {
+		for _, c := range cached {
+			sm.cache.SaveEmail(email, mailbox, c)
+		}
+	}
+
+	return nil
+}
+
+// emailToCached converts mail.Email to cache.CachedEmail
+func emailToCached(e mail.Email) cache.CachedEmail {
+	attachments := make([]cache.Attachment, len(e.Attachments))
+	for i, a := range e.Attachments {
+		attachments[i] = cache.Attachment{
+			PartID:      a.PartID,
+			Filename:    a.Filename,
+			ContentType: a.ContentType,
+			Size:        a.Size,
+			Encoding:    a.Encoding,
+		}
+	}
+
+	return cache.CachedEmail{
+		UID:          e.UID,
+		MessageID:    e.MessageID,
+		InternalDate: e.InternalDate,
+		From:         e.From,
+		ReplyTo:      e.ReplyTo,
+		To:           e.To,
+		Subject:      e.Subject,
+		Date:         e.Date,
+		Snippet:      e.Snippet,
+		BodyHTML:     e.BodyHTML,
+		Unread:       e.Unread,
+		References:   e.References,
+		Attachments:  attachments,
+	}
+}

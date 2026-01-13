@@ -28,11 +28,11 @@ var updateCmd = &cobra.Command{
 			}
 		}
 
-		// Check if daemon was running and stop it
-		daemonWasRunning := isDaemonRunning()
-		if daemonWasRunning {
-			fmt.Println("Stopping daemon before update...")
-			stopDaemon()
+		// Check if server was running and stop it
+		serverWasRunning, _, _ := isServerRunning()
+		if serverWasRunning {
+			fmt.Println("Stopping server before update...")
+			stopServer()
 		}
 
 		// Stop any running sync
@@ -45,10 +45,10 @@ var updateCmd = &cobra.Command{
 			return err
 		}
 
-		// Restart daemon if it was running
-		if daemonWasRunning {
-			fmt.Println("Restarting daemon...")
-			startDaemonBackground()
+		// Restart server if it was running
+		if serverWasRunning {
+			fmt.Println("Restarting server...")
+			startServerBackground()
 		}
 
 		return nil

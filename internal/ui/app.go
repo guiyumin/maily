@@ -18,6 +18,7 @@ import (
 	"maily/internal/auth"
 	"maily/internal/cache"
 	"maily/internal/calendar"
+	"maily/internal/client"
 	"maily/internal/mail"
 	"maily/internal/ui/components"
 )
@@ -42,10 +43,11 @@ type App struct {
 	store           *auth.AccountStore
 	cfg             *config.Config
 	accountIdx      int
-	imap            *mail.IMAPClient
+	serverClient    *client.Client          // connection to maily server
+	imap            *mail.IMAPClient        // for operations not yet delegated (compose, drafts)
 	imapCache       map[int]*mail.IMAPClient
 	emailCache      map[string][]mail.Email // key: "accountIdx:label"
-	diskCache       *cache.Cache            // persistent disk cache
+	diskCache       *cache.Cache            // persistent disk cache (fallback only)
 	mailList        components.MailList
 	viewport        viewport.Model
 	spinner         spinner.Model
@@ -230,7 +232,10 @@ func NewApp(store *auth.AccountStore, cfg *config.Config) App {
 	vp := viewport.New(80, 24) // Default size, will be resized by WindowSizeMsg
 	vp.Style = lipgloss.NewStyle().Padding(1, 4, 3, 4)
 
-	// Initialize disk cache (ignore error, will just skip cache)
+	// Connect to server (ignore error, will fall back to direct access)
+	serverClient, _ := client.Connect()
+
+	// Initialize disk cache as fallback (ignore error)
 	diskCache, _ := cache.New()
 
 	// Initialize calendar client (ignore error, will just skip calendar features)
@@ -240,6 +245,7 @@ func NewApp(store *auth.AccountStore, cfg *config.Config) App {
 		store:          store,
 		cfg:            cfg,
 		accountIdx:     0,
+		serverClient:   serverClient,
 		imapCache:      make(map[int]*mail.IMAPClient),
 		emailCache:     make(map[string][]mail.Email),
 		diskCache:      diskCache,
@@ -525,10 +531,14 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		switch msg.String() {
 		case "ctrl+c", "q":
-			// Close all cached IMAP connections
-			for _, client := range a.imapCache {
-				if client != nil {
-					client.Close()
+			// Close server client
+			if a.serverClient != nil {
+				a.serverClient.Close()
+			}
+			// Close all cached IMAP connections (fallback)
+			for _, imapClient := range a.imapCache {
+				if imapClient != nil {
+					imapClient.Close()
 				}
 			}
 			if a.imap != nil {

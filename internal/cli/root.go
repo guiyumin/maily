@@ -65,8 +65,11 @@ func runTUI() {
 		fmt.Printf("Warning: i18n initialization failed: %v\n", err)
 	}
 
-	// Auto-start daemon if not running
-	startDaemonBackground()
+	// Auto-start server if not running
+	if err := startServerBackground(); err != nil {
+		// Non-fatal: TUI can still work without server
+		fmt.Printf("Warning: failed to start server: %v\n", err)
+	}
 
 	// Loop to allow returning from config TUI back to main app
 	for {

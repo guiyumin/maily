@@ -955,6 +955,53 @@ func (c *IMAPClient) SearchMessages(mailbox string, query string) ([]Email, erro
 	return emails, nil
 }
 
+// FetchByUIDs fetches emails by their UIDs (used for paginated search results)
+func (c *IMAPClient) FetchByUIDs(mailbox string, uids []imap.UID) ([]Email, error) {
+	if len(uids) == 0 {
+		return []Email{}, nil
+	}
+
+	// Select mailbox for fetching
+	_, err := c.client.Select(mailbox, nil).Wait()
+	if err != nil {
+		return nil, fmt.Errorf("failed to select mailbox: %w", err)
+	}
+
+	// Build UID set
+	uidSet := imap.UIDSet{}
+	for _, uid := range uids {
+		uidSet.AddNum(uid)
+	}
+
+	fetchOptions := &imap.FetchOptions{
+		UID:           true,
+		Flags:         true,
+		Envelope:      true,
+		InternalDate:  true,
+		BodyStructure: &imap.FetchItemBodyStructure{Extended: true},
+		BodySection:   []*imap.FetchItemBodySection{{Peek: true}},
+	}
+
+	messages, err := c.client.Fetch(uidSet, fetchOptions).Collect()
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch messages: %w", err)
+	}
+
+	emails := make([]Email, 0, len(messages))
+	for i := len(messages) - 1; i >= 0; i-- {
+		msg := messages[i]
+		email := c.parseMessageHeader(msg)
+		// Parse body for snippet
+		if len(msg.BodySection) > 0 {
+			_, snippet := c.parseBody(msg.BodySection[0].Bytes)
+			email.Snippet = snippet
+		}
+		emails = append(emails, email)
+	}
+
+	return emails, nil
+}
+
 // parseMessageHeader parses message headers without body (faster for search results)
 func (c *IMAPClient) parseMessageHeader(msg *imapclient.FetchMessageBuffer) Email {
 	email := Email{}

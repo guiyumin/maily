@@ -129,6 +129,17 @@ No optimistic UI - wait for server confirmation:
 - Import `github.com/emersion/go-message/charset` for proper character encoding
 - Gmail X-GM-RAW for native search syntax
 
+### Search Feature
+
+See `docs/features/search.md` for detailed search architecture. Key points:
+
+- Two modes: Interactive TUI and non-interactive CLI (JSON/table output)
+- `-a` flag required when multiple accounts configured
+- Gmail X-GM-RAW for native search syntax, TEXT search for other providers
+- Lazy loading: UIDs fetched first (fast), then emails loaded on demand
+- TUI: Press `l` to load 50 more emails, status shows loaded/total count
+- CLI flags: `--count`, `--format`, `--limit`, `--offset` trigger non-interactive mode
+
 ### Cache Design
 
 See `docs/cache.md` for detailed cache architecture. Key points:

@@ -74,8 +74,13 @@ maily login yahoo      # Add Yahoo account
 maily login imap       # Add other IMAP account
 maily logout           # Remove account
 maily accounts         # List accounts
-maily search           # Search emails (interactive)
 maily sync             # Manual full sync
+
+# Search (-a required if multiple accounts)
+maily search -a me@gmail.com -q "from:temu"    # Interactive TUI search
+maily search -q "is:unread" --count            # Count matching emails
+maily search -q "from:amazon" --format=json --limit=50
+maily search -q "has:attachment" --format=table
 
 # Calendar (macOS)
 maily calendar         # Calendar TUI

@@ -46,6 +46,16 @@
 - [x] Today view (split panel: emails + events)
 - [x] Extract events from email (`e` key)
 
+### CLI Search with Pagination
+
+- [x] `maily search -q "<query>"` - CLI search with non-interactive output
+  - `-a` to specify account (required if multiple accounts)
+  - Uses Gmail's native query syntax (X-GM-RAW)
+  - `--format=json|table` for non-interactive output
+  - `--count` for total count only
+  - `--limit` and `--offset` for pagination
+  - TUI mode with lazy loading (`l` to load more)
+
 ### Better Delete UX
 
 - [x] Delete dialog with 3 options: Move to Trash (default), Permanent Delete, Cancel
@@ -79,15 +89,6 @@ First-time picker for AI tasks, remembered for next time.
 - [ ] Skip picker on subsequent uses, use saved preference
 - [ ] CLI: Add `--ai-provider` flag to override config (for automation)
 - [ ] Config TUI: Allow viewing/resetting saved preferences
-
-### CLI Bulk Processing Commands
-
-Non-interactive CLI commands for scripting/automation.
-
-- [ ] `maily search --from=<account> --query="<query>"` - CLI search with actions
-  - Uses Gmail's native query syntax (X-GM-RAW)
-  - Output results as JSON or table
-  - Pipe to other commands for batch operations
 
 ### Support OAuth Login
 

@@ -3,17 +3,28 @@ package utils
 import (
 	"strings"
 	"time"
+
+	"github.com/charmbracelet/lipgloss"
 )
 
-// TruncateStr truncates a string to maxLen characters using unicode ellipsis
+// TruncateStr truncates a string to maxLen visual width using unicode ellipsis
 func TruncateStr(s string, maxLen int) string {
-	if len(s) <= maxLen {
+	width := lipgloss.Width(s)
+	if width <= maxLen {
 		return s
 	}
 	if maxLen <= 1 {
-		return s[:maxLen]
+		return "…"
 	}
-	return s[:maxLen-1] + "…"
+	// Truncate rune by rune until we fit
+	runes := []rune(s)
+	for i := len(runes) - 1; i >= 0; i-- {
+		truncated := string(runes[:i]) + "…"
+		if lipgloss.Width(truncated) <= maxLen {
+			return truncated
+		}
+	}
+	return "…"
 }
 
 func ExtractNameFromEmail(from string) string {

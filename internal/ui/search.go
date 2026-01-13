@@ -32,7 +32,6 @@ type actionType int
 const (
 	actionNone actionType = iota
 	actionDelete
-	actionArchive
 	actionMarkRead
 )
 
@@ -43,27 +42,47 @@ const (
 	searchReadView
 )
 
+// confirmOption represents the selected button in confirmation dialogs
+type confirmOption int
+
+const (
+	confirmOptionYes confirmOption = iota
+	confirmOptionNo
+)
+
 type SearchApp struct {
-	account           *auth.Account
-	query             string
-	imap              *mail.IMAPClient
-	emails            []mail.Email
-	selected          map[int]bool
-	cursor            int
-	state             searchState
-	view              searchView
-	action            actionType
-	spinner           spinner.Model
-	viewport          viewport.Model
-	width             int
-	height            int
-	err               error
-	message           string
-	scrollCount       int
+	account             *auth.Account
+	query               string
+	imap                *mail.IMAPClient
+	uids                []imap.UID       // All matching UIDs from search
+	emails              map[int]mail.Email // Lazily loaded emails by index
+	selected            map[int]bool
+	cursor              int
+	state               searchState
+	view                searchView
+	action              actionType
+	spinner             spinner.Model
+	viewport            viewport.Model
+	width               int
+	height              int
+	err                 error
+	message             string
+	scrollCount         int
 	confirmDeleteSingle bool
+	confirmSelection    confirmOption // Selected button in confirm dialogs
+	loadingRange        bool          // True when fetching a new range
+	lastLoadedStart     int           // Start of last loaded range
+	lastLoadedEnd       int           // End of last loaded range
 }
 
-type searchResultsMsg struct {
+// searchUIDsMsg is sent when UIDs are fetched (first phase)
+type searchUIDsMsg struct {
+	uids []imap.UID
+}
+
+// searchRangeMsg is sent when a range of emails is loaded (lazy loading)
+type searchRangeMsg struct {
+	start  int
 	emails []mail.Email
 }
 
@@ -86,6 +105,7 @@ func NewSearchApp(account *auth.Account, query string) SearchApp {
 	return SearchApp{
 		account:  account,
 		query:    query,
+		emails:   make(map[int]mail.Email),
 		selected: make(map[int]bool),
 		state:    searchStateLoading,
 		view:     searchListView,
@@ -103,27 +123,54 @@ func (a SearchApp) Init() tea.Cmd {
 
 func (a SearchApp) connect() tea.Cmd {
 	return func() tea.Msg {
+		// Phase 1: Only fetch UIDs (fast)
+		uids, err := mail.Search(&a.account.Credentials, "INBOX", a.query)
+		if err != nil {
+			return searchErrorMsg{err: err}
+		}
+
+		return searchUIDsMsg{uids: uids}
+	}
+}
+
+// loadRange fetches email details for a range of UIDs
+func (a *SearchApp) loadRange(start, end int) tea.Cmd {
+	return func() tea.Msg {
+		if start >= len(a.uids) {
+			return searchRangeMsg{start: start, emails: nil}
+		}
+		if end > len(a.uids) {
+			end = len(a.uids)
+		}
+
+		// Get UIDs for this range
+		rangeUIDs := a.uids[start:end]
+		if len(rangeUIDs) == 0 {
+			return searchRangeMsg{start: start, emails: nil}
+		}
+
+		// Fetch email details
 		client, err := mail.NewIMAPClient(&a.account.Credentials)
 		if err != nil {
 			return searchErrorMsg{err: err}
 		}
+		defer client.Close()
 
-		emails, err := client.SearchMessages("INBOX", a.query)
-		client.Close() // Close search client - a new one will be created for actions
+		emails, err := client.FetchByUIDs("INBOX", rangeUIDs)
 		if err != nil {
 			return searchErrorMsg{err: err}
 		}
 
-		return searchResultsMsg{emails: emails}
+		return searchRangeMsg{start: start, emails: emails}
 	}
 }
 
 func (a *SearchApp) executeAction() tea.Cmd {
 	return func() tea.Msg {
 		var uids []imap.UID
-		for i, email := range a.emails {
-			if a.selected[i] {
-				uids = append(uids, email.UID)
+		for i := range a.selected {
+			if a.selected[i] && i < len(a.uids) {
+				uids = append(uids, a.uids[i])
 			}
 		}
 
@@ -131,8 +178,6 @@ func (a *SearchApp) executeAction() tea.Cmd {
 		switch a.action {
 		case actionDelete:
 			err = a.imap.DeleteMessages(uids)
-		case actionArchive:
-			err = a.imap.ArchiveMessages(uids)
 		case actionMarkRead:
 			err = a.imap.MarkMessagesAsRead(uids)
 		}
@@ -208,23 +253,39 @@ func (a SearchApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.spinner, cmd = a.spinner.Update(msg)
 		return a, cmd
 
-	case searchResultsMsg:
-		a.emails = msg.emails
-		a.state = searchStateReady
-		if len(a.emails) == 0 {
+	case searchUIDsMsg:
+		a.uids = msg.uids
+		if len(a.uids) == 0 {
 			a.message = "No emails found matching your query."
 			a.state = searchStateDone
 			return a, nil
 		}
-		// Create IMAP client for later actions (only if we have results)
-		client, err := mail.NewIMAPClient(&a.account.Credentials)
-		if err != nil {
-			a.state = searchStateError
-			a.err = fmt.Errorf("failed to connect for actions: %w", err)
-			return a, nil
+		// Load first visible range
+		a.loadingRange = true
+		return a, a.loadRange(0, 50) // Load first 50 emails
+
+	case searchRangeMsg:
+		a.loadingRange = false
+		// Store loaded emails in map
+		for i, email := range msg.emails {
+			a.emails[msg.start+i] = email
 		}
-		client.SelectMailbox("INBOX")
-		a.imap = client
+		a.lastLoadedStart = msg.start
+		a.lastLoadedEnd = msg.start + len(msg.emails)
+
+		// First load - transition to ready state and create action client
+		if a.state == searchStateLoading {
+			a.state = searchStateReady
+			// Create IMAP client for later actions
+			client, err := mail.NewIMAPClient(&a.account.Credentials)
+			if err != nil {
+				a.state = searchStateError
+				a.err = fmt.Errorf("failed to connect for actions: %w", err)
+				return a, nil
+			}
+			client.SelectMailbox("INBOX")
+			a.imap = client
+		}
 
 	case searchErrorMsg:
 		a.state = searchStateError
@@ -235,30 +296,30 @@ func (a SearchApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch a.action {
 		case actionDelete:
 			actionName = "deleted"
-			// Remove deleted emails from the list
-			var remaining []mail.Email
-			for i, email := range a.emails {
+			// Remove deleted UIDs and rebuild emails map
+			var remainingUIDs []imap.UID
+			newEmails := make(map[int]mail.Email)
+			newIdx := 0
+			for i, uid := range a.uids {
 				if !a.selected[i] {
-					remaining = append(remaining, email)
+					remainingUIDs = append(remainingUIDs, uid)
+					if email, ok := a.emails[i]; ok {
+						newEmails[newIdx] = email
+					}
+					newIdx++
 				}
 			}
-			a.emails = remaining
-		case actionArchive:
-			actionName = "archived"
-			// Remove archived emails from the list
-			var remaining []mail.Email
-			for i, email := range a.emails {
-				if !a.selected[i] {
-					remaining = append(remaining, email)
-				}
-			}
-			a.emails = remaining
+			a.uids = remainingUIDs
+			a.emails = newEmails
 		case actionMarkRead:
 			actionName = "marked as read"
-			// Update unread status in the list
-			for i := range a.emails {
+			// Update unread status in the map
+			for i := range a.selected {
 				if a.selected[i] {
-					a.emails[i].Unread = false
+					if email, ok := a.emails[i]; ok {
+						email.Unread = false
+						a.emails[i] = email
+					}
 				}
 			}
 		}
@@ -268,8 +329,8 @@ func (a SearchApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.action = actionNone
 
 		// Adjust cursor if needed
-		if a.cursor >= len(a.emails) && a.cursor > 0 {
-			a.cursor = len(a.emails) - 1
+		if a.cursor >= len(a.uids) && a.cursor > 0 {
+			a.cursor = len(a.uids) - 1
 		}
 
 		// Go back to ready state (list view)
@@ -277,7 +338,7 @@ func (a SearchApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.message = fmt.Sprintf("Successfully %s %d email(s).", actionName, msg.count)
 
 		// If no emails left, show done state
-		if len(a.emails) == 0 {
+		if len(a.uids) == 0 {
 			a.message = fmt.Sprintf("Successfully %s %d email(s). No more results.", actionName, msg.count)
 			a.state = searchStateDone
 		}
@@ -337,6 +398,17 @@ func (a SearchApp) handleReadyKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			a.cursor++
 		}
 
+	case "l": // Load more emails
+		if !a.loadingRange && len(a.emails) < len(a.uids) {
+			a.loadingRange = true
+			start := len(a.emails)
+			end := start + 50
+			if end > len(a.uids) {
+				end = len(a.uids)
+			}
+			return a, a.loadRange(start, end)
+		}
+
 	case " ": // Space to toggle selection
 		a.selected[a.cursor] = !a.selected[a.cursor]
 		if a.cursor < len(a.emails)-1 {
@@ -344,13 +416,13 @@ func (a SearchApp) handleReadyKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 
 	case "a": // Select all
-		allSelected := len(a.selected) == len(a.emails)
+		allSelected := len(a.selected) == len(a.uids)
 		if allSelected {
 			// Deselect all
 			a.selected = make(map[int]bool)
 		} else {
 			// Select all
-			for i := range a.emails {
+			for i := range a.uids {
 				a.selected[i] = true
 			}
 		}
@@ -359,18 +431,14 @@ func (a SearchApp) handleReadyKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if a.selectedCount() > 0 {
 			a.action = actionDelete
 			a.state = searchStateConfirm
-		}
-
-	case "e": // Archive (Gmail: move to All Mail)
-		if a.selectedCount() > 0 {
-			a.action = actionArchive
-			a.state = searchStateConfirm
+			a.confirmSelection = confirmOptionYes
 		}
 
 	case "r": // Mark as read
 		if a.selectedCount() > 0 {
 			a.action = actionMarkRead
 			a.state = searchStateConfirm
+			a.confirmSelection = confirmOptionYes
 		}
 	}
 
@@ -391,39 +459,63 @@ func (a SearchApp) handleReadViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		a.confirmDeleteSingle = false
 
 	case "d":
-		// Delete current email
+		// Delete current email - show confirmation
 		if !a.confirmDeleteSingle {
 			a.confirmDeleteSingle = true
+			a.confirmSelection = confirmOptionYes // Default to Yes
 		}
 
-	case "y":
+	case "left", "h":
 		if a.confirmDeleteSingle {
-			// Delete the current email
-			if a.cursor < len(a.emails) {
-				email := a.emails[a.cursor]
-				// Remove from list
-				a.emails = append(a.emails[:a.cursor], a.emails[a.cursor+1:]...)
-				// Adjust cursor if needed
-				if a.cursor >= len(a.emails) && a.cursor > 0 {
-					a.cursor--
+			a.confirmSelection = confirmOptionYes
+		}
+
+	case "right", "l":
+		if a.confirmDeleteSingle {
+			a.confirmSelection = confirmOptionNo
+		}
+
+	case "enter":
+		if a.confirmDeleteSingle {
+			if a.confirmSelection == confirmOptionYes {
+				// Delete the current email
+				if a.cursor < len(a.uids) {
+					uid := a.uids[a.cursor]
+					// Remove UID from list and rebuild emails map
+					newUIDs := append(a.uids[:a.cursor], a.uids[a.cursor+1:]...)
+					newEmails := make(map[int]mail.Email)
+					for i, u := range newUIDs {
+						// Find the old index for this UID
+						for oldIdx, oldUID := range a.uids {
+							if oldUID == u {
+								if email, ok := a.emails[oldIdx]; ok {
+									newEmails[i] = email
+								}
+								break
+							}
+						}
+					}
+					a.uids = newUIDs
+					a.emails = newEmails
+					// Adjust cursor if needed
+					if a.cursor >= len(a.uids) && a.cursor > 0 {
+						a.cursor--
+					}
+					// Delete in background
+					if a.imap != nil {
+						imapClient := a.imap
+						go func() {
+							imapClient.DeleteMessage(uid)
+						}()
+					}
+					// Go back to list view
+					a.view = searchListView
+					a.confirmDeleteSingle = false
 				}
-				// Delete in background
-				if a.imap != nil {
-					imapClient := a.imap
-					uid := email.UID
-					go func() {
-						imapClient.DeleteMessage(uid)
-					}()
-				}
-				// Go back to list view
-				a.view = searchListView
+			} else {
+				// Cancel
 				a.confirmDeleteSingle = false
 			}
-		}
-
-	case "n":
-		if a.confirmDeleteSingle {
-			a.confirmDeleteSingle = false
 		}
 
 	case "up", "k":
@@ -452,11 +544,22 @@ func (a SearchApp) renderEmailContent(email mail.Email) string {
 
 func (a SearchApp) handleConfirmKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
-	case "y", "Y":
-		a.state = searchStateExecuting
-		return a, tea.Batch(a.spinner.Tick, a.executeAction())
+	case "left", "h":
+		a.confirmSelection = confirmOptionYes
 
-	case "n", "N", "esc":
+	case "right", "l":
+		a.confirmSelection = confirmOptionNo
+
+	case "enter":
+		if a.confirmSelection == confirmOptionYes {
+			a.state = searchStateExecuting
+			return a, tea.Batch(a.spinner.Tick, a.executeAction())
+		} else {
+			a.state = searchStateReady
+			a.action = actionNone
+		}
+
+	case "esc":
 		a.state = searchStateReady
 		a.action = actionNone
 	}
@@ -609,6 +712,31 @@ func (a SearchApp) renderReadView() string {
 
 	// Confirmation overlay if deleting
 	if a.confirmDeleteSingle {
+		selectedStyle := lipgloss.NewStyle().
+			Bold(true).
+			Foreground(lipgloss.Color("#1F2937")).
+			Background(lipgloss.Color("#EF4444")).
+			Padding(0, 2)
+
+		unselectedStyle := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#F9FAFB")).
+			Padding(0, 2)
+
+		var yesBtn, noBtn string
+		if a.confirmSelection == confirmOptionYes {
+			yesBtn = selectedStyle.Render("Yes")
+			noBtn = unselectedStyle.Render("No")
+		} else {
+			yesBtn = unselectedStyle.Render("Yes")
+			noBtn = selectedStyle.Background(lipgloss.Color("#6B7280")).Render("No")
+		}
+
+		buttons := lipgloss.JoinHorizontal(lipgloss.Center, yesBtn, "  ", noBtn)
+
+		hint := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("#9CA3AF")).
+			Render("← → to select, enter to confirm, esc to cancel")
+
 		confirmDialog := lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(lipgloss.Color("#EF4444")).
@@ -618,7 +746,9 @@ func (a SearchApp) renderReadView() string {
 				lipgloss.JoinVertical(lipgloss.Center,
 					lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#EF4444")).Render("Delete this email?"),
 					"",
-					lipgloss.NewStyle().Foreground(lipgloss.Color("#9CA3AF")).Render("press y to confirm, n to cancel"),
+					buttons,
+					"",
+					hint,
 				),
 			)
 
@@ -638,7 +768,7 @@ func (a SearchApp) renderReadView() string {
 }
 
 func (a SearchApp) renderEmailLine(email mail.Email, cursor bool, selected bool) string {
-	maxWidth := a.width - 14
+	maxWidth := a.width - 17 // Account for checkbox, status, attachment icon
 	if maxWidth < 40 {
 		maxWidth = 80
 	}
@@ -663,6 +793,14 @@ func (a SearchApp) renderEmailLine(email mail.Email, cursor bool, selected bool)
 		status = lipgloss.NewStyle().Foreground(lipgloss.Color("#6B7280")).Render("○ ")
 	}
 
+	// Attachment indicator
+	var attachIcon string
+	if len(email.Attachments) > 0 {
+		attachIcon = lipgloss.NewStyle().Foreground(lipgloss.Color("#F59E0B")).Render("📎")
+	} else {
+		attachIcon = "  " // Same width placeholder
+	}
+
 	line := fmt.Sprintf("%-20s │ %-*s │ %s",
 		from,
 		maxWidth-35,
@@ -672,7 +810,7 @@ func (a SearchApp) renderEmailLine(email mail.Email, cursor bool, selected bool)
 
 	lineStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("#F9FAFB")).
-		Width(a.width - 14)
+		Width(a.width - 17)
 
 	if cursor {
 		lineStyle = lineStyle.
@@ -685,7 +823,7 @@ func (a SearchApp) renderEmailLine(email mail.Email, cursor bool, selected bool)
 		lineStyle = lineStyle.Bold(true)
 	}
 
-	return checkbox + status + lineStyle.Render(line)
+	return checkbox + status + attachIcon + " " + lineStyle.Render(line)
 }
 
 func (a SearchApp) renderConfirmDialog() string {
@@ -696,9 +834,6 @@ func (a SearchApp) renderConfirmDialog() string {
 	case actionDelete:
 		actionName = "Delete"
 		actionColor = lipgloss.Color("#EF4444")
-	case actionArchive:
-		actionName = "Archive"
-		actionColor = lipgloss.Color("#F59E0B")
 	case actionMarkRead:
 		actionName = "Mark as read"
 		actionColor = lipgloss.Color("#3B82F6")
@@ -715,9 +850,30 @@ func (a SearchApp) renderConfirmDialog() string {
 		Foreground(actionColor).
 		Render(fmt.Sprintf("%s %d email(s)?", actionName, a.selectedCount()))
 
+	selectedStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("#1F2937")).
+		Background(actionColor).
+		Padding(0, 2)
+
+	unselectedStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("#F9FAFB")).
+		Padding(0, 2)
+
+	var yesBtn, noBtn string
+	if a.confirmSelection == confirmOptionYes {
+		yesBtn = selectedStyle.Render("Yes")
+		noBtn = unselectedStyle.Render("No")
+	} else {
+		yesBtn = unselectedStyle.Render("Yes")
+		noBtn = selectedStyle.Background(lipgloss.Color("#6B7280")).Render("No")
+	}
+
+	buttons := lipgloss.JoinHorizontal(lipgloss.Center, yesBtn, "  ", noBtn)
+
 	hint := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("#9CA3AF")).
-		Render("press y to confirm, n to cancel")
+		Render("← → to select, enter to confirm, esc to cancel")
 
 	return lipgloss.Place(
 		a.width,
@@ -728,6 +884,8 @@ func (a SearchApp) renderConfirmDialog() string {
 			lipgloss.JoinVertical(
 				lipgloss.Center,
 				title,
+				"",
+				buttons,
 				"",
 				hint,
 			),
@@ -756,11 +914,17 @@ func (a SearchApp) renderStatusBar() string {
 					Render(fmt.Sprintf(" %d selected ", count))
 			}
 
+			// Show load more hint if there are more emails
+			loadMoreHint := ""
+			if len(a.emails) < len(a.uids) {
+				loadMoreHint = components.HelpKeyStyle.Render("l") + components.HelpDescStyle.Render(" load more  ")
+			}
+
 			help = components.HelpKeyStyle.Render("enter") + components.HelpDescStyle.Render(" read  ") +
 				components.HelpKeyStyle.Render("space") + components.HelpDescStyle.Render(" toggle  ") +
 				components.HelpKeyStyle.Render("a") + components.HelpDescStyle.Render(" all  ") +
+				loadMoreHint +
 				components.HelpKeyStyle.Render("d") + components.HelpDescStyle.Render(" delete  ") +
-				components.HelpKeyStyle.Render("e") + components.HelpDescStyle.Render(" archive  ") +
 				components.HelpKeyStyle.Render("r") + components.HelpDescStyle.Render(" mark read  ") +
 				components.HelpKeyStyle.Render("q") + components.HelpDescStyle.Render(" quit") +
 				selectedInfo
@@ -773,8 +937,10 @@ func (a SearchApp) renderStatusBar() string {
 	var status string
 	if a.message != "" && a.state == searchStateReady {
 		status = components.SuccessStyle.Render(a.message)
+	} else if a.loadingRange {
+		status = components.StatusKeyStyle.Render(fmt.Sprintf("Loading... %d/%d emails", len(a.emails), len(a.uids)))
 	} else {
-		status = components.StatusKeyStyle.Render(fmt.Sprintf("%d emails", len(a.emails)))
+		status = components.StatusKeyStyle.Render(fmt.Sprintf("%d/%d emails", len(a.emails), len(a.uids)))
 	}
 
 	gap := a.width - lipgloss.Width(help) - lipgloss.Width(status) - 4

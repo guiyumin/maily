@@ -1,14 +1,12 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import {
-  Archive,
   ChevronLeft,
   ChevronRight,
   Download,
   Forward,
   Mail,
   MailOpen,
-  MoreHorizontal,
   Paperclip,
   Reply,
   ReplyAll,
@@ -26,13 +24,6 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -229,15 +220,50 @@ export function EmailReader({
   return (
     <div className="flex flex-1 flex-col bg-background">
       {/* Toolbar */}
-      <div className="flex h-14 shrink-0 items-center justify-between border-b px-4">
+      <header className="flex items-center justify-between border-b px-6 py-3">
         <div className="flex items-center gap-1">
           <Tooltip>
             <TooltipTrigger asChild>
               <Button variant="ghost" size="icon">
-                <Archive className="h-4 w-4" />
+                <Reply className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Archive</TooltipContent>
+            <TooltipContent>Reply</TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <ReplyAll className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Reply All</TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <Forward className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Forward</TooltipContent>
+          </Tooltip>
+
+          <Separator orientation="vertical" className="mx-1 h-6" />
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon" onClick={toggleReadStatus}>
+                {emailFull.unread ? (
+                  <MailOpen className="h-4 w-4" />
+                ) : (
+                  <Mail className="h-4 w-4" />
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              {emailFull.unread ? "Mark as read" : "Mark as unread"}
+            </TooltipContent>
           </Tooltip>
 
           <Tooltip>
@@ -257,17 +283,20 @@ export function EmailReader({
 
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" onClick={toggleReadStatus}>
-                {emailFull.unread ? (
-                  <MailOpen className="h-4 w-4" />
-                ) : (
-                  <Mail className="h-4 w-4" />
-                )}
+              <Button variant="ghost" size="icon">
+                <Sparkles className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>
-              {emailFull.unread ? "Mark as read" : "Mark as unread"}
-            </TooltipContent>
+            <TooltipContent>Summarize with AI</TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <Calendar className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Extract calendar event</TooltipContent>
           </Tooltip>
         </div>
 
@@ -300,7 +329,7 @@ export function EmailReader({
             <TooltipContent>Next</TooltipContent>
           </Tooltip>
         </div>
-      </div>
+      </header>
 
       {/* Email content */}
       <div className="scrollbar-thin flex-1 overflow-y-auto">
@@ -326,30 +355,9 @@ export function EmailReader({
                 </span>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">
-                {new Date(emailFull.date).toLocaleString()}
-              </span>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon">
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem>
-                    <Sparkles className="mr-2 h-4 w-4" />
-                    Summarize with AI
-                  </DropdownMenuItem>
-                  <DropdownMenuItem>
-                    <Calendar className="mr-2 h-4 w-4" />
-                    Extract calendar event
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem>View raw message</DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
+            <span className="text-sm text-muted-foreground">
+              {new Date(emailFull.date).toLocaleString()}
+            </span>
           </div>
 
           <Separator className="my-6" />
@@ -407,21 +415,6 @@ export function EmailReader({
             )}
           </div>
 
-          {/* Actions */}
-          <div className="mt-8 flex gap-3">
-            <Button>
-              <Reply className="mr-2 h-4 w-4" />
-              Reply
-            </Button>
-            <Button variant="outline">
-              <ReplyAll className="mr-2 h-4 w-4" />
-              Reply All
-            </Button>
-            <Button variant="outline">
-              <Forward className="mr-2 h-4 w-4" />
-              Forward
-            </Button>
-          </div>
         </div>
       </div>
 

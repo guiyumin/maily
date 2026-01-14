@@ -19,11 +19,13 @@ use mail::{
     list_emails_paginated, get_emails_count_since_days, init_db, get_initial_state,
     sync_emails as do_sync_emails, update_email_read_status, update_email_cache_only,
     get_all_unread_counts as fetch_all_unread_counts,
+    get_unread_count as fetch_unread_count,
+    get_mailbox_unread_counts as fetch_mailbox_unread_counts,
     save_draft as mail_save_draft, get_draft as mail_get_draft,
-    list_drafts as mail_list_drafts, delete_draft as mail_delete_draft,
+    list_drafts as mail_list_drafts, delete_draft as mail_delete_draft, log_op,
     Account, Email, ListEmailsResult, SyncResult, InitialState, Draft,
 };
-use smtp::{send_email as smtp_send, ComposeEmail, SendResult};
+use smtp::{send_email as smtp_send, save_draft_to_imap, ComposeEmail, SendResult, AttachmentInfo};
 use calendar::{
     AuthStatus as CalendarAuthStatus, Calendar as CalendarInfo, Event as CalendarEvent,
     NewEvent, get_auth_status as cal_auth_status, request_access as cal_request_access,
@@ -82,6 +84,18 @@ fn delete_email(account: String, mailbox: String, uid: u32) -> Result<(), String
     Ok(())
 }
 
+/// Permanent delete - bypasses trash, immediately deletes from server
+#[tauri::command]
+fn permanent_delete_email(account: String, mailbox: String, uid: u32) -> Result<(), String> {
+    // Delete from local cache immediately
+    delete_email_from_cache(&account, &mailbox, uid).map_err(|e| e.to_string())?;
+
+    // Queue IMAP permanent delete for background processing
+    imap_queue::queue_delete(account, mailbox, uid);
+
+    Ok(())
+}
+
 #[tauri::command]
 fn mark_email_read(account: String, mailbox: String, uid: u32, unread: bool) -> Result<Email, String> {
     update_email_read_status(&account, &mailbox, uid, unread).map_err(|e| e.to_string())
@@ -115,6 +129,18 @@ fn start_sync(account: String, mailbox: String) {
 #[tauri::command]
 fn get_all_unread_counts() -> Result<Vec<(String, usize)>, String> {
     fetch_all_unread_counts().map_err(|e| e.to_string())
+}
+
+/// Get unread count for a specific mailbox
+#[tauri::command]
+fn get_unread_count(account: String, mailbox: String) -> Result<usize, String> {
+    fetch_unread_count(&account, &mailbox).map_err(|e| e.to_string())
+}
+
+/// Get unread counts for all mailboxes of an account
+#[tauri::command]
+fn get_mailbox_unread_counts(account: String) -> Result<Vec<(String, usize)>, String> {
+    fetch_mailbox_unread_counts(&account).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -180,6 +206,44 @@ fn list_drafts(account: String) -> Result<Vec<Draft>, String> {
 #[tauri::command]
 fn delete_draft(id: i64) -> Result<(), String> {
     mail_delete_draft(id).map_err(|e| e.to_string())
+}
+
+/// Sync a local draft to IMAP server's Drafts folder
+#[tauri::command]
+fn sync_draft_to_server(draft: Draft) -> Result<(), String> {
+    let account = draft.account.clone();
+    let draft_id = draft.id.unwrap_or(0) as u32;
+
+    // Convert Draft to ComposeEmail
+    let attachments: Vec<AttachmentInfo> = if draft.attachments_json.is_empty() {
+        vec![]
+    } else {
+        serde_json::from_str(&draft.attachments_json).unwrap_or_default()
+    };
+
+    let compose = ComposeEmail {
+        to: draft.to.split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect(),
+        cc: draft.cc.split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect(),
+        bcc: draft.bcc.split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect(),
+        subject: draft.subject,
+        body_html: draft.body_html,
+        body_text: draft.body_text,
+        attachments,
+        reply_to_message_id: draft.reply_to_message_id,
+        references: None,
+    };
+
+    match save_draft_to_imap(&account, &compose) {
+        Ok(()) => {
+            let _ = log_op(&account, "Drafts", "sync_draft", draft_id, "success", "");
+            Ok(())
+        }
+        Err(e) => {
+            let err_msg = e.to_string();
+            let _ = log_op(&account, "Drafts", "sync_draft", draft_id, "failed", &err_msg);
+            Err(err_msg)
+        }
+    }
 }
 
 // ============ AI COMMANDS ============
@@ -341,11 +405,14 @@ pub fn run() {
             get_email_count_days,
             get_email,
             delete_email,
+            permanent_delete_email,
             mark_email_read,
             mark_email_read_async,
             sync_emails,
             start_sync,
             get_all_unread_counts,
+            get_unread_count,
+            get_mailbox_unread_counts,
             // Config operations
             get_config,
             save_config,
@@ -359,6 +426,7 @@ pub fn run() {
             get_draft,
             list_drafts,
             delete_draft,
+            sync_draft_to_server,
             // AI operations
             summarize_email,
             get_email_summary,

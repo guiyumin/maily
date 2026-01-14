@@ -319,7 +319,7 @@ pub fn queue_mark_read(account: String, mailbox: String, uid: u32, unread: bool)
     let _ = sender.try_send(ImapOperation::MarkRead { mailbox, uid, unread });
 }
 
-/// Queue delete - returns immediately
+/// Queue permanent delete - returns immediately
 pub fn queue_delete(account: String, mailbox: String, uid: u32) {
     let sender = get_account_sender(&account);
     let _ = sender.try_send(ImapOperation::Delete { mailbox, uid });

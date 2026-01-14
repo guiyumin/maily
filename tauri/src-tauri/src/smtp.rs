@@ -178,8 +178,88 @@ pub fn send_email(account_name: &str, email: ComposeEmail) -> Result<SendResult,
 }
 
 /// Save email to drafts folder via IMAP APPEND
-pub fn save_draft(account_name: &str, email: &ComposeEmail) -> Result<(), Box<dyn std::error::Error>> {
-    // For now, just log - full implementation would use IMAP APPEND
-    eprintln!("[smtp] Saving draft for {}: {}", account_name, email.subject);
+pub fn save_draft_to_imap(account_name: &str, email: &ComposeEmail) -> Result<(), Box<dyn std::error::Error>> {
+    use std::net::{TcpStream, ToSocketAddrs};
+    use std::time::Duration;
+
+    let account = get_account(account_name)?;
+    let creds = &account.credentials;
+
+    // Build RFC 822 message using lettre
+    let from_mailbox: Mailbox = creds.email.parse()
+        .map_err(|_| format!("Invalid from email: {}", creds.email))?;
+
+    let mut builder = Message::builder()
+        .from(from_mailbox)
+        .subject(&email.subject);
+
+    // Add To recipients
+    for to in &email.to {
+        if !to.is_empty() {
+            let mailbox: Mailbox = to.parse()
+                .map_err(|_| format!("Invalid to email: {}", to))?;
+            builder = builder.to(mailbox);
+        }
+    }
+
+    // Add Cc recipients
+    for cc in &email.cc {
+        if !cc.is_empty() {
+            let mailbox: Mailbox = cc.parse()
+                .map_err(|_| format!("Invalid cc email: {}", cc))?;
+            builder = builder.cc(mailbox);
+        }
+    }
+
+    // Build the body
+    let message = if !email.body_html.is_empty() {
+        let multipart = MultiPart::alternative()
+            .singlepart(
+                SinglePart::builder()
+                    .header(ContentType::TEXT_PLAIN)
+                    .body(email.body_text.clone())
+            )
+            .singlepart(
+                SinglePart::builder()
+                    .header(ContentType::TEXT_HTML)
+                    .body(email.body_html.clone())
+            );
+        builder.multipart(multipart)?
+    } else {
+        builder.body(email.body_text.clone())?
+    };
+
+    // Convert to RFC 822 bytes
+    let rfc822_bytes = message.formatted();
+
+    // Connect to IMAP
+    let addr = format!("{}:{}", creds.imap_host, creds.imap_port);
+    let socket_addr = addr.to_socket_addrs()?.next()
+        .ok_or("Failed to resolve IMAP host")?;
+
+    let tcp = TcpStream::connect_timeout(&socket_addr, Duration::from_secs(30))?;
+    tcp.set_read_timeout(Some(Duration::from_secs(60)))?;
+    tcp.set_write_timeout(Some(Duration::from_secs(30)))?;
+
+    let tls = native_tls::TlsConnector::builder().build()?;
+    let tls_stream = tls.connect(&creds.imap_host, tcp)?;
+
+    let client = imap::Client::new(tls_stream);
+    let mut session = client.login(&creds.email, &creds.password).map_err(|e| e.0)?;
+
+    // Determine drafts folder based on provider
+    let drafts_folder = if creds.imap_host.contains("gmail") {
+        "[Gmail]/Drafts"
+    } else if creds.imap_host.contains("yahoo") {
+        "Draft"
+    } else {
+        "Drafts"
+    };
+
+    // Append to drafts folder with \Draft flag
+    session.append_with_flags(drafts_folder, &rfc822_bytes, &[imap::types::Flag::Draft])?;
+
+    session.logout()?;
+    eprintln!("[smtp] Draft saved to IMAP: {}", email.subject);
     Ok(())
 }

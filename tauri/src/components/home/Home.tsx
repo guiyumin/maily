@@ -467,6 +467,7 @@ export function Home() {
           selectedMailbox={selectedMailbox}
           onSelectMailbox={setSelectedMailbox}
           unreadCount={unreadCount}
+          provider={accounts.find(a => a.name === selectedAccount)?.provider}
         />
 
         <EmailList

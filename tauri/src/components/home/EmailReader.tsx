@@ -203,12 +203,12 @@ export function EmailReader({
       .finally(() => setLoading(false));
   }, [emailSummary?.uid, account, mailbox]);
 
-  const handleDelete = async () => {
+  const handleDelete = async (permanent = false) => {
     if (!emailSummary) return;
 
     setDeleting(true);
     try {
-      await invoke("delete_email", {
+      await invoke(permanent ? "permanent_delete_email" : "delete_email", {
         account,
         mailbox,
         uid: emailSummary.uid,
@@ -594,18 +594,24 @@ export function EmailReader({
           <AlertDialogHeader>
             <AlertDialogTitle>Delete this email?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will move the email to trash. You can recover it from the
-              trash folder.
+              Choose how to delete this email.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleDelete}
+              onClick={() => handleDelete(false)}
+              disabled={deleting}
+              className="bg-secondary text-secondary-foreground hover:bg-secondary/80"
+            >
+              {deleting ? "Moving..." : "Move to Trash"}
+            </AlertDialogAction>
+            <AlertDialogAction
+              onClick={() => handleDelete(true)}
               disabled={deleting}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              {deleting ? "Deleting..." : "Delete"}
+              {deleting ? "Deleting..." : "Permanent Delete"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

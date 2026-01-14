@@ -93,7 +93,8 @@ fn result_code_to_error(code: i32) -> CalendarError {
     match code {
         EK_ERROR_ACCESS_DENIED => CalendarError::AccessDenied,
         EK_ERROR_NOT_FOUND => CalendarError::NotFound,
-        _ => CalendarError::Failed("Unknown error".to_string()),
+        EK_ERROR_FAILED => CalendarError::Failed("Operation failed".to_string()),
+        _ => CalendarError::Failed(format!("Unknown error code: {}", code)),
     }
 }
 

@@ -229,7 +229,7 @@ export function Compose({
   }, [initialDraftId, open]);
 
   // Auto-save draft with debouncing
-  const saveDraft = useCallback(async () => {
+  const saveDraft = useCallback(async (syncToServer = false) => {
     // Don't save empty drafts
     if (!to && !cc && !bcc && !subject && !body) {
       return;
@@ -257,6 +257,13 @@ export function Compose({
       if (!draftId) {
         setDraftId(newId);
         onDraftSaved?.(newId);
+      }
+
+      // Sync to IMAP server in background (don't block UI)
+      if (syncToServer) {
+        invoke("sync_draft_to_server", { draft })
+          .then(() => toast.success("Draft synced to server"))
+          .catch((err) => console.error("Failed to sync draft to server:", err));
       }
     } catch (err) {
       console.error("Failed to save draft:", err);
@@ -637,6 +644,18 @@ export function Compose({
               <Button variant="outline" onClick={onClose}>
                 <Trash2 className="h-4 w-4 mr-1" />
                 Discard
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => saveDraft(true)}
+                disabled={autoSaving || sending}
+              >
+                {autoSaving ? (
+                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                ) : (
+                  <Upload className="h-4 w-4 mr-1" />
+                )}
+                Save
               </Button>
               <Button onClick={handleSend} disabled={sending || generating}>
                 {sending ? (

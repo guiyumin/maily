@@ -498,7 +498,7 @@ pub fn delete_email_from_cache(account: &str, mailbox: &str, uid: u32) -> Result
     Ok(())
 }
 
-/// Get unread email count for an account/mailbox
+/// Get unread count for a specific account/mailbox
 pub fn get_unread_count(account: &str, mailbox: &str) -> Result<usize, Box<dyn std::error::Error>> {
     let conn = DB.lock().unwrap();
     let count: i64 = conn.query_row(
@@ -507,6 +507,24 @@ pub fn get_unread_count(account: &str, mailbox: &str) -> Result<usize, Box<dyn s
         |row| row.get(0),
     )?;
     Ok(count as usize)
+}
+
+/// Get unread counts for all mailboxes of an account
+pub fn get_mailbox_unread_counts(account: &str) -> Result<Vec<(String, usize)>, Box<dyn std::error::Error>> {
+    let conn = DB.lock().unwrap();
+    let mut stmt = conn.prepare(
+        "SELECT mailbox, COUNT(*) FROM emails WHERE account = ?1 AND unread = 1 GROUP BY mailbox"
+    )?;
+    let rows = stmt.query_map(params![account], |row| {
+        Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?))
+    })?;
+
+    let mut counts = Vec::new();
+    for row in rows {
+        let (mailbox, count) = row?;
+        counts.push((mailbox, count as usize));
+    }
+    Ok(counts)
 }
 
 /// Get unread counts for all accounts (INBOX only)

@@ -19,9 +19,9 @@ func (m *CalendarApp) renderNLPInput() string {
 
 	b.WriteString(titleStyle.Render("Quick Add Event"))
 	b.WriteString("\n\n")
-	b.WriteString("    " + m.nlpInput.View())
+	b.WriteString(m.nlpInput.View())
 	b.WriteString("\n\n")
-	b.WriteString(hintStyle.Render("enter confirm • esc cancel"))
+	b.WriteString(hintStyle.Render("ctrl+enter confirm • esc cancel"))
 
 	return lipgloss.NewStyle().Padding(1, 2).Render(b.String())
 }
@@ -86,6 +86,15 @@ func (m *CalendarApp) renderNLPEdit() string {
 	} else {
 		b.WriteString("    " + labelStyle.Render("Location:") + m.nlpEditLocation.View() + "\n")
 	}
+
+	// Notes
+	b.WriteString("\n")
+	if m.nlpEditFocus == 5 {
+		b.WriteString("    " + focusedLabel.Render("Notes:") + "\n")
+	} else {
+		b.WriteString("    " + labelStyle.Render("Notes:") + "\n")
+	}
+	b.WriteString("    " + m.nlpEditNotes.View() + "\n")
 
 	// Error
 	if m.err != nil {
@@ -296,6 +305,15 @@ func (m *CalendarApp) renderFormDateTime() string {
 	} else {
 		b.WriteString("    " + labelStyle.Render("Location:") + m.formLocationInput.View() + "\n")
 	}
+
+	// Notes
+	b.WriteString("\n")
+	if m.formFocusField == 4 {
+		b.WriteString("    " + focusedLabel.Render("Notes:") + "\n")
+	} else {
+		b.WriteString("    " + labelStyle.Render("Notes:") + "\n")
+	}
+	b.WriteString("    " + m.formNotesInput.View() + "\n")
 
 	// Error
 	if m.err != nil {

@@ -24,8 +24,8 @@ Maily Desktop bridges the gap between terminal power and GUI convenience. It's n
 ### Dual Backend
 
 The desktop app (Tauri) has its own Rust backend, separate from the Go CLI. Both share:
-- Config: `~/.config/maily/accounts.yml`
-- Cache: `~/.config/maily/cache/{account}/{mailbox}/{uid}.json`
+- Config: `~/.config/maily/accounts.yml` and `~/.config/maily/config.yml`
+- Cache: `~/.config/maily/maily.db` (SQLite database)
 
 This allows independent development while maintaining data compatibility.
 
@@ -35,14 +35,14 @@ This allows independent development while maintaining data compatibility.
 ┌─────────────────┐
 │  Zustand Store  │  ← Frontend memory cache (instant)
 ├─────────────────┤
-│  JSON Files     │  ← Local disk cache (~10ms)
+│  SQLite DB      │  ← Local disk cache (~10ms)
 ├─────────────────┤
 │  IMAP Server    │  ← Remote server (100-500ms)
 └─────────────────┘
 ```
 
 1. **Zustand (frontend)**: In-memory cache for viewed emails. Clicking a previously-viewed email is instant.
-2. **JSON cache (Rust)**: Parsed emails stored on disk. First view of an email reads from here.
+2. **SQLite cache (Rust)**: Parsed emails stored in `~/.config/maily/maily.db`. First view of an email reads from here.
 3. **IMAP server**: Source of truth. Sync fetches new emails and updates flags.
 
 ### Per-Account IMAP Threads

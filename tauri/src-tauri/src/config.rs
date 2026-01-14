@@ -21,6 +21,56 @@ pub struct AIProvider {
     pub api_key: String,
 }
 
+// Notification settings
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+pub struct NativeNotificationConfig {
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+    #[serde(default = "default_true")]
+    pub new_email: bool,
+    #[serde(default = "default_true")]
+    pub calendar_reminder: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+pub struct TelegramConfig {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default)]
+    pub bot_token: String,
+    #[serde(default)]
+    pub chat_id: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+pub struct NotificationConfig {
+    #[serde(default)]
+    pub native: NativeNotificationConfig,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub telegram: Option<TelegramConfig>,
+}
+
+// Integration settings
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+pub struct GitHubConfig {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default)]
+    pub token: String,
+    #[serde(default = "default_true")]
+    pub parse_emails: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+pub struct IntegrationsConfig {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub github: Option<GitHubConfig>,
+}
+
+fn default_true() -> bool {
+    true
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Config {
     #[serde(default = "default_max_emails")]
@@ -36,6 +86,10 @@ pub struct Config {
     /// Order of accounts (account names). First 3 are visible in sidebar.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub account_order: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub notifications: Option<NotificationConfig>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub integrations: Option<IntegrationsConfig>,
 }
 
 fn default_max_emails() -> i32 {
@@ -59,7 +113,35 @@ impl Default for Config {
             language: String::new(),
             ai_providers: Vec::new(),
             account_order: Vec::new(),
+            notifications: None,
+            integrations: None,
         }
+    }
+}
+
+/// Send a test message to Telegram
+pub fn send_telegram_test(bot_token: &str, chat_id: &str) -> Result<(), String> {
+    let url = format!(
+        "https://api.telegram.org/bot{}/sendMessage",
+        bot_token
+    );
+
+    let client = reqwest::blocking::Client::new();
+    let response = client
+        .post(&url)
+        .json(&serde_json::json!({
+            "chat_id": chat_id,
+            "text": "🎉 <b>Maily</b> test notification!\n\nYour Telegram integration is working.",
+            "parse_mode": "HTML"
+        }))
+        .send()
+        .map_err(|e| e.to_string())?;
+
+    if response.status().is_success() {
+        Ok(())
+    } else {
+        let error_text = response.text().unwrap_or_default();
+        Err(format!("Telegram API error: {}", error_text))
     }
 }
 

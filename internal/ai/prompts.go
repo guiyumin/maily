@@ -13,6 +13,7 @@ type ParsedEvent struct {
 	StartTime          string `json:"start_time"`           // ISO 8601 format
 	EndTime            string `json:"end_time"`             // ISO 8601 format
 	Location           string `json:"location,omitempty"`
+	Notes              string `json:"notes,omitempty"`      // Additional details, URLs, descriptions
 	AlarmMinutesBefore int    `json:"alarm_minutes_before"` // 0 means not specified
 	AlarmSpecified     bool   `json:"alarm_specified"`      // true if user explicitly mentioned reminder
 }
@@ -93,6 +94,7 @@ Respond with ONLY a JSON object (no markdown, no explanation):
   "start_time": "2024-12-25T10:00:00-08:00",
   "end_time": "2024-12-25T11:00:00-08:00",
   "location": "location if mentioned, otherwise empty string",
+  "notes": "additional details, URLs, agenda, description",
   "alarm_minutes_before": 5,
   "alarm_specified": true
 }
@@ -103,6 +105,7 @@ Rules:
 - If user says "remind me X minutes before" or similar, set alarm_minutes_before and alarm_specified=true
 - If no reminder mentioned, set alarm_minutes_before=0 and alarm_specified=false
 - Extract location if mentioned (e.g., "at the coffee shop")
+- Extract notes: any additional details, URLs (meeting links, Google Meet, Zoom), agenda items, descriptions, or context
 - Use the current date/time to interpret relative dates like "tomorrow", "next Monday"
 - Use the email context to resolve references (e.g., "them" = sender, "the meeting" = subject)
 
@@ -154,6 +157,7 @@ If an event is found, respond with ONLY a JSON object (no markdown, no explanati
   "start_time": "2024-12-25T10:00:00-08:00",
   "end_time": "2024-12-25T11:00:00-08:00",
   "location": "location if mentioned, otherwise empty string",
+  "notes": "meeting URLs, agenda, description, or other relevant details from email",
   "alarm_minutes_before": 0,
   "alarm_specified": false
 }
@@ -164,6 +168,7 @@ Rules:
 - start_time and end_time must be in RFC3339 format with timezone
 - If no end time/duration specified, default to 1 hour after start
 - Extract location if mentioned
+- Extract notes: include meeting URLs (Google Meet, Zoom, Teams links), agenda, description, or other relevant context from the email
 - Use the current date/time to interpret relative dates like "tomorrow", "next Monday"
 - Pick the most important/relevant event if multiple are mentioned
 - Set alarm_minutes_before=0 and alarm_specified=false (user will set reminder later)

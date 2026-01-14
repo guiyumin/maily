@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"maily/internal/ai"
@@ -52,7 +53,7 @@ type CalendarApp struct {
 	formFocusIdx int
 
 	// NLP quick-add fields
-	nlpInput       textinput.Model
+	nlpInput       textarea.Model
 	nlpParsed      *ai.ParsedEvent
 	nlpCalendarIdx int
 	nlpReminderIdx int
@@ -65,7 +66,8 @@ type CalendarApp struct {
 	nlpEditStart    components.TimePicker
 	nlpEditEnd      components.TimePicker
 	nlpEditLocation textinput.Model
-	nlpEditFocus    int // 0=title, 1=date, 2=start, 3=end, 4=location
+	nlpEditNotes    textarea.Model
+	nlpEditFocus    int // 0=title, 1=date, 2=start, 3=end, 4=location, 5=notes
 
 	// Interactive form fields (fallback when no AI CLI)
 	formTitleInput    textinput.Model
@@ -73,9 +75,10 @@ type CalendarApp struct {
 	formStartInput    components.TimePicker
 	formEndInput      components.TimePicker
 	formLocationInput textinput.Model
+	formNotesInput    textarea.Model
 	formCalendarIdx   int
 	formReminderIdx   int
-	formFocusField    int // 0=date, 1=start, 2=end, 3=location in datetime view
+	formFocusField    int // 0=date, 1=start, 2=end, 3=location, 4=notes in datetime view
 
 	// Delete confirmation
 	deleteButtonIdx int // 0=Delete, 1=Cancel
@@ -90,6 +93,7 @@ type eventForm struct {
 	start    components.TimePicker
 	end      components.TimePicker
 	location textinput.Model
+	notes    textarea.Model
 	calendar int // index into calendars slice
 	editID   string
 }
@@ -165,6 +169,10 @@ func (m *CalendarApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
+		// Resize NLP input textarea if in NLP input view
+		if m.view == viewNLPInput {
+			m.resizeNLPInput()
+		}
 		return m, nil
 
 	case eventsLoadedMsg:
@@ -318,6 +326,7 @@ func (m *CalendarApp) handleCalendarKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			// NLP quick-add (AI-powered)
 			m.initNLPInput()
 			m.view = viewNLPInput
+			return m, textarea.Blink
 		} else {
 			// Fallback to interactive form
 			m.initInteractiveForm()
@@ -561,13 +570,23 @@ func (m *CalendarApp) updateFormFocus() {
 
 // NLP Quick-Add functions
 func (m *CalendarApp) initNLPInput() {
-	m.nlpInput = textinput.New()
-	m.nlpInput.Placeholder = "tomorrow 9am meeting with Jerry"
+	m.nlpInput = textarea.New()
+	m.nlpInput.Placeholder = "tomorrow 9am meeting with Jerry at the coffee shop\nto discuss project plans\n\nInclude: location, meeting URL, agenda, etc."
+	m.nlpInput.CharLimit = 500
+	m.nlpInput.ShowLineNumbers = false
+	m.resizeNLPInput()
 	m.nlpInput.Focus()
-	m.nlpInput.CharLimit = 200
-	m.nlpInput.Width = 50
 	m.nlpParsed = nil
 	m.err = nil
+}
+
+// resizeNLPInput sets the NLP textarea dimensions based on window size
+func (m *CalendarApp) resizeNLPInput() {
+	// Set width based on window width, with min/max bounds
+	width := min(max(m.width-10, 50), 80)
+	m.nlpInput.SetWidth(width)
+	// Height = 6 visible lines for multi-line NLP input
+	m.nlpInput.SetHeight(6)
 }
 
 func (m *CalendarApp) handleNLPInputKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
@@ -575,7 +594,7 @@ func (m *CalendarApp) handleNLPInputKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "esc":
 		m.view = viewCalendar
 		return m, nil
-	case "enter":
+	case "ctrl+enter":
 		if m.nlpInput.Value() != "" {
 			m.view = viewNLPParsing
 			return m, m.parseNLPInput()
@@ -695,6 +714,14 @@ func (m *CalendarApp) initNLPEdit() {
 	m.nlpEditLocation.CharLimit = 100
 	m.nlpEditLocation.Width = 40
 
+	m.nlpEditNotes = textarea.New()
+	m.nlpEditNotes.SetValue(m.nlpParsed.Notes)
+	m.nlpEditNotes.Placeholder = "Notes: meeting URL, agenda, details..."
+	m.nlpEditNotes.CharLimit = 1000
+	m.nlpEditNotes.SetWidth(50)
+	m.nlpEditNotes.SetHeight(4)
+	m.nlpEditNotes.ShowLineNumbers = false
+
 	m.nlpEditFocus = 0
 }
 
@@ -722,11 +749,11 @@ func (m *CalendarApp) handleNLPEditKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.view = viewCalendar
 		return m, nil
 	case "tab":
-		m.nlpEditFocus = (m.nlpEditFocus + 1) % 5
+		m.nlpEditFocus = (m.nlpEditFocus + 1) % 6
 		m.updateNLPEditFocus()
 		return m, nil
 	case "shift+tab":
-		m.nlpEditFocus = (m.nlpEditFocus + 4) % 5
+		m.nlpEditFocus = (m.nlpEditFocus + 5) % 6
 		m.updateNLPEditFocus()
 		return m, nil
 	case "enter":
@@ -744,6 +771,8 @@ func (m *CalendarApp) handleNLPEditKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.nlpEditTitle, cmd = m.nlpEditTitle.Update(msg)
 	case 4:
 		m.nlpEditLocation, cmd = m.nlpEditLocation.Update(msg)
+	case 5:
+		m.nlpEditNotes, cmd = m.nlpEditNotes.Update(msg)
 	}
 	return m, cmd
 }
@@ -754,6 +783,7 @@ func (m *CalendarApp) updateNLPEditFocus() {
 	m.nlpEditStart.Blur()
 	m.nlpEditEnd.Blur()
 	m.nlpEditLocation.Blur()
+	m.nlpEditNotes.Blur()
 
 	switch m.nlpEditFocus {
 	case 0:
@@ -766,6 +796,8 @@ func (m *CalendarApp) updateNLPEditFocus() {
 		m.nlpEditEnd.Focus()
 	case 4:
 		m.nlpEditLocation.Focus()
+	case 5:
+		m.nlpEditNotes.Focus()
 	}
 }
 
@@ -773,6 +805,7 @@ func (m *CalendarApp) applyNLPEdits() bool {
 	// Update parsed event with edited values
 	m.nlpParsed.Title = m.nlpEditTitle.Value()
 	m.nlpParsed.Location = m.nlpEditLocation.Value()
+	m.nlpParsed.Notes = m.nlpEditNotes.Value()
 
 	// Update times
 	date := m.nlpEditDate.Value()
@@ -806,6 +839,7 @@ func (m *CalendarApp) createNLPEvent() tea.Cmd {
 			StartTime:          m.nlpStartTime,
 			EndTime:            m.nlpEndTime,
 			Location:           m.nlpParsed.Location,
+			Notes:              m.nlpParsed.Notes,
 			Calendar:           calendarID,
 			AlarmMinutesBefore: m.getNLPReminderMinutes(),
 		}
@@ -853,6 +887,7 @@ func (m *CalendarApp) saveEvent() tea.Cmd {
 			StartTime: start,
 			EndTime:   end,
 			Location:  m.form.location.Value(),
+			Notes:     m.form.notes.Value(),
 			Calendar:  calendarID,
 		}
 
@@ -956,6 +991,13 @@ func (m *CalendarApp) initInteractiveForm() {
 	m.formLocationInput.CharLimit = 100
 	m.formLocationInput.Width = 40
 
+	m.formNotesInput = textarea.New()
+	m.formNotesInput.Placeholder = "Notes: meeting URL, agenda, details..."
+	m.formNotesInput.CharLimit = 1000
+	m.formNotesInput.SetWidth(50)
+	m.formNotesInput.SetHeight(4)
+	m.formNotesInput.ShowLineNumbers = false
+
 	m.formCalendarIdx = 0
 	m.formReminderIdx = 0
 	m.formFocusField = 0
@@ -975,6 +1017,7 @@ func (m *CalendarApp) handleFormTitleKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.formStartInput.Blur()
 			m.formEndInput.Blur()
 			m.formLocationInput.Blur()
+			m.formNotesInput.Blur()
 		}
 		return m, nil
 	}
@@ -1008,11 +1051,11 @@ func (m *CalendarApp) handleFormDateTimeKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd
 		m.view = viewCalendar
 		return m, nil
 	case "tab":
-		m.formFocusField = (m.formFocusField + 1) % 4
+		m.formFocusField = (m.formFocusField + 1) % 5
 		m.updateFormDateTimeFocus()
 		return m, nil
 	case "shift+tab":
-		m.formFocusField = (m.formFocusField + 3) % 4
+		m.formFocusField = (m.formFocusField + 4) % 5
 		m.updateFormDateTimeFocus()
 		return m, nil
 	case "enter":
@@ -1023,10 +1066,13 @@ func (m *CalendarApp) handleFormDateTimeKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd
 		return m, nil
 	}
 
-	// Pass keystrokes to location input only
+	// Pass keystrokes to text inputs
 	var cmd tea.Cmd
-	if m.formFocusField == 3 {
+	switch m.formFocusField {
+	case 3:
 		m.formLocationInput, cmd = m.formLocationInput.Update(msg)
+	case 4:
+		m.formNotesInput, cmd = m.formNotesInput.Update(msg)
 	}
 	return m, cmd
 }
@@ -1036,6 +1082,7 @@ func (m *CalendarApp) updateFormDateTimeFocus() {
 	m.formStartInput.Blur()
 	m.formEndInput.Blur()
 	m.formLocationInput.Blur()
+	m.formNotesInput.Blur()
 
 	switch m.formFocusField {
 	case 0:
@@ -1046,6 +1093,8 @@ func (m *CalendarApp) updateFormDateTimeFocus() {
 		m.formEndInput.Focus()
 	case 3:
 		m.formLocationInput.Focus()
+	case 4:
+		m.formNotesInput.Focus()
 	}
 }
 
@@ -1138,6 +1187,7 @@ func (m *CalendarApp) createFormEvent() tea.Cmd {
 			StartTime:          m.getFormStartTime(),
 			EndTime:            m.getFormEndTime(),
 			Location:           m.formLocationInput.Value(),
+			Notes:              m.formNotesInput.Value(),
 			Calendar:           calendarID,
 			AlarmMinutesBefore: m.getFormReminderMinutes(),
 		}

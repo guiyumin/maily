@@ -13,7 +13,7 @@ use ai::{
     get_cached_summary, delete_summary, list_available_providers, test_provider as ai_test_provider,
     CompletionRequest, CompletionResponse, EmailSummary,
 };
-use config::{get_config as load_config, save_config as store_config, AIProvider, Config};
+use config::{get_config as load_config, save_config as store_config, send_telegram_test, AIProvider, Config};
 use imap_queue::{init as init_imap_queue, queue_mark_read, queue_move_to_trash, queue_sync};
 use mail::{
     delete_email_from_cache, get_accounts, get_email as fetch_email, get_emails,
@@ -210,6 +210,15 @@ fn save_account_order(order: Vec<String>) -> Result<Config, String> {
     config.account_order = order;
     store_config(&config).map_err(|e| e.to_string())?;
     Ok(config)
+}
+
+#[tauri::command]
+async fn test_telegram(bot_token: String, chat_id: String) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        send_telegram_test(&bot_token, &chat_id)
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 // ============ COMPOSE / SMTP COMMANDS ============
@@ -511,6 +520,7 @@ pub fn run() {
             remove_ai_provider,
             update_ai_provider,
             save_account_order,
+            test_telegram,
             // Compose / SMTP
             send_email,
             // Drafts

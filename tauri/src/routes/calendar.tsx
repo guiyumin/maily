@@ -3,6 +3,7 @@ import { useEffect, useState, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
   Card,
@@ -297,7 +298,9 @@ function CalendarPage() {
         // Default 1 hour duration
         const [hours, mins] = parsed.time.split(":").map(Number);
         const endHours = (hours + 1) % 24;
-        setNewEventEndTime(`${endHours.toString().padStart(2, "0")}:${mins.toString().padStart(2, "0")}`);
+        setNewEventEndTime(
+          `${endHours.toString().padStart(2, "0")}:${mins.toString().padStart(2, "0")}`
+        );
       }
 
       setNlpInput("");
@@ -393,7 +396,8 @@ function CalendarPage() {
               </div>
               <CardTitle>Calendar Access Required</CardTitle>
               <CardDescription>
-                Maily needs access to your calendar to show events and create new ones.
+                Maily needs access to your calendar to show events and create
+                new ones.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -403,7 +407,8 @@ function CalendarPage() {
                   <div>
                     <p className="font-medium">Access was denied</p>
                     <p className="text-destructive/80">
-                      Please enable calendar access in System Preferences &gt; Privacy &amp; Security &gt; Calendars
+                      Please enable calendar access in System Preferences &gt;
+                      Privacy &amp; Security &gt; Calendars
                     </p>
                   </div>
                 </div>
@@ -446,13 +451,21 @@ function CalendarPage() {
               Today
             </Button>
             <div className="flex items-center gap-1">
-              <Button variant="ghost" size="icon" onClick={() => navigateWeek(-1)}>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => navigateWeek(-1)}
+              >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
               <span className="min-w-40 text-center text-sm font-medium">
                 {formatWeekRange()}
               </span>
-              <Button variant="ghost" size="icon" onClick={() => navigateWeek(1)}>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => navigateWeek(1)}
+              >
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
@@ -473,28 +486,40 @@ function CalendarPage() {
                 </DialogHeader>
 
                 {/* NLP Input */}
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <Sparkles className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input
-                      placeholder="e.g., Meeting tomorrow at 2pm with John"
+                <div className="space-y-2">
+                  <div className="relative">
+                    <Sparkles className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Textarea
+                      placeholder="e.g., Meeting tomorrow at 2pm with John at Starbucks to discuss project roadmap"
                       value={nlpInput}
                       onChange={(e) => setNlpInput(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && createEventFromNLP()}
-                      className="pl-9"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                          e.preventDefault();
+                          createEventFromNLP();
+                        }
+                      }}
+                      className="pl-9 resize-none"
+                      rows={6}
                     />
                   </div>
-                  <Button
-                    variant="secondary"
-                    onClick={createEventFromNLP}
-                    disabled={nlpProcessing || !nlpInput.trim()}
-                  >
-                    {nlpProcessing ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      "Parse"
-                    )}
-                  </Button>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">
+                      Press ⌘+Enter to parse
+                    </span>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={createEventFromNLP}
+                      disabled={nlpProcessing || !nlpInput.trim()}
+                    >
+                      {nlpProcessing ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        "Parse"
+                      )}
+                    </Button>
+                  </div>
                 </div>
 
                 <Separator />
@@ -523,7 +548,9 @@ function CalendarPage() {
                           <Input
                             type="time"
                             value={newEventStartTime}
-                            onChange={(e) => setNewEventStartTime(e.target.value)}
+                            onChange={(e) =>
+                              setNewEventStartTime(e.target.value)
+                            }
                             className="w-28"
                           />
                         )}
@@ -575,7 +602,10 @@ function CalendarPage() {
                   <div className="grid grid-cols-2 gap-4">
                     <div className="grid gap-2">
                       <Label>Calendar</Label>
-                      <Select value={newEventCalendar} onValueChange={setNewEventCalendar}>
+                      <Select
+                        value={newEventCalendar}
+                        onValueChange={setNewEventCalendar}
+                      >
                         <SelectTrigger>
                           <SelectValue placeholder="Select calendar" />
                         </SelectTrigger>
@@ -618,20 +648,28 @@ function CalendarPage() {
 
                   <div className="grid gap-2">
                     <Label htmlFor="event_notes">Notes</Label>
-                    <Input
+                    <Textarea
                       id="event_notes"
-                      placeholder="Add notes"
+                      placeholder="Meeting URL, agenda, details..."
                       value={newEventNotes}
                       onChange={(e) => setNewEventNotes(e.target.value)}
+                      rows={4}
+                      className="resize-none"
                     />
                   </div>
                 </div>
 
                 <DialogFooter>
-                  <Button variant="outline" onClick={() => setNewEventOpen(false)}>
+                  <Button
+                    variant="outline"
+                    onClick={() => setNewEventOpen(false)}
+                  >
                     Cancel
                   </Button>
-                  <Button onClick={createEvent} disabled={!newEventTitle || creating}>
+                  <Button
+                    onClick={createEvent}
+                    disabled={!newEventTitle || creating}
+                  >
                     {creating ? (
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     ) : null}
@@ -652,12 +690,9 @@ function CalendarPage() {
             const dayEvents = getEventsForDay(day);
 
             return (
-              <div key={day.toISOString()} className="min-h-[200px]">
+              <div key={day.toISOString()} className="min-h-50">
                 <div
-                  className={cn(
-                    "mb-2 text-center",
-                    isToday && "text-primary"
-                  )}
+                  className={cn("mb-2 text-center", isToday && "text-primary")}
                 >
                   <div className="text-xs font-medium text-muted-foreground uppercase">
                     {day.toLocaleDateString("en-US", { weekday: "short" })}

@@ -28,10 +28,41 @@ export interface Account {
   credentials: Credentials;
 }
 
+// Notification settings
+export interface NativeNotificationConfig {
+  enabled: boolean;
+  new_email: boolean;
+  calendar_reminder: boolean;
+}
+
+export interface TelegramConfig {
+  enabled: boolean;
+  bot_token: string;
+  chat_id: string;
+}
+
+export interface NotificationConfig {
+  native: NativeNotificationConfig;
+  telegram?: TelegramConfig;
+}
+
+// Integration settings
+export interface GitHubConfig {
+  enabled: boolean;
+  token: string;
+  parse_emails: boolean;
+}
+
+export interface IntegrationsConfig {
+  github?: GitHubConfig;
+}
+
 export interface Config {
   max_emails: number;
   default_label: string;
   theme: string;
   language: string;
   ai_providers: AIProvider[];
+  notifications?: NotificationConfig;
+  integrations?: IntegrationsConfig;
 }

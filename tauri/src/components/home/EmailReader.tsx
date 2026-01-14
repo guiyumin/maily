@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -283,15 +284,26 @@ function ExtractedEventDisplay({
         {/* NLP Input */}
         <div className="space-y-2">
           <Label htmlFor="nlp-input">Describe the event</Label>
-          <div className="flex gap-2">
-            <Input
-              id="nlp-input"
-              placeholder='e.g., "Meeting tomorrow at 3pm" or "the event mentioned above"'
-              value={nlpInput}
-              onChange={(e) => setNlpInput(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleParseNlp()}
-            />
+          <Textarea
+            id="nlp-input"
+            placeholder='e.g., "Meeting tomorrow at 3pm at the coffee shop" or "the event mentioned in the email"'
+            value={nlpInput}
+            onChange={(e) => setNlpInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                e.preventDefault();
+                handleParseNlp();
+              }
+            }}
+            rows={6}
+            className="resize-none"
+          />
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-muted-foreground">
+              Use natural language. Press ⌘+Enter to parse.
+            </p>
             <Button
+              size="sm"
               onClick={handleParseNlp}
               disabled={nlpProcessing || !nlpInput.trim()}
             >
@@ -302,9 +314,6 @@ function ExtractedEventDisplay({
               )}
             </Button>
           </div>
-          <p className="text-xs text-muted-foreground">
-            Use natural language. References like "them" or "the meeting" will be resolved from the email.
-          </p>
         </div>
 
         <div className="flex justify-end">

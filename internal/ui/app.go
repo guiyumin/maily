@@ -150,12 +150,14 @@ type clientReadyMsg struct {
 type appSearchResultsMsg struct {
 	emails       []mail.Email
 	query        string
-	accountEmail string // which account this belongs to
+	accountEmail string           // which account this belongs to
+	imap         *mail.IMAPClient // new client if reconnection was needed
 }
 
 type labelsLoadedMsg struct {
 	labels       []string
-	accountEmail string // which account this belongs to
+	accountEmail string           // which account this belongs to
+	imap         *mail.IMAPClient // new client if reconnection was needed
 }
 
 type replySentMsg struct{}
@@ -985,6 +987,11 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.accountEmail != "" && msg.accountEmail != currentEmail {
 			return a, nil
 		}
+		// Update imap client if reconnection happened
+		if msg.imap != nil {
+			a.imap = msg.imap
+			a.imapCache[a.accountIdx] = msg.imap
+		}
 		a.labelPicker.SetLabels(msg.labels)
 		// Skip server fetch if we have cached emails and cache is fresh (synced within 5 minutes)
 		if len(a.mailList.Emails()) > 0 && a.diskCache != nil {
@@ -1096,6 +1103,11 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		if msg.accountEmail != "" && msg.accountEmail != currentEmail {
 			return a, nil
+		}
+		// Update imap client if reconnection happened
+		if msg.imap != nil {
+			a.imap = msg.imap
+			a.imapCache[a.accountIdx] = msg.imap
 		}
 		a.mailList.SetEmails(msg.emails)
 		a.mailList.SetSelectionMode(true)

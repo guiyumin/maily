@@ -139,12 +139,17 @@ func (a *App) loadEmails() tea.Cmd {
 }
 
 func (a *App) loadLabels() tea.Cmd {
-	accountEmail := ""
-	if account := a.currentAccount(); account != nil {
-		accountEmail = account.Credentials.Email
+	account := a.currentAccount()
+	if account == nil {
+		return func() tea.Msg {
+			return errorMsg{err: fmt.Errorf("no account configured")}
+		}
 	}
+	accountEmail := account.Credentials.Email
+	creds := &account.Credentials
 	serverClient := a.serverClient
 	imapClient := a.imap // fallback
+
 	return func() tea.Msg {
 		// Try server first
 		if serverClient != nil {
@@ -154,12 +159,37 @@ func (a *App) loadLabels() tea.Cmd {
 			}
 		}
 
-		// Fall back to direct IMAP
+		// Fall back to direct IMAP with reconnection support
 		if imapClient == nil {
 			return errorMsg{err: fmt.Errorf("connecting to server"), accountEmail: accountEmail}
 		}
+
+		// Helper to check if error is connection-related
+		isConnectionError := func(err error) bool {
+			if err == nil {
+				return false
+			}
+			errStr := err.Error()
+			return strings.Contains(errStr, "closed network connection") ||
+				strings.Contains(errStr, "connection reset") ||
+				strings.Contains(errStr, "broken pipe") ||
+				strings.Contains(errStr, "EOF")
+		}
+
 		labels, err := imapClient.ListMailboxes()
 		if err != nil {
+			if isConnectionError(err) {
+				// Connection is stale, try reconnecting
+				newClient, connErr := mail.NewIMAPClient(creds)
+				if connErr != nil {
+					return errorMsg{err: connErr, accountEmail: accountEmail}
+				}
+				labels, err = newClient.ListMailboxes()
+				if err != nil {
+					return errorMsg{err: err, accountEmail: accountEmail}
+				}
+				return labelsLoadedMsg{labels: labels, accountEmail: accountEmail, imap: newClient}
+			}
 			return errorMsg{err: err, accountEmail: accountEmail}
 		}
 		return labelsLoadedMsg{labels: labels, accountEmail: accountEmail}
@@ -168,12 +198,17 @@ func (a *App) loadLabels() tea.Cmd {
 
 func (a *App) executeSearch(query string) tea.Cmd {
 	label := a.currentLabel
-	accountEmail := ""
-	if account := a.currentAccount(); account != nil {
-		accountEmail = account.Credentials.Email
+	account := a.currentAccount()
+	if account == nil {
+		return func() tea.Msg {
+			return errorMsg{err: fmt.Errorf("no account configured")}
+		}
 	}
+	accountEmail := account.Credentials.Email
+	creds := &account.Credentials
 	serverClient := a.serverClient
 	imapClient := a.imap // fallback
+
 	return func() tea.Msg {
 		// Try server first
 		if serverClient != nil {
@@ -187,12 +222,38 @@ func (a *App) executeSearch(query string) tea.Cmd {
 			}
 		}
 
-		// Fall back to direct IMAP
+		// Fall back to direct IMAP with reconnection support
 		if imapClient == nil {
 			return errorMsg{err: fmt.Errorf("connecting to server"), accountEmail: accountEmail}
 		}
+
+		// Helper to check if error is connection-related
+		isConnectionError := func(err error) bool {
+			if err == nil {
+				return false
+			}
+			errStr := err.Error()
+			return strings.Contains(errStr, "closed network connection") ||
+				strings.Contains(errStr, "connection reset") ||
+				strings.Contains(errStr, "broken pipe") ||
+				strings.Contains(errStr, "EOF")
+		}
+
 		emails, err := imapClient.SearchMessages(label, query)
 		if err != nil {
+			if isConnectionError(err) {
+				// Connection is stale, try reconnecting
+				newClient, connErr := mail.NewIMAPClient(creds)
+				if connErr != nil {
+					return errorMsg{err: connErr, accountEmail: accountEmail}
+				}
+				// SearchMessages internally selects the mailbox, so we just retry
+				emails, err = newClient.SearchMessages(label, query)
+				if err != nil {
+					return errorMsg{err: err, accountEmail: accountEmail}
+				}
+				return appSearchResultsMsg{emails: emails, query: query, accountEmail: accountEmail, imap: newClient}
+			}
 			return errorMsg{err: err, accountEmail: accountEmail}
 		}
 		return appSearchResultsMsg{emails: emails, query: query, accountEmail: accountEmail}

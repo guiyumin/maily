@@ -260,53 +260,52 @@ export function EmailReader({
     setComposeOpen(true);
   }, []);
 
-  // AI handlers
-  const handleSummarize = useCallback(
-    async (forceRefresh = false) => {
-      if (!emailFull) return;
-
-      setSummarizing(true);
-      setSummaryDialogOpen(true);
-
-      try {
-        // Get plain text from HTML for summarization
-        const bodyText = emailFull.body_html
-          ? new DOMParser().parseFromString(emailFull.body_html, "text/html")
-              .body.textContent || ""
-          : "";
-
-        const response = await invoke<CompletionResponse>("summarize_email", {
-          account,
-          mailbox,
-          uid: emailFull.uid,
-          subject: emailFull.subject,
-          from: emailFull.from,
-          bodyText,
-          forceRefresh,
-        });
-
-        if (response.success && response.content) {
-          setSummary(response.content);
-          setSummaryModelUsed(response.model_used);
-        } else {
-          toast.error(response.error || "Failed to summarize email");
-          setSummaryDialogOpen(false);
-        }
-      } catch (err) {
-        toast.error(`Failed to summarize: ${err}`);
-        setSummaryDialogOpen(false);
-      } finally {
-        setSummarizing(false);
-      }
-    },
-    [emailFull, account, mailbox]
-  );
-
-  const handleExtractEvent = useCallback(async () => {
+  // AI handlers - commands use #[tauri::command(async)] so they don't block UI
+  const handleSummarize = async (forceRefresh = false) => {
     if (!emailFull) return;
 
-    setExtracting(true);
+    // 1. Open dialog + 2. Set loading
+    setSummaryDialogOpen(true);
+    setSummarizing(true);
+
+    try {
+      // 3. Fetch from cache or generate
+      const bodyText = emailFull.body_html
+        ? new DOMParser().parseFromString(emailFull.body_html, "text/html").body
+            .textContent || ""
+        : "";
+
+      const response = await invoke<CompletionResponse>("summarize_email", {
+        account,
+        mailbox,
+        uid: emailFull.uid,
+        subject: emailFull.subject,
+        from: emailFull.from,
+        bodyText,
+        forceRefresh,
+      });
+
+      // 4. Set summary and loading false
+      if (response.success && response.content) {
+        setSummary(response.content);
+        setSummaryModelUsed(response.model_used);
+      } else {
+        toast.error(response.error || "Failed to summarize email");
+        setSummaryDialogOpen(false);
+      }
+    } catch (err) {
+      toast.error(`Failed to summarize: ${err}`);
+      setSummaryDialogOpen(false);
+    } finally {
+      setSummarizing(false);
+    }
+  };
+
+  const handleExtractEvent = async () => {
+    if (!emailFull) return;
+
     setEventDialogOpen(true);
+    setExtracting(true);
 
     try {
       const bodyText = emailFull.body_html
@@ -331,7 +330,7 @@ export function EmailReader({
     } finally {
       setExtracting(false);
     }
-  }, [emailFull]);
+  };
 
   // Reset AI state when email changes
   useEffect(() => {
@@ -655,13 +654,11 @@ export function EmailReader({
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            {summarizing && (
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span className="text-sm">Generating summary...</span>
+            {summarizing ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
               </div>
-            )}
-            {summary && (
+            ) : summary ? (
               <>
                 <div className="text-sm leading-relaxed space-y-3">
                   {summary.split("\n\n").map((section, i) => {
@@ -688,16 +685,12 @@ export function EmailReader({
                     onClick={() => handleSummarize(true)}
                     disabled={summarizing}
                   >
-                    {summarizing ? (
-                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                    ) : (
-                      <RefreshCw className="h-3 w-3 mr-1" />
-                    )}
+                    <RefreshCw className="h-3 w-3 mr-1" />
                     Regenerate
                   </Button>
                 </div>
               </>
-            )}
+            ) : null}
           </div>
         </DialogContent>
       </Dialog>

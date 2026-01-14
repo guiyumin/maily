@@ -280,8 +280,9 @@ fn sync_draft_to_server(draft: Draft) -> Result<(), String> {
 
 // ============ AI COMMANDS ============
 
+// Use spawn_blocking for CPU-heavy/blocking AI calls to not block async runtime
 #[tauri::command]
-fn summarize_email(
+async fn summarize_email(
     account: String,
     mailbox: String,
     uid: u32,
@@ -290,7 +291,14 @@ fn summarize_email(
     body_text: String,
     force_refresh: bool,
 ) -> CompletionResponse {
-    ai_summarize(&account, &mailbox, uid, &subject, &from, &body_text, force_refresh)
+    tauri::async_runtime::spawn_blocking(move || {
+        ai_summarize(&account, &mailbox, uid, &subject, &from, &body_text, force_refresh)
+    }).await.unwrap_or_else(|_| CompletionResponse {
+        success: false,
+        content: None,
+        error: Some("Task panicked".to_string()),
+        model_used: None,
+    })
 }
 
 #[tauri::command]
@@ -304,23 +312,44 @@ fn delete_email_summary(account: String, mailbox: String, uid: u32) -> Result<()
 }
 
 #[tauri::command]
-fn generate_reply(
+async fn generate_reply(
     original_from: String,
     original_subject: String,
     original_body: String,
     reply_intent: String,
 ) -> CompletionResponse {
-    ai_generate_reply(&original_from, &original_subject, &original_body, &reply_intent)
+    tauri::async_runtime::spawn_blocking(move || {
+        ai_generate_reply(&original_from, &original_subject, &original_body, &reply_intent)
+    }).await.unwrap_or_else(|_| CompletionResponse {
+        success: false,
+        content: None,
+        error: Some("Task panicked".to_string()),
+        model_used: None,
+    })
 }
 
 #[tauri::command]
-fn extract_event(subject: String, body_text: String) -> CompletionResponse {
-    ai_extract_event(&subject, &body_text)
+async fn extract_event(subject: String, body_text: String) -> CompletionResponse {
+    tauri::async_runtime::spawn_blocking(move || {
+        ai_extract_event(&subject, &body_text)
+    }).await.unwrap_or_else(|_| CompletionResponse {
+        success: false,
+        content: None,
+        error: Some("Task panicked".to_string()),
+        model_used: None,
+    })
 }
 
 #[tauri::command]
-fn ai_complete(request: CompletionRequest) -> CompletionResponse {
-    do_ai_complete(request)
+async fn ai_complete(request: CompletionRequest) -> CompletionResponse {
+    tauri::async_runtime::spawn_blocking(move || {
+        do_ai_complete(request)
+    }).await.unwrap_or_else(|_| CompletionResponse {
+        success: false,
+        content: None,
+        error: Some("Task panicked".to_string()),
+        model_used: None,
+    })
 }
 
 #[tauri::command]
@@ -329,14 +358,21 @@ fn get_available_ai_providers() -> Vec<String> {
 }
 
 #[tauri::command]
-fn test_ai_provider(
+async fn test_ai_provider(
     provider_name: String,
     provider_model: String,
     provider_type: String,
     base_url: String,
     api_key: String,
 ) -> CompletionResponse {
-    ai_test_provider(&provider_name, &provider_model, &provider_type, &base_url, &api_key)
+    tauri::async_runtime::spawn_blocking(move || {
+        ai_test_provider(&provider_name, &provider_model, &provider_type, &base_url, &api_key)
+    }).await.unwrap_or_else(|_| CompletionResponse {
+        success: false,
+        content: None,
+        error: Some("Task panicked".to_string()),
+        model_used: None,
+    })
 }
 
 // ============ CALENDAR COMMANDS ============

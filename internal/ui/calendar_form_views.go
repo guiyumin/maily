@@ -80,8 +80,17 @@ func (m *CalendarApp) renderForm(title string) string {
 	content.WriteString(m.form.location.View())
 	content.WriteString("\n")
 
-	// Calendar selector
+	// Notes
 	if m.formFocusIdx == 5 {
+		content.WriteString(focusedLabelStyle.Render("Notes"))
+	} else {
+		content.WriteString(labelStyle.Render("Notes"))
+	}
+	content.WriteString(m.form.notes.View())
+	content.WriteString("\n")
+
+	// Calendar selector
+	if m.formFocusIdx == 6 {
 		content.WriteString(focusedLabelStyle.Render("Calendar"))
 	} else {
 		content.WriteString(labelStyle.Render("Calendar"))
@@ -92,7 +101,7 @@ func (m *CalendarApp) renderForm(title string) string {
 		calName = m.calendars[m.form.calendar].Title
 	}
 	calStyle := lipgloss.NewStyle()
-	if m.formFocusIdx == 5 {
+	if m.formFocusIdx == 6 {
 		calStyle = calStyle.Background(components.Primary).Foreground(components.Text)
 	}
 	content.WriteString(calStyle.Render(fmt.Sprintf("◀ %s ▶", calName)))
@@ -126,12 +135,12 @@ func (m *CalendarApp) renderForm(title string) string {
 		Foreground(components.Muted)
 
 	var saveBtn, cancelBtn string
-	if m.formFocusIdx == 6 {
+	if m.formFocusIdx == 7 {
 		saveBtn = selectedBtn.BorderForeground(components.Primary).Background(components.Primary).Foreground(lipgloss.Color("#FFFFFF")).Render("Save")
 	} else {
 		saveBtn = unselectedBtn.Render("Save")
 	}
-	if m.formFocusIdx == 7 {
+	if m.formFocusIdx == 8 {
 		cancelBtn = selectedBtn.BorderForeground(components.Muted).Background(components.Muted).Foreground(lipgloss.Color("#FFFFFF")).Render("Cancel")
 	} else {
 		cancelBtn = unselectedBtn.Render("Cancel")

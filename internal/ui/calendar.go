@@ -379,26 +379,26 @@ func (m *CalendarApp) handleFormInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case "tab":
-		m.formFocusIdx = (m.formFocusIdx + 1) % 8
+		m.formFocusIdx = (m.formFocusIdx + 1) % 9
 		m.updateFormFocus()
 		return m, nil
 
 	case "shift+tab":
-		m.formFocusIdx = (m.formFocusIdx + 7) % 8
+		m.formFocusIdx = (m.formFocusIdx + 8) % 9
 		m.updateFormFocus()
 		return m, nil
 
 	case "enter":
-		if m.formFocusIdx == 5 { // Calendar selector
+		if m.formFocusIdx == 6 { // Calendar selector
 			if len(m.calendars) > 0 {
 				m.form.calendar = (m.form.calendar + 1) % len(m.calendars)
 			}
 			return m, nil
 		}
-		if m.formFocusIdx == 6 { // Save button
+		if m.formFocusIdx == 7 { // Save button
 			return m, m.saveEvent()
 		}
-		if m.formFocusIdx == 7 { // Cancel button
+		if m.formFocusIdx == 8 { // Cancel button
 			m.view = viewCalendar
 			return m, nil
 		}
@@ -411,19 +411,19 @@ func (m *CalendarApp) handleFormInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, m.saveEvent()
 
 	case "left":
-		if m.formFocusIdx == 5 && len(m.calendars) > 0 {
+		if m.formFocusIdx == 6 && len(m.calendars) > 0 {
 			m.form.calendar = (m.form.calendar + len(m.calendars) - 1) % len(m.calendars)
 			return m, nil
 		}
 
 	case "right":
-		if m.formFocusIdx == 5 && len(m.calendars) > 0 {
+		if m.formFocusIdx == 6 && len(m.calendars) > 0 {
 			m.form.calendar = (m.form.calendar + 1) % len(m.calendars)
 			return m, nil
 		}
 	}
 
-	// Pass keystrokes to the focused text input (title, date, location only)
+	// Pass keystrokes to the focused text input
 	var cmd tea.Cmd
 	switch m.formFocusIdx {
 	case 0:
@@ -432,6 +432,8 @@ func (m *CalendarApp) handleFormInput(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.form.date, cmd = m.form.date.Update(msg)
 	case 4:
 		m.form.location, cmd = m.form.location.Update(msg)
+	case 5:
+		m.form.notes, cmd = m.form.notes.Update(msg)
 	}
 
 	return m, cmd
@@ -519,12 +521,20 @@ func (m *CalendarApp) handleEventDetailKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd)
 }
 
 func (m *CalendarApp) initEditForm(event calendar.Event) {
+	notes := textarea.New()
+	notes.Placeholder = "Notes (optional)"
+	notes.CharLimit = 500
+	notes.SetWidth(35)
+	notes.SetHeight(2)
+	notes.ShowLineNumbers = false
+
 	m.form = eventForm{
 		title:    textinput.New(),
 		date:     components.NewDatePicker(),
 		start:    components.NewTimePicker(),
 		end:      components.NewTimePicker(),
 		location: textinput.New(),
+		notes:    notes,
 		editID:   event.ID,
 	}
 
@@ -535,6 +545,7 @@ func (m *CalendarApp) initEditForm(event calendar.Event) {
 	m.form.start.SetTime24(event.StartTime.Format("15:04"))
 	m.form.end.SetTime24(event.EndTime.Format("15:04"))
 	m.form.location.SetValue(event.Location)
+	m.form.notes.SetValue(event.Notes)
 
 	// Find calendar index
 	for i, cal := range m.calendars {
@@ -553,6 +564,7 @@ func (m *CalendarApp) updateFormFocus() {
 	m.form.start.Blur()
 	m.form.end.Blur()
 	m.form.location.Blur()
+	m.form.notes.Blur()
 
 	switch m.formFocusIdx {
 	case 0:
@@ -565,6 +577,8 @@ func (m *CalendarApp) updateFormFocus() {
 		m.form.end.Focus()
 	case 4:
 		m.form.location.Focus()
+	case 5:
+		m.form.notes.Focus()
 	}
 }
 

@@ -4,7 +4,7 @@ mod mail;
 
 use tauri::WebviewWindowBuilder;
 use config::{get_config as load_config, save_config as store_config, AIProvider, Config};
-use imap_queue::{init as init_imap_queue, queue_mark_read, queue_sync};
+use imap_queue::{init as init_imap_queue, queue_mark_read, queue_move_to_trash, queue_sync};
 use mail::{
     delete_email_from_cache, get_accounts, get_email as fetch_email, get_emails,
     list_emails_paginated, get_emails_count_since_days, init_db, get_initial_state,
@@ -50,9 +50,16 @@ fn get_email(account: String, mailbox: String, uid: u32) -> Result<Email, String
     fetch_email(&account, &mailbox, uid).map_err(|e| e.to_string())
 }
 
+/// Delete email - optimistic: deletes from cache immediately, queues IMAP for background
 #[tauri::command]
 fn delete_email(account: String, mailbox: String, uid: u32) -> Result<(), String> {
-    delete_email_from_cache(&account, &mailbox, uid).map_err(|e| e.to_string())
+    // Delete from local cache immediately
+    delete_email_from_cache(&account, &mailbox, uid).map_err(|e| e.to_string())?;
+
+    // Queue IMAP move-to-trash for background processing
+    queue_move_to_trash(account, mailbox, uid);
+
+    Ok(())
 }
 
 #[tauri::command]

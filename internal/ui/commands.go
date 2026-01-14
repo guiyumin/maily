@@ -190,28 +190,18 @@ func (a *App) deleteSelectedEmails() tea.Cmd {
 		accountEmail = account.Credentials.Email
 	}
 	mailbox := a.currentLabel
-	serverClient := a.serverClient
-	imapClient := a.imap // fallback
+	diskCache := a.diskCache
 
 	return func() tea.Msg {
 		if len(uids) == 0 {
 			return bulkActionCompleteMsg{action: "deleted", count: 0}
 		}
-
-		// Try server first
-		if serverClient != nil {
-			if err := serverClient.DeleteMulti(accountEmail, mailbox, uids); err == nil {
-				return bulkActionCompleteMsg{action: "deleted", count: len(uids)}
+		// Optimistic: delete locally and queue for server
+		if diskCache != nil {
+			for _, uid := range uids {
+				diskCache.DeleteEmail(accountEmail, mailbox, uid)
+				diskCache.AddPendingOp(accountEmail, mailbox, cache.OpDelete, uid)
 			}
-		}
-
-		// Fall back to direct IMAP
-		if imapClient == nil {
-			return errorMsg{err: fmt.Errorf("connecting to server"), accountEmail: accountEmail}
-		}
-		err := imapClient.DeleteMessages(uids)
-		if err != nil {
-			return errorMsg{err: fmt.Errorf("failed to delete: %w", err), accountEmail: accountEmail}
 		}
 		return bulkActionCompleteMsg{action: "deleted", count: len(uids)}
 	}
@@ -224,24 +214,13 @@ func (a *App) deleteSingleEmail(uid imap.UID) tea.Cmd {
 		accountEmail = account.Credentials.Email
 	}
 	mailbox := a.currentLabel
-	serverClient := a.serverClient
-	imapClient := a.imap // fallback
+	diskCache := a.diskCache
 
 	return func() tea.Msg {
-		// Try server first
-		if serverClient != nil {
-			if err := serverClient.DeleteEmail(accountEmail, mailbox, uid); err == nil {
-				return singleDeleteCompleteMsg{uid: uid}
-			}
-		}
-
-		// Fall back to direct IMAP
-		if imapClient == nil {
-			return errorMsg{err: fmt.Errorf("connecting to server"), accountEmail: accountEmail}
-		}
-		err := imapClient.DeleteMessage(uid)
-		if err != nil {
-			return errorMsg{err: fmt.Errorf("failed to delete: %w", err), accountEmail: accountEmail}
+		// Optimistic: delete locally and queue for server
+		if diskCache != nil {
+			diskCache.DeleteEmail(accountEmail, mailbox, uid)
+			diskCache.AddPendingOp(accountEmail, mailbox, cache.OpDelete, uid)
 		}
 		return singleDeleteCompleteMsg{uid: uid}
 	}
@@ -262,28 +241,18 @@ func (a *App) moveSelectedToTrash() tea.Cmd {
 		accountEmail = account.Credentials.Email
 	}
 	mailbox := a.currentLabel
-	serverClient := a.serverClient
-	imapClient := a.imap // fallback
+	diskCache := a.diskCache
 
 	return func() tea.Msg {
 		if len(uids) == 0 {
 			return bulkActionCompleteMsg{action: "moved to trash", count: 0}
 		}
-
-		// Try server first
-		if serverClient != nil {
-			if err := serverClient.MoveMultiToTrash(accountEmail, mailbox, uids); err == nil {
-				return bulkActionCompleteMsg{action: "moved to trash", count: len(uids)}
+		// Optimistic: delete locally and queue for server
+		if diskCache != nil {
+			for _, uid := range uids {
+				diskCache.DeleteEmail(accountEmail, mailbox, uid)
+				diskCache.AddPendingOp(accountEmail, mailbox, cache.OpMoveTrash, uid)
 			}
-		}
-
-		// Fall back to direct IMAP
-		if imapClient == nil {
-			return errorMsg{err: fmt.Errorf("connecting to server"), accountEmail: accountEmail}
-		}
-		err := imapClient.MoveToTrashFromMailbox(uids, mailbox)
-		if err != nil {
-			return errorMsg{err: fmt.Errorf("failed to move to trash: %w", err), accountEmail: accountEmail}
 		}
 		return bulkActionCompleteMsg{action: "moved to trash", count: len(uids)}
 	}
@@ -296,24 +265,13 @@ func (a *App) moveSingleToTrash(uid imap.UID) tea.Cmd {
 		accountEmail = account.Credentials.Email
 	}
 	mailbox := a.currentLabel
-	serverClient := a.serverClient
-	imapClient := a.imap // fallback
+	diskCache := a.diskCache
 
 	return func() tea.Msg {
-		// Try server first
-		if serverClient != nil {
-			if err := serverClient.MoveToTrash(accountEmail, mailbox, uid); err == nil {
-				return singleDeleteCompleteMsg{uid: uid}
-			}
-		}
-
-		// Fall back to direct IMAP
-		if imapClient == nil {
-			return errorMsg{err: fmt.Errorf("connecting to server"), accountEmail: accountEmail}
-		}
-		err := imapClient.MoveToTrashFromMailbox([]imap.UID{uid}, mailbox)
-		if err != nil {
-			return errorMsg{err: fmt.Errorf("failed to move to trash: %w", err), accountEmail: accountEmail}
+		// Optimistic: delete locally and queue for server
+		if diskCache != nil {
+			diskCache.DeleteEmail(accountEmail, mailbox, uid)
+			diskCache.AddPendingOp(accountEmail, mailbox, cache.OpMoveTrash, uid)
 		}
 		return singleDeleteCompleteMsg{uid: uid}
 	}

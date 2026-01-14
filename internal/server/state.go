@@ -345,3 +345,83 @@ func emailToCached(e mail.Email) cache.CachedEmail {
 		Attachments:  attachments,
 	}
 }
+
+// ProcessPendingOps processes all pending operations from the queue
+// Returns the number of successfully processed operations
+func (sm *StateManager) ProcessPendingOps() (processed int, failed int) {
+	if sm.cache == nil {
+		return 0, 0
+	}
+
+	ops, err := sm.cache.GetPendingOps("")
+	if err != nil || len(ops) == 0 {
+		return 0, 0
+	}
+
+	// Group ops by account to reuse IMAP connections
+	byAccount := make(map[string][]cache.PendingOp)
+	for _, op := range ops {
+		byAccount[op.Account] = append(byAccount[op.Account], op)
+	}
+
+	for account, accountOps := range byAccount {
+		creds, err := sm.GetAccountCredentials(account)
+		if err != nil {
+			// Mark all ops for this account as failed
+			for _, op := range accountOps {
+				sm.cache.UpdatePendingOpError(op.ID, err.Error())
+				failed++
+			}
+			continue
+		}
+
+		client, err := mail.NewIMAPClient(creds)
+		if err != nil {
+			for _, op := range accountOps {
+				sm.cache.UpdatePendingOpError(op.ID, err.Error())
+				failed++
+			}
+			continue
+		}
+
+		for _, op := range accountOps {
+			var opErr error
+			switch op.Operation {
+			case cache.OpDelete:
+				opErr = client.DeleteMessage(op.UID)
+			case cache.OpMoveTrash:
+				opErr = client.MoveToTrashFromMailbox([]imap.UID{op.UID}, op.Mailbox)
+			case cache.OpMarkRead:
+				opErr = client.MarkAsRead(op.UID)
+			default:
+				opErr = fmt.Errorf("unknown operation: %s", op.Operation)
+			}
+
+			if opErr != nil {
+				sm.cache.UpdatePendingOpError(op.ID, opErr.Error())
+				failed++
+			} else {
+				sm.cache.RemovePendingOp(op.ID)
+				// Delete from cache again in case sync pulled email back
+				if op.Operation == cache.OpDelete || op.Operation == cache.OpMoveTrash {
+					sm.cache.DeleteEmail(op.Account, op.Mailbox, op.UID)
+					sm.memory.Delete(op.Account, op.Mailbox, op.UID)
+				}
+				processed++
+			}
+		}
+
+		client.Close()
+	}
+
+	return processed, failed
+}
+
+// GetPendingOpsCount returns the number of pending operations
+func (sm *StateManager) GetPendingOpsCount() int {
+	if sm.cache == nil {
+		return 0
+	}
+	count, _ := sm.cache.GetPendingOpsCount()
+	return count
+}

@@ -418,20 +418,34 @@ func (s *Server) broadcastEvent(event Event) {
 	}
 }
 
-// backgroundPoller syncs all accounts periodically
+// backgroundPoller syncs all accounts periodically and processes pending ops
 func (s *Server) backgroundPoller() {
 	defer s.wg.Done()
 
-	ticker := time.NewTicker(syncInterval)
-	defer ticker.Stop()
+	syncTicker := time.NewTicker(syncInterval)
+	defer syncTicker.Stop()
+
+	// Process pending ops more frequently (every 10 seconds)
+	opsTicker := time.NewTicker(10 * time.Second)
+	defer opsTicker.Stop()
 
 	for {
 		select {
-		case <-ticker.C:
+		case <-syncTicker.C:
 			s.syncAllAccounts()
+		case <-opsTicker.C:
+			s.processPendingOps()
 		case <-s.done:
 			return
 		}
+	}
+}
+
+// processPendingOps processes the pending operations queue
+func (s *Server) processPendingOps() {
+	processed, failed := s.state.ProcessPendingOps()
+	if processed > 0 || failed > 0 {
+		fmt.Printf("Pending ops: %d processed, %d failed\n", processed, failed)
 	}
 }
 

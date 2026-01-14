@@ -7,7 +7,7 @@ use serde::Serialize;
 use tauri::{AppHandle, Emitter};
 use tokio::sync::mpsc::{self, Sender};
 
-use crate::mail::{get_accounts, sync_emails_since};
+use crate::mail::{delete_email_from_cache, get_accounts, sync_emails_since};
 
 /// Operations that can be queued for an account
 #[derive(Debug, Clone)]
@@ -16,6 +16,14 @@ pub enum ImapOperation {
         mailbox: String,
         uid: u32,
         unread: bool,
+    },
+    Delete {
+        mailbox: String,
+        uid: u32,
+    },
+    MoveToTrash {
+        mailbox: String,
+        uid: u32,
     },
     SyncMailbox {
         mailbox: String,
@@ -81,8 +89,8 @@ fn get_account_sender(account_name: &str) -> Sender<ImapOperation> {
 
 /// Worker task for a single account - processes operations sequentially
 async fn account_worker(account_name: String, mut receiver: mpsc::Receiver<ImapOperation>) {
-    // Batch pending mark-read operations
-    let mut pending_marks: HashMap<String, ImapOperation> = HashMap::new();
+    // Batch pending operations
+    let mut pending_ops: HashMap<String, ImapOperation> = HashMap::new();
 
     loop {
         // Try to receive with timeout for batching
@@ -90,14 +98,21 @@ async fn account_worker(account_name: String, mut receiver: mpsc::Receiver<ImapO
             Ok(Some(op)) => {
                 match &op {
                     ImapOperation::MarkRead { mailbox, uid, .. } => {
-                        // Batch mark-read operations
-                        let key = format!("{}:{}", mailbox, uid);
-                        pending_marks.insert(key, op);
+                        let key = format!("mark:{}:{}", mailbox, uid);
+                        pending_ops.insert(key, op);
+                    }
+                    ImapOperation::Delete { mailbox, uid } => {
+                        let key = format!("del:{}:{}", mailbox, uid);
+                        pending_ops.insert(key, op);
+                    }
+                    ImapOperation::MoveToTrash { mailbox, uid } => {
+                        let key = format!("trash:{}:{}", mailbox, uid);
+                        pending_ops.insert(key, op);
                     }
                     ImapOperation::SyncMailbox { mailbox } => {
-                        // Process any pending marks first
-                        if !pending_marks.is_empty() {
-                            process_pending_marks(&account_name, &mut pending_marks).await;
+                        // Process any pending ops first
+                        if !pending_ops.is_empty() {
+                            process_pending_ops(&account_name, &mut pending_ops).await;
                         }
                         // Then sync
                         process_sync(&account_name, mailbox).await;
@@ -109,38 +124,72 @@ async fn account_worker(account_name: String, mut receiver: mpsc::Receiver<ImapO
                 break;
             }
             Err(_) => {
-                // Timeout - process pending marks
-                if !pending_marks.is_empty() {
-                    process_pending_marks(&account_name, &mut pending_marks).await;
+                // Timeout - process pending ops
+                if !pending_ops.is_empty() {
+                    process_pending_ops(&account_name, &mut pending_ops).await;
                 }
             }
         }
     }
 }
 
-/// Process batched mark-read operations
-async fn process_pending_marks(
+/// Process batched operations
+async fn process_pending_ops(
     account_name: &str,
     pending: &mut HashMap<String, ImapOperation>,
 ) {
     let ops: Vec<_> = pending.drain().collect();
 
     for (_, op) in ops {
-        if let ImapOperation::MarkRead { mailbox, uid, unread } = op {
-            let account = account_name.to_string();
-            let mbox = mailbox.clone();
-            let mbox_log = mailbox.clone();
+        let account = account_name.to_string();
+        match op {
+            ImapOperation::MarkRead { mailbox, uid, unread } => {
+                let mbox = mailbox.clone();
+                let result = tokio::task::spawn_blocking(move || {
+                    mark_read_imap(&account, &mbox, uid, unread)
+                })
+                .await;
 
-            // Run blocking IMAP operation on thread pool
-            let result = tokio::task::spawn_blocking(move || {
-                mark_read_imap(&account, &mbox, uid, unread)
-            })
-            .await;
+                if let Err(e) = result {
+                    eprintln!("[imap] spawn_blocking error: {}", e);
+                } else if let Ok(Err(e)) = result {
+                    eprintln!("[imap] mark_read failed {}:{}/{}: {}", account_name, mailbox, uid, e);
+                }
+            }
+            ImapOperation::Delete { mailbox, uid } => {
+                let mbox = mailbox.clone();
+                let result = tokio::task::spawn_blocking(move || {
+                    delete_imap(&account, &mbox, uid)
+                })
+                .await;
 
-            if let Err(e) = result {
-                eprintln!("[imap] spawn_blocking error: {}", e);
-            } else if let Ok(Err(e)) = result {
-                eprintln!("[imap] mark_read failed {}:{}/{}: {}", account_name, mbox_log, uid, e);
+                if let Err(e) = result {
+                    eprintln!("[imap] spawn_blocking error: {}", e);
+                } else if let Ok(Err(e)) = result {
+                    eprintln!("[imap] delete failed {}:{}/{}: {}", account_name, mailbox, uid, e);
+                } else {
+                    // Delete from cache again in case sync pulled email back
+                    let _ = delete_email_from_cache(account_name, &mailbox, uid);
+                }
+            }
+            ImapOperation::MoveToTrash { mailbox, uid } => {
+                let mbox = mailbox.clone();
+                let result = tokio::task::spawn_blocking(move || {
+                    move_to_trash_imap(&account, &mbox, uid)
+                })
+                .await;
+
+                if let Err(e) = result {
+                    eprintln!("[imap] spawn_blocking error: {}", e);
+                } else if let Ok(Err(e)) = result {
+                    eprintln!("[imap] move_to_trash failed {}:{}/{}: {}", account_name, mailbox, uid, e);
+                } else {
+                    // Delete from cache again in case sync pulled email back
+                    let _ = delete_email_from_cache(account_name, &mailbox, uid);
+                }
+            }
+            ImapOperation::SyncMailbox { .. } => {
+                // Handled separately
             }
         }
     }
@@ -264,8 +313,116 @@ pub fn queue_mark_read(account: String, mailbox: String, uid: u32, unread: bool)
     let _ = sender.try_send(ImapOperation::MarkRead { mailbox, uid, unread });
 }
 
+/// Queue delete - returns immediately
+pub fn queue_delete(account: String, mailbox: String, uid: u32) {
+    let sender = get_account_sender(&account);
+    let _ = sender.try_send(ImapOperation::Delete { mailbox, uid });
+}
+
+/// Queue move to trash - returns immediately
+pub fn queue_move_to_trash(account: String, mailbox: String, uid: u32) {
+    let sender = get_account_sender(&account);
+    let _ = sender.try_send(ImapOperation::MoveToTrash { mailbox, uid });
+}
+
 /// Queue sync - returns immediately
 pub fn queue_sync(account: String, mailbox: String) {
     let sender = get_account_sender(&account);
     let _ = sender.try_send(ImapOperation::SyncMailbox { mailbox });
+}
+
+/// IMAP delete (runs on blocking thread pool)
+fn delete_imap(
+    account_name: &str,
+    mailbox: &str,
+    uid: u32,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    use std::net::{TcpStream, ToSocketAddrs};
+
+    let accounts = get_accounts().map_err(|e| e.to_string())?;
+    let account = accounts
+        .into_iter()
+        .find(|a| a.name == account_name)
+        .ok_or_else(|| format!("Account '{}' not found", account_name))?;
+
+    let creds = &account.credentials;
+
+    let addr = format!("{}:{}", creds.imap_host, creds.imap_port);
+    let socket_addr = addr
+        .to_socket_addrs()?
+        .next()
+        .ok_or("Failed to resolve IMAP host")?;
+
+    let tcp = TcpStream::connect_timeout(&socket_addr, Duration::from_secs(30))?;
+    tcp.set_read_timeout(Some(Duration::from_secs(30)))?;
+    tcp.set_write_timeout(Some(Duration::from_secs(30)))?;
+
+    let tls = native_tls::TlsConnector::builder().build()?;
+    let tls_stream = tls.connect(&creds.imap_host, tcp)?;
+
+    let client = imap::Client::new(tls_stream);
+    let mut session = client.login(&creds.email, &creds.password).map_err(|e| e.0)?;
+
+    session.select(mailbox)?;
+
+    // Mark as deleted and expunge
+    let uid_set = format!("{}", uid);
+    session.uid_store(&uid_set, "+FLAGS (\\Deleted)")?;
+    session.expunge()?;
+
+    session.logout()?;
+    Ok(())
+}
+
+/// IMAP move to trash (runs on blocking thread pool)
+fn move_to_trash_imap(
+    account_name: &str,
+    mailbox: &str,
+    uid: u32,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    use std::net::{TcpStream, ToSocketAddrs};
+
+    let accounts = get_accounts().map_err(|e| e.to_string())?;
+    let account = accounts
+        .into_iter()
+        .find(|a| a.name == account_name)
+        .ok_or_else(|| format!("Account '{}' not found", account_name))?;
+
+    let creds = &account.credentials;
+
+    let addr = format!("{}:{}", creds.imap_host, creds.imap_port);
+    let socket_addr = addr
+        .to_socket_addrs()?
+        .next()
+        .ok_or("Failed to resolve IMAP host")?;
+
+    let tcp = TcpStream::connect_timeout(&socket_addr, Duration::from_secs(30))?;
+    tcp.set_read_timeout(Some(Duration::from_secs(30)))?;
+    tcp.set_write_timeout(Some(Duration::from_secs(30)))?;
+
+    let tls = native_tls::TlsConnector::builder().build()?;
+    let tls_stream = tls.connect(&creds.imap_host, tcp)?;
+
+    let client = imap::Client::new(tls_stream);
+    let mut session = client.login(&creds.email, &creds.password).map_err(|e| e.0)?;
+
+    session.select(mailbox)?;
+
+    // Determine trash folder based on provider
+    let trash_folder = if creds.imap_host.contains("gmail") {
+        "[Gmail]/Trash"
+    } else if creds.imap_host.contains("yahoo") {
+        "Trash"
+    } else {
+        "Trash"
+    };
+
+    // Move to trash using COPY + DELETE
+    let uid_set = format!("{}", uid);
+    session.uid_copy(&uid_set, trash_folder)?;
+    session.uid_store(&uid_set, "+FLAGS (\\Deleted)")?;
+    session.expunge()?;
+
+    session.logout()?;
+    Ok(())
 }

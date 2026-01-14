@@ -46,6 +46,25 @@ type Metadata struct {
 	LastSync    time.Time `json:"last_sync"`
 }
 
+// Operation types for pending operations
+const (
+	OpDelete    = "delete"
+	OpMoveTrash = "move_trash"
+	OpMarkRead  = "mark_read"
+)
+
+// PendingOp represents a pending email operation to be synced
+type PendingOp struct {
+	ID        int64
+	Account   string
+	Mailbox   string
+	Operation string
+	UID       imap.UID
+	CreatedAt time.Time
+	Retries   int
+	LastError string
+}
+
 // Cache manages persistent email storage using SQLite
 type Cache struct {
 	db     *sql.DB
@@ -100,8 +119,20 @@ CREATE TABLE IF NOT EXISTS sync_locks (
     locked_at INTEGER NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS pending_ops (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    account TEXT NOT NULL,
+    mailbox TEXT NOT NULL,
+    operation TEXT NOT NULL,
+    uid INTEGER NOT NULL,
+    created_at INTEGER NOT NULL,
+    retries INTEGER NOT NULL DEFAULT 0,
+    last_error TEXT NOT NULL DEFAULT ''
+);
+
 CREATE INDEX IF NOT EXISTS idx_emails_date ON emails(account, mailbox, internal_date DESC);
 CREATE INDEX IF NOT EXISTS idx_emails_internal_date ON emails(internal_date);
+CREATE INDEX IF NOT EXISTS idx_pending_ops_account ON pending_ops(account);
 `
 
 // New creates a new cache instance with SQLite backend
@@ -578,4 +609,71 @@ func (a Attachment) MarshalJSON() ([]byte, error) {
 func (e CachedEmail) MarshalJSON() ([]byte, error) {
 	type Alias CachedEmail
 	return json.Marshal(Alias(e))
+}
+
+// AddPendingOp adds a pending operation to the queue
+func (c *Cache) AddPendingOp(account, mailbox, operation string, uid imap.UID) error {
+	_, err := c.db.Exec(`
+		INSERT INTO pending_ops (account, mailbox, operation, uid, created_at)
+		VALUES (?, ?, ?, ?, ?)
+	`, account, mailbox, operation, uint32(uid), time.Now().Unix())
+	return err
+}
+
+// GetPendingOps returns all pending operations, optionally filtered by account
+func (c *Cache) GetPendingOps(account string) ([]PendingOp, error) {
+	var rows *sql.Rows
+	var err error
+
+	if account == "" {
+		rows, err = c.db.Query(`
+			SELECT id, account, mailbox, operation, uid, created_at, retries, last_error
+			FROM pending_ops ORDER BY created_at ASC
+		`)
+	} else {
+		rows, err = c.db.Query(`
+			SELECT id, account, mailbox, operation, uid, created_at, retries, last_error
+			FROM pending_ops WHERE account = ? ORDER BY created_at ASC
+		`, account)
+	}
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var ops []PendingOp
+	for rows.Next() {
+		var op PendingOp
+		var uid uint32
+		var createdAt int64
+		if err := rows.Scan(&op.ID, &op.Account, &op.Mailbox, &op.Operation,
+			&uid, &createdAt, &op.Retries, &op.LastError); err != nil {
+			continue
+		}
+		op.UID = imap.UID(uid)
+		op.CreatedAt = time.Unix(createdAt, 0)
+		ops = append(ops, op)
+	}
+	return ops, nil
+}
+
+// RemovePendingOp removes a pending operation by ID
+func (c *Cache) RemovePendingOp(id int64) error {
+	_, err := c.db.Exec("DELETE FROM pending_ops WHERE id = ?", id)
+	return err
+}
+
+// UpdatePendingOpError updates the retry count and last error for a pending operation
+func (c *Cache) UpdatePendingOpError(id int64, errMsg string) error {
+	_, err := c.db.Exec(`
+		UPDATE pending_ops SET retries = retries + 1, last_error = ? WHERE id = ?
+	`, errMsg, id)
+	return err
+}
+
+// GetPendingOpsCount returns the count of pending operations
+func (c *Cache) GetPendingOpsCount() (int, error) {
+	var count int
+	err := c.db.QueryRow("SELECT COUNT(*) FROM pending_ops").Scan(&count)
+	return count, err
 }

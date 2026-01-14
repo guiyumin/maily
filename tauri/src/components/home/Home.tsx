@@ -200,6 +200,21 @@ export function Home() {
         setHasMore(result.has_more);
         setLoading(false);
 
+        // Auto-sync if folder is empty (never synced before)
+        if (result.total === 0) {
+          setRefreshing(true);
+          syncingRef.current = { account: selectedAccount, mailbox: selectedMailbox };
+          invoke("start_sync", {
+            account: selectedAccount,
+            mailbox: selectedMailbox,
+          }).catch((err) => {
+            console.error("Auto-sync failed:", err);
+            setRefreshing(false);
+            syncingRef.current = null;
+          });
+          return;
+        }
+
         // 2. Get 14-day count and start background loading
         const count = await invoke<number>("get_email_count_days", {
           account: selectedAccount,

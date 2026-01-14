@@ -123,7 +123,9 @@ export function EmailReader({
 
   // Compose dialog state
   const [composeOpen, setComposeOpen] = useState(false);
-  const [composeMode, setComposeMode] = useState<"new" | "reply" | "reply-all" | "forward">("reply");
+  const [composeMode, setComposeMode] = useState<
+    "new" | "reply" | "reply-all" | "forward"
+  >("reply");
 
   // AI features state
   const [summaryDialogOpen, setSummaryDialogOpen] = useState(false);
@@ -259,42 +261,46 @@ export function EmailReader({
   }, []);
 
   // AI handlers
-  const handleSummarize = useCallback(async (forceRefresh = false) => {
-    if (!emailFull) return;
+  const handleSummarize = useCallback(
+    async (forceRefresh = false) => {
+      if (!emailFull) return;
 
-    setSummarizing(true);
-    setSummaryDialogOpen(true);
+      setSummarizing(true);
+      setSummaryDialogOpen(true);
 
-    try {
-      // Get plain text from HTML for summarization
-      const bodyText = emailFull.body_html
-        ? new DOMParser().parseFromString(emailFull.body_html, "text/html").body.textContent || ""
-        : "";
+      try {
+        // Get plain text from HTML for summarization
+        const bodyText = emailFull.body_html
+          ? new DOMParser().parseFromString(emailFull.body_html, "text/html")
+              .body.textContent || ""
+          : "";
 
-      const response = await invoke<CompletionResponse>("summarize_email", {
-        account,
-        mailbox,
-        uid: emailFull.uid,
-        subject: emailFull.subject,
-        from: emailFull.from,
-        bodyText,
-        forceRefresh,
-      });
+        const response = await invoke<CompletionResponse>("summarize_email", {
+          account,
+          mailbox,
+          uid: emailFull.uid,
+          subject: emailFull.subject,
+          from: emailFull.from,
+          bodyText,
+          forceRefresh,
+        });
 
-      if (response.success && response.content) {
-        setSummary(response.content);
-        setSummaryModelUsed(response.model_used);
-      } else {
-        toast.error(response.error || "Failed to summarize email");
+        if (response.success && response.content) {
+          setSummary(response.content);
+          setSummaryModelUsed(response.model_used);
+        } else {
+          toast.error(response.error || "Failed to summarize email");
+          setSummaryDialogOpen(false);
+        }
+      } catch (err) {
+        toast.error(`Failed to summarize: ${err}`);
         setSummaryDialogOpen(false);
+      } finally {
+        setSummarizing(false);
       }
-    } catch (err) {
-      toast.error(`Failed to summarize: ${err}`);
-      setSummaryDialogOpen(false);
-    } finally {
-      setSummarizing(false);
-    }
-  }, [emailFull, account, mailbox]);
+    },
+    [emailFull, account, mailbox]
+  );
 
   const handleExtractEvent = useCallback(async () => {
     if (!emailFull) return;
@@ -304,7 +310,8 @@ export function EmailReader({
 
     try {
       const bodyText = emailFull.body_html
-        ? new DOMParser().parseFromString(emailFull.body_html, "text/html").body.textContent || ""
+        ? new DOMParser().parseFromString(emailFull.body_html, "text/html").body
+            .textContent || ""
         : "";
 
       const response = await invoke<CompletionResponse>("extract_event", {
@@ -339,7 +346,9 @@ export function EmailReader({
       <div className="flex flex-1 flex-col items-center justify-center bg-muted/20 text-muted-foreground">
         <Mail className="mb-4 h-12 w-12" />
         <p className="text-lg font-medium">Select an email to read</p>
-        <p className="text-sm">Choose an email from the list to view its contents</p>
+        <p className="text-sm">
+          Choose an email from the list to view its contents
+        </p>
       </div>
     );
   }
@@ -364,7 +373,12 @@ export function EmailReader({
         <div className="flex items-center gap-1">
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" onClick={handleReply} disabled={!emailFull}>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleReply}
+                disabled={!emailFull}
+              >
                 <Reply className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
@@ -373,7 +387,12 @@ export function EmailReader({
 
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" onClick={handleReplyAll} disabled={!emailFull}>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleReplyAll}
+                disabled={!emailFull}
+              >
                 <ReplyAll className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
@@ -382,7 +401,12 @@ export function EmailReader({
 
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" onClick={handleForward} disabled={!emailFull}>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleForward}
+                disabled={!emailFull}
+              >
                 <Forward className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
@@ -393,7 +417,12 @@ export function EmailReader({
 
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" onClick={toggleReadStatus} disabled={!emailFull}>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={toggleReadStatus}
+                disabled={!emailFull}
+              >
                 {isUnread ? (
                   <MailOpen className="h-4 w-4" />
                 ) : (
@@ -584,7 +613,6 @@ export function EmailReader({
               </p>
             )}
           </div>
-
         </div>
       </div>
 
@@ -627,26 +655,49 @@ export function EmailReader({
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            {summarizing ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            {summarizing && (
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span className="text-sm">Generating summary...</span>
               </div>
-            ) : summary ? (
+            )}
+            {summary && (
               <>
-                <p className="text-sm leading-relaxed">{summary}</p>
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <div className="text-sm leading-relaxed space-y-3">
+                  {summary.split("\n\n").map((section, i) => {
+                    const lines = section.split("\n");
+                    const title = lines[0];
+                    const content = lines.slice(1);
+                    return (
+                      <div key={i}>
+                        <div className="font-medium">{title}</div>
+                        {content.map((line, j) => (
+                          <div key={j} className="ml-4 text-muted-foreground">
+                            {line.trim()}
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="flex items-center justify-between text-xs text-muted-foreground pt-2 border-t">
                   <span>Generated by {summaryModelUsed}</span>
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => handleSummarize(true)}
+                    disabled={summarizing}
                   >
-                    <RefreshCw className="h-3 w-3 mr-1" />
+                    {summarizing ? (
+                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                    ) : (
+                      <RefreshCw className="h-3 w-3 mr-1" />
+                    )}
                     Regenerate
                   </Button>
                 </div>
               </>
-            ) : null}
+            )}
           </div>
         </DialogContent>
       </Dialog>
@@ -687,7 +738,10 @@ export function EmailReader({
             cc: emailFull.cc,
             subject: emailFull.subject,
             body_text: emailFull.body_html
-              ? new DOMParser().parseFromString(emailFull.body_html, "text/html").body.textContent || ""
+              ? new DOMParser().parseFromString(
+                  emailFull.body_html,
+                  "text/html"
+                ).body.textContent || ""
               : "",
             body_html: emailFull.body_html,
             message_id: emailFull.message_id,

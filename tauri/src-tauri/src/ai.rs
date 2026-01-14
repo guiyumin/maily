@@ -411,21 +411,37 @@ pub fn summarize_email(
     let body_truncated: String = body_text.chars().take(4000).collect();
 
     let prompt = format!(
-        r#"Summarize this email concisely in 2-3 sentences. Focus on the key information and any action items.
+        r#"Summarize this email as bullet points.
 
 From: {}
 Subject: {}
 
 {}
 
-Summary:"#,
+Format your response exactly like this (skip sections if not applicable):
+
+Summary:
+    <one sentence summary>
+
+Key Points:
+    - <point 1>
+    - <point 2>
+
+Action Items:
+    - <action 1>
+    - <action 2>
+
+Dates/Deadlines:
+    - <date/deadline if mentioned>
+
+Keep it brief. No preamble, section titles on their own line, content indented with 4 spaces."#,
         from, subject, body_truncated
     );
 
     let response = complete(CompletionRequest {
         prompt,
-        system_prompt: Some("You are a helpful email assistant. Provide concise, clear summaries.".to_string()),
-        max_tokens: Some(200),
+        system_prompt: None,
+        max_tokens: Some(500),
         provider_name: None,
     });
 
@@ -489,19 +505,45 @@ pub fn extract_event(
 ) -> CompletionResponse {
     let body_truncated: String = body_text.chars().take(3000).collect();
 
+    // Get current time in RFC3339 format
+    let now = chrono::Local::now().format("%Y-%m-%dT%H:%M:%S%:z").to_string();
+
     let prompt = format!(
-        r#"Extract any calendar event details from this email. Return JSON with these fields: title, date, time, duration, location, description. If no event is found, return {{"found": false}}.
+        r#"Extract the most relevant calendar event, meeting, or deadline from this email.
+
+Current date/time: {}
 
 Subject: {}
-Body: {}
 
-JSON:"#,
-        subject, body_truncated
+{}
+
+If an event is found, respond with ONLY a JSON object (no markdown, no explanation):
+{{
+  "title": "event title",
+  "start_time": "2024-12-25T10:00:00-08:00",
+  "end_time": "2024-12-25T11:00:00-08:00",
+  "location": "location if mentioned, otherwise empty string",
+  "alarm_minutes_before": 0,
+  "alarm_specified": false
+}}
+
+If NO events found, respond with exactly: NO_EVENTS_FOUND
+
+Rules:
+- start_time and end_time must be in RFC3339 format with timezone
+- If no end time/duration specified, default to 1 hour after start
+- Extract location if mentioned
+- Use the current date/time to interpret relative dates like "tomorrow", "next Monday"
+- Pick the most important/relevant event if multiple are mentioned
+- Set alarm_minutes_before=0 and alarm_specified=false (user will set reminder later)
+
+Respond with ONLY the JSON or NO_EVENTS_FOUND, no other text."#,
+        now, subject, body_truncated
     );
 
     complete(CompletionRequest {
         prompt,
-        system_prompt: Some("You are a calendar assistant. Extract event details and return valid JSON only.".to_string()),
+        system_prompt: None,
         max_tokens: Some(300),
         provider_name: None,
     })

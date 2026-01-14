@@ -1,0 +1,236 @@
+name: Release Desktop
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "tauri/**"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  check-version:
+    runs-on: ubuntu-latest
+    outputs:
+      should_release: ${{ steps.check.outputs.should_release }}
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get version from tauri.conf.json
+        id: version
+        run: |
+          VERSION=$(jq -r '.version' tauri/src-tauri/tauri.conf.json)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+
+      - name: Check if release exists
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          RELEASE_TAG="desktop-v${VERSION}"
+
+          # Check if release already exists
+          if gh release view "$RELEASE_TAG" &>/dev/null; then
+            echo "Release $RELEASE_TAG already exists, skipping"
+            echo "should_release=false" >> $GITHUB_OUTPUT
+          else
+            echo "Release $RELEASE_TAG does not exist, will create"
+            echo "should_release=true" >> $GITHUB_OUTPUT
+          fi
+
+  build-macos:
+    needs: check-version
+    if: needs.check-version.outputs.should_release == 'true'
+    strategy:
+      matrix:
+        include:
+          - target: aarch64-apple-darwin
+            runner: macos-14
+          - target: x86_64-apple-darwin
+            runner: macos-14
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: tauri/src-tauri
+
+      - name: Install frontend dependencies
+        working-directory: tauri
+        run: bun install
+
+      - name: Build Tauri app
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          projectPath: tauri
+          args: --target ${{ matrix.target }}
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-${{ matrix.target }}
+          path: |
+            tauri/src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg
+            tauri/src-tauri/target/${{ matrix.target }}/release/bundle/macos/*.app.tar.gz
+            tauri/src-tauri/target/${{ matrix.target }}/release/bundle/macos/*.app.tar.gz.sig
+
+  publish:
+    needs: [check-version, build-macos]
+    if: needs.check-version.outputs.should_release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Prepare release files
+        id: prepare
+        run: |
+          mkdir -p release
+          VERSION="${{ needs.check-version.outputs.version }}"
+
+          # Find and copy all build artifacts
+          find artifacts -name "*.dmg" -exec cp {} release/ \;
+          find artifacts -name "*.app.tar.gz" -exec cp {} release/ \;
+          find artifacts -name "*.app.tar.gz.sig" -exec cp {} release/ \;
+
+          # List what we have
+          echo "Release files:"
+          ls -la release/
+
+          # Generate checksums
+          cd release && sha256sum * > checksums.txt || true
+
+          # Get signature contents for update manifest
+          AARCH64_SIG=""
+          X64_SIG=""
+          if [ -f "Maily.app.tar.gz.sig" ]; then
+            # Check which architecture this is from
+            cd ..
+            if [ -f "artifacts/macos-aarch64-apple-darwin/Maily.app.tar.gz.sig" ]; then
+              AARCH64_SIG=$(cat artifacts/macos-aarch64-apple-darwin/*.app.tar.gz.sig 2>/dev/null || echo "")
+            fi
+            if [ -f "artifacts/macos-x86_64-apple-darwin/Maily.app.tar.gz.sig" ]; then
+              X64_SIG=$(cat artifacts/macos-x86_64-apple-darwin/*.app.tar.gz.sig 2>/dev/null || echo "")
+            fi
+          fi
+
+          # Find the actual signature files
+          AARCH64_SIG=$(cat artifacts/macos-aarch64-apple-darwin/*/*.app.tar.gz.sig 2>/dev/null || echo "")
+          X64_SIG=$(cat artifacts/macos-x86_64-apple-darwin/*/*.app.tar.gz.sig 2>/dev/null || echo "")
+
+          echo "aarch64_sig=$AARCH64_SIG" >> $GITHUB_OUTPUT
+          echo "x64_sig=$X64_SIG" >> $GITHUB_OUTPUT
+
+      - name: Generate update manifest
+        run: |
+          VERSION="${{ needs.check-version.outputs.version }}"
+          RELEASE_URL="https://github.com/guiyumin/maily/releases/download/desktop-v${VERSION}"
+
+          # Read signatures from artifact files
+          AARCH64_SIG=$(find artifacts -path "*aarch64*" -name "*.sig" -exec cat {} \; 2>/dev/null | head -1)
+          X64_SIG=$(find artifacts -path "*x86_64*" -name "*.sig" -exec cat {} \; 2>/dev/null | head -1)
+
+          # Find the actual tarball names
+          AARCH64_TAR=$(find artifacts -path "*aarch64*" -name "*.app.tar.gz" ! -name "*.sig" -exec basename {} \; 2>/dev/null | head -1)
+          X64_TAR=$(find artifacts -path "*x86_64*" -name "*.app.tar.gz" ! -name "*.sig" -exec basename {} \; 2>/dev/null | head -1)
+
+          # Default names if not found
+          AARCH64_TAR="${AARCH64_TAR:-Maily.app.tar.gz}"
+          X64_TAR="${X64_TAR:-Maily.app.tar.gz}"
+
+          cat > release/latest.json << EOF
+          {
+            "version": "${VERSION}",
+            "notes": "Maily Desktop v${VERSION}",
+            "pub_date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "platforms": {
+              "darwin-aarch64": {
+                "signature": "${AARCH64_SIG}",
+                "url": "${RELEASE_URL}/${AARCH64_TAR}"
+              },
+              "darwin-x86_64": {
+                "signature": "${X64_SIG}",
+                "url": "${RELEASE_URL}/${X64_TAR}"
+              }
+            }
+          }
+          EOF
+
+          echo "Generated latest.json:"
+          cat release/latest.json
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: desktop-v${{ needs.check-version.outputs.version }}
+          name: Maily Desktop v${{ needs.check-version.outputs.version }}
+          files: release/*
+          generate_release_notes: true
+          body: |
+            ## Maily Desktop v${{ needs.check-version.outputs.version }}
+
+            ### Installation
+
+            **macOS (Apple Silicon):** Download `Maily_${{ needs.check-version.outputs.version }}_aarch64.dmg`
+
+            **macOS (Intel):** Download `Maily_${{ needs.check-version.outputs.version }}_x64.dmg`
+
+            ### Auto-Update
+
+            Existing installations will automatically update to this version.
+
+            ### What's New
+
+            See commit history for changes.
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update latest release pointer
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ needs.check-version.outputs.version }}"
+
+          # Delete existing desktop-latest release if it exists
+          gh release delete desktop-latest --yes 2>/dev/null || true
+          git push origin :refs/tags/desktop-latest 2>/dev/null || true
+
+          # Create new desktop-latest release pointing to the same assets
+          gh release create desktop-latest \
+            --title "Maily Desktop Latest" \
+            --notes "Latest stable release. Current version: v${VERSION}" \
+            release/latest.json

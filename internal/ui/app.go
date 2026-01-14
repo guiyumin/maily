@@ -110,8 +110,9 @@ type App struct {
 	extractEditStart     textinput.Model
 	extractEditEnd       textinput.Model
 	extractEditLocation  textinput.Model
+	extractEditNotes     textinput.Model
 	extractEditReminder  int // index into reminderOptions: 0=none, 1=5min, 2=10min, 3=15min, 4=30min, 5=1hr
-	extractEditFocus     int // 0=title, 1=date, 2=start, 3=end, 4=location, 5=reminder, 6=save, 7=cancel
+	extractEditFocus     int // 0=title, 1=date, 2=start, 3=end, 4=location, 5=notes, 6=reminder, 7=save, 8=cancel
 
 	// Calendar
 	calClient calendar.Client
@@ -425,28 +426,28 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				a.showExtractEdit = false
 				return a, nil
 			case "tab":
-				a.extractEditFocus = (a.extractEditFocus + 1) % 8
+				a.extractEditFocus = (a.extractEditFocus + 1) % 9
 				a.updateExtractEditFocus()
 				return a, nil
 			case "shift+tab":
-				a.extractEditFocus = (a.extractEditFocus - 1 + 8) % 8
+				a.extractEditFocus = (a.extractEditFocus - 1 + 9) % 9
 				a.updateExtractEditFocus()
 				return a, nil
 			case "up", "k":
 				// For reminder field, cycle through options
-				if a.extractEditFocus == 5 {
+				if a.extractEditFocus == 6 {
 					a.extractEditReminder = (a.extractEditReminder - 1 + 6) % 6
 					return a, nil
 				}
 			case "down", "j":
 				// For reminder field, cycle through options
-				if a.extractEditFocus == 5 {
+				if a.extractEditFocus == 6 {
 					a.extractEditReminder = (a.extractEditReminder + 1) % 6
 					return a, nil
 				}
 			case "enter":
 				switch a.extractEditFocus {
-				case 6: // Save button
+				case 7: // Save button
 					if err := a.applyExtractEdits(); err != nil {
 						a.statusMsg = fmt.Sprintf("Invalid input: %v", err)
 						return a, nil
@@ -454,7 +455,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					a.showExtractEdit = false
 					a.statusMsg = "Changes saved"
 					return a, nil
-				case 7: // Cancel button
+				case 8: // Cancel button
 					a.showExtractEdit = false
 					return a, nil
 				default:
@@ -477,8 +478,10 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					a.extractEditEnd, cmd = a.extractEditEnd.Update(msg)
 				case 4:
 					a.extractEditLocation, cmd = a.extractEditLocation.Update(msg)
-				// case 5: reminder uses up/down, no text input
-				// case 6, 7: buttons, no text input
+				case 5:
+					a.extractEditNotes, cmd = a.extractEditNotes.Update(msg)
+				// case 6: reminder uses up/down, no text input
+				// case 7, 8: buttons, no text input
 				}
 				return a, cmd
 			}
@@ -1390,6 +1393,7 @@ func (a App) View() string {
 			StartInput:    a.extractEditStart.View(),
 			EndInput:      a.extractEditEnd.View(),
 			LocationInput: a.extractEditLocation.View(),
+			NotesInput:    a.extractEditNotes.View(),
 			ReminderIdx:   a.extractEditReminder,
 			ReminderLabel: ReminderLabels[a.extractEditReminder],
 			FocusIdx:      a.extractEditFocus,

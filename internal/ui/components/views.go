@@ -570,6 +570,7 @@ type ExtractEditData struct {
 	StartInput    string
 	EndInput      string
 	LocationInput string
+	NotesInput    string
 	ReminderIdx   int
 	ReminderLabel string
 	FocusIdx      int
@@ -614,6 +615,7 @@ func RenderExtractEditDialog(width, height int, data ExtractEditData) string {
 		{"Start:", data.StartInput},
 		{"End:", data.EndInput},
 		{"Location:", data.LocationInput},
+		{"Notes:", data.NotesInput},
 	}
 
 	var lines []string
@@ -628,7 +630,7 @@ func RenderExtractEditDialog(width, height int, data ExtractEditData) string {
 	// Add reminder field (uses ↑↓ to change)
 	reminderLs := labelStyle
 	reminderHint := ""
-	if data.FocusIdx == 5 {
+	if data.FocusIdx == 6 {
 		reminderLs = focusedLabelStyle
 		reminderHint = " (↑↓)"
 	}
@@ -650,10 +652,10 @@ func RenderExtractEditDialog(width, height int, data ExtractEditData) string {
 	// Build buttons
 	saveStyle := buttonStyle
 	cancelStyle := buttonStyle
-	if data.FocusIdx == 6 {
+	if data.FocusIdx == 7 {
 		saveStyle = focusedButtonStyle
 	}
-	if data.FocusIdx == 7 {
+	if data.FocusIdx == 8 {
 		cancelStyle = focusedButtonStyle
 	}
 	buttons := lipgloss.JoinHorizontal(lipgloss.Center, saveStyle.Render("Save"), "  ", cancelStyle.Render("Cancel"))

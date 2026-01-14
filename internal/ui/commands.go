@@ -550,6 +550,13 @@ func (a *App) initExtractEditForm() {
 	a.extractEditLocation.CharLimit = 100
 	a.extractEditLocation.Width = 40
 
+	// Notes
+	a.extractEditNotes = textinput.New()
+	a.extractEditNotes.Placeholder = "Notes (optional)"
+	a.extractEditNotes.SetValue(event.Notes)
+	a.extractEditNotes.CharLimit = 500
+	a.extractEditNotes.Width = 40
+
 	// Reminder - convert minutes to index
 	a.extractEditReminder = minutesToReminderIndex(event.AlarmMinutesBefore)
 
@@ -563,6 +570,7 @@ func (a *App) updateExtractEditFocus() {
 	a.extractEditStart.Blur()
 	a.extractEditEnd.Blur()
 	a.extractEditLocation.Blur()
+	a.extractEditNotes.Blur()
 
 	switch a.extractEditFocus {
 	case 0:
@@ -575,6 +583,8 @@ func (a *App) updateExtractEditFocus() {
 		a.extractEditEnd.Focus()
 	case 4:
 		a.extractEditLocation.Focus()
+	case 5:
+		a.extractEditNotes.Focus()
 	}
 }
 
@@ -615,6 +625,7 @@ func (a *App) applyExtractEdits() error {
 	// Update event fields
 	a.extractedEvent.Title = a.extractEditTitle.Value()
 	a.extractedEvent.Location = a.extractEditLocation.Value()
+	a.extractedEvent.Notes = a.extractEditNotes.Value()
 	a.extractedEvent.AlarmMinutesBefore = ReminderOptions[a.extractEditReminder]
 
 	return nil

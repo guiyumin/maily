@@ -4,15 +4,20 @@ APP_NAME := maily
 BUILD_DIR := build
 VERSION_FILE := internal/version/version.go
 
-VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
+# Get version from version.go (source of truth for CLI)
+VERSION := $(shell grep 'Version = ' $(VERSION_FILE) | sed 's/.*"\(.*\)"/\1/')
 COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 DATE := $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 
-# Get current version from latest git tag (strips 'v' prefix)
-CURRENT_VERSION := $(shell git describe --tags --abbrev=0 2>/dev/null | sed 's/^v//' || echo "0.0.0")
+# Current version from version.go
+CURRENT_VERSION := $(VERSION)
+
+# For dev builds, append commit info if dirty
+GIT_STATE := $(shell git diff --quiet 2>/dev/null || echo "-dirty")
+BUILD_VERSION := $(VERSION)$(if $(GIT_STATE),+$(COMMIT)$(GIT_STATE),)
 
 LDFLAGS := -s -w \
-	-X maily/internal/version.Version=$(VERSION) \
+	-X maily/internal/version.Version=$(BUILD_VERSION) \
 	-X maily/internal/version.Commit=$(COMMIT) \
 	-X maily/internal/version.Date=$(DATE)
 

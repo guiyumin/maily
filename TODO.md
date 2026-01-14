@@ -165,18 +165,11 @@ For when the project has more traction. Unverified OAuth apps show scary warning
 - [x] Option to regenerate summary (bypass cache)
 - [ ] Clear summary cache per email or bulk
 
-### libghostty Integration
+### ~~libghostty Integration~~ (Removed)
 
-> **Status**: libghostty (libghostty-vt) is available but not yet stable (no tagged release as of Jan 2025).
-> Integration is planned once the library reaches a stable release.
-> Resources: https://github.com/ghostty-org/ghostty, https://mitchellh.com/writing/libghostty-is-coming
-
-- [x] Research libghostty API and requirements
-- [ ] Integrate libghostty as embedded terminal (waiting for stable release)
-- [ ] Terminal view for running maily CLI commands
-- [ ] Support for terminal themes/colors
-- [ ] Copy/paste support
-- [ ] Scrollback buffer
+> **Decision**: Embedded terminal doesn't add clear value for an email client.
+> The "open system terminal" button is sufficient for CLI access.
+> If needed later, Lua scripting would be more useful than raw terminal.
 
 ### AI Chat Integration
 

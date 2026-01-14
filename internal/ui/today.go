@@ -75,6 +75,7 @@ type TodayApp struct {
 	editFormStart    textinput.Model
 	editFormEnd      textinput.Model
 	editFormLocation textinput.Model
+	editFormNotes    textinput.Model
 	editFormFocus    int
 	editEventID      string
 }
@@ -462,18 +463,18 @@ func (m *TodayApp) handleEditEvent(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case "tab":
-		m.editFormFocus = (m.editFormFocus + 1) % 5
+		m.editFormFocus = (m.editFormFocus + 1) % 6
 		m.updateEditFormFocus()
 		return m, nil
 
 	case "shift+tab":
-		m.editFormFocus = (m.editFormFocus + 4) % 5
+		m.editFormFocus = (m.editFormFocus + 5) % 6
 		m.updateEditFormFocus()
 		return m, nil
 
 	case "enter":
 		// Save on last field or move to next
-		if m.editFormFocus < 4 {
+		if m.editFormFocus < 5 {
 			m.editFormFocus++
 			m.updateEditFormFocus()
 			return m, nil
@@ -503,6 +504,8 @@ func (m *TodayApp) handleEditEvent(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.editFormEnd, cmd = m.editFormEnd.Update(msg)
 	case 4:
 		m.editFormLocation, cmd = m.editFormLocation.Update(msg)
+	case 5:
+		m.editFormNotes, cmd = m.editFormNotes.Update(msg)
 	}
 	return m, cmd
 }
@@ -897,6 +900,10 @@ func (m *TodayApp) initEditEventForm(event calendar.Event) {
 	m.editFormLocation.Placeholder = "Location (optional)"
 	m.editFormLocation.SetValue(event.Location)
 
+	m.editFormNotes = textinput.New()
+	m.editFormNotes.Placeholder = "Notes (optional)"
+	m.editFormNotes.SetValue(event.Notes)
+
 	m.editFormFocus = 0
 	m.editEventID = event.ID
 }
@@ -907,6 +914,7 @@ func (m *TodayApp) updateEditFormFocus() {
 	m.editFormStart.Blur()
 	m.editFormEnd.Blur()
 	m.editFormLocation.Blur()
+	m.editFormNotes.Blur()
 
 	switch m.editFormFocus {
 	case 0:
@@ -919,6 +927,8 @@ func (m *TodayApp) updateEditFormFocus() {
 		m.editFormEnd.Focus()
 	case 4:
 		m.editFormLocation.Focus()
+	case 5:
+		m.editFormNotes.Focus()
 	}
 }
 
@@ -954,6 +964,7 @@ func (m *TodayApp) saveEditedEvent() tea.Cmd {
 			StartTime: start,
 			EndTime:   end,
 			Location:  m.editFormLocation.Value(),
+			Notes:     m.editFormNotes.Value(),
 		}
 
 		_, err = m.calClient.CreateEvent(event)
@@ -1050,6 +1061,15 @@ func (m *TodayApp) renderEditEventForm() string {
 	}
 	b.WriteString(labelStyle.Render(label))
 	b.WriteString(m.editFormLocation.View())
+	b.WriteString("\n")
+
+	// Notes
+	label = "Notes:"
+	if m.editFormFocus == 5 {
+		label = focusedStyle.Render(label)
+	}
+	b.WriteString(labelStyle.Render(label))
+	b.WriteString(m.editFormNotes.View())
 	b.WriteString("\n\n")
 
 	// Help

@@ -23,6 +23,8 @@ use mail::{
     get_mailbox_unread_counts as fetch_mailbox_unread_counts,
     save_draft as mail_save_draft, get_draft as mail_get_draft,
     list_drafts as mail_list_drafts, delete_draft as mail_delete_draft, log_op,
+    add_account as mail_add_account, remove_account as mail_remove_account,
+    update_account as mail_update_account, test_account_credentials,
     Account, Email, ListEmailsResult, SyncResult, InitialState, Draft,
 };
 use smtp::{send_email as smtp_send, save_draft_to_imap, ComposeEmail, SendResult, AttachmentInfo};
@@ -37,6 +39,26 @@ use calendar::{
 #[tauri::command]
 fn list_accounts() -> Result<Vec<Account>, String> {
     get_accounts().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn add_account(account: Account) -> Result<Vec<Account>, String> {
+    mail_add_account(account).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn remove_account(name: String) -> Result<Vec<Account>, String> {
+    mail_remove_account(&name).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn update_account(name: String, account: Account) -> Result<Vec<Account>, String> {
+    mail_update_account(&name, account).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn test_account(email: String, password: String, imap_host: String, imap_port: u16) -> Result<(), String> {
+    test_account_credentials(&email, &password, &imap_host, imap_port).map_err(|e| e.to_string())
 }
 
 /// Get everything needed to render on startup - ONE call instead of multiple
@@ -166,6 +188,16 @@ fn remove_ai_provider(index: usize) -> Result<Config, String> {
     let mut config = load_config().map_err(|e| e.to_string())?;
     if index < config.ai_providers.len() {
         config.ai_providers.remove(index);
+        store_config(&config).map_err(|e| e.to_string())?;
+    }
+    Ok(config)
+}
+
+#[tauri::command]
+fn update_ai_provider(index: usize, provider: AIProvider) -> Result<Config, String> {
+    let mut config = load_config().map_err(|e| e.to_string())?;
+    if index < config.ai_providers.len() {
+        config.ai_providers[index] = provider;
         store_config(&config).map_err(|e| e.to_string())?;
     }
     Ok(config)
@@ -397,8 +429,13 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            // Email operations
+            // Account operations
             list_accounts,
+            add_account,
+            remove_account,
+            update_account,
+            test_account,
+            // Email operations
             get_startup_state,
             list_emails,
             list_emails_page,
@@ -418,6 +455,7 @@ pub fn run() {
             save_config,
             add_ai_provider,
             remove_ai_provider,
+            update_ai_provider,
             save_account_order,
             // Compose / SMTP
             send_email,

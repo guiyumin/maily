@@ -14,8 +14,6 @@ use once_cell::sync::Lazy;
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Credentials {
     pub email: String,
-    #[serde(skip_serializing)]
-    #[allow(dead_code)]
     pub password: String,
     pub imap_host: String,
     pub imap_port: u16,
@@ -236,9 +234,107 @@ fn config_dir() -> PathBuf {
 
 pub fn get_accounts() -> Result<Vec<Account>, Box<dyn std::error::Error>> {
     let accounts_path = config_dir().join("accounts.yml");
+    if !accounts_path.exists() {
+        return Ok(vec![]);
+    }
     let contents = fs::read_to_string(&accounts_path)?;
     let accounts_file: AccountsFile = serde_yaml::from_str(&contents)?;
     Ok(accounts_file.accounts)
+}
+
+fn save_accounts(accounts: &[Account]) -> Result<(), Box<dyn std::error::Error>> {
+    let config_dir = config_dir();
+    fs::create_dir_all(&config_dir)?;
+
+    let accounts_file = AccountsFile {
+        accounts: accounts.to_vec(),
+    };
+    let contents = serde_yaml::to_string(&accounts_file)?;
+    let accounts_path = config_dir.join("accounts.yml");
+    fs::write(&accounts_path, contents)?;
+
+    // Set restrictive permissions (0600)
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        fs::set_permissions(&accounts_path, fs::Permissions::from_mode(0o600))?;
+    }
+
+    Ok(())
+}
+
+/// Test account credentials by connecting to IMAP
+pub fn test_account_credentials(
+    email: &str,
+    password: &str,
+    imap_host: &str,
+    imap_port: u16,
+) -> Result<(), Box<dyn std::error::Error>> {
+    use std::net::ToSocketAddrs;
+
+    let addr = format!("{}:{}", imap_host, imap_port);
+    let socket_addr = addr
+        .to_socket_addrs()?
+        .next()
+        .ok_or("Failed to resolve IMAP host")?;
+
+    let tcp = TcpStream::connect_timeout(&socket_addr, Duration::from_secs(15))?;
+    tcp.set_read_timeout(Some(Duration::from_secs(30)))?;
+    tcp.set_write_timeout(Some(Duration::from_secs(15)))?;
+
+    let tls = native_tls::TlsConnector::builder().build()?;
+    let tls_stream = tls.connect(imap_host, tcp)?;
+
+    let client = imap::Client::new(tls_stream);
+    let mut session = client.login(email, password).map_err(|e| e.0)?;
+    session.logout()?;
+
+    Ok(())
+}
+
+/// Add a new account
+pub fn add_account(account: Account) -> Result<Vec<Account>, Box<dyn std::error::Error>> {
+    let mut accounts = get_accounts().unwrap_or_default();
+
+    // Check for duplicate
+    if accounts.iter().any(|a| a.name == account.name) {
+        return Err(format!("Account '{}' already exists", account.name).into());
+    }
+
+    accounts.push(account);
+    save_accounts(&accounts)?;
+    Ok(accounts)
+}
+
+/// Remove an account by name
+pub fn remove_account(name: &str) -> Result<Vec<Account>, Box<dyn std::error::Error>> {
+    let mut accounts = get_accounts()?;
+    let original_len = accounts.len();
+    accounts.retain(|a| a.name != name);
+
+    if accounts.len() == original_len {
+        return Err(format!("Account '{}' not found", name).into());
+    }
+
+    save_accounts(&accounts)?;
+    Ok(accounts)
+}
+
+/// Update an existing account
+pub fn update_account(name: &str, updated: Account) -> Result<Vec<Account>, Box<dyn std::error::Error>> {
+    let mut accounts = get_accounts()?;
+
+    let idx = accounts.iter().position(|a| a.name == name)
+        .ok_or_else(|| format!("Account '{}' not found", name))?;
+
+    // If name changed, check for duplicate
+    if updated.name != name && accounts.iter().any(|a| a.name == updated.name) {
+        return Err(format!("Account '{}' already exists", updated.name).into());
+    }
+
+    accounts[idx] = updated;
+    save_accounts(&accounts)?;
+    Ok(accounts)
 }
 
 /// Get everything needed to render the app on startup in ONE call

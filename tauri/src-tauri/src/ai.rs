@@ -1,3 +1,8 @@
+use async_openai::{
+    config::OpenAIConfig,
+    types::{ChatCompletionRequestMessage, ChatCompletionRequestUserMessageArgs, ChatCompletionRequestSystemMessageArgs, CreateChatCompletionRequestArgs},
+    Client,
+};
 use rusqlite::params;
 use serde::{Deserialize, Serialize};
 use std::process::Command;
@@ -192,9 +197,9 @@ pub fn complete(request: CompletionRequest) -> CompletionResponse {
 /// Test a specific AI provider
 pub fn test_provider(provider_name: &str, provider_model: &str, provider_type: &str, base_url: &str, api_key: &str) -> CompletionResponse {
     let request = CompletionRequest {
-        prompt: "Say 'Hello! I am working.' and nothing else.".to_string(),
-        system_prompt: Some("You are a test assistant. Follow instructions exactly.".to_string()),
-        max_tokens: Some(20),
+        prompt: "Say hello.".to_string(),
+        system_prompt: None,
+        max_tokens: Some(200),
         provider_name: None,
     };
 
@@ -301,87 +306,135 @@ fn call_cli_provider(name: &str, model: &str, request: &CompletionRequest) -> Co
 }
 
 fn call_api_provider(name: &str, model: &str, base_url: &str, api_key: &str, request: &CompletionRequest) -> CompletionResponse {
-    // Use blocking reqwest for simplicity (called from sync context)
-    let client = match reqwest::blocking::Client::builder()
-        .timeout(std::time::Duration::from_secs(60))
-        .build() {
-        Ok(c) => c,
-        Err(e) => return CompletionResponse {
-            success: false,
-            content: None,
-            error: Some(e.to_string()),
-            model_used: None,
-        },
+    // Use async-openai SDK for proper OpenAI-compatible API handling
+
+    let config = OpenAIConfig::new()
+        .with_api_key(api_key)
+        .with_api_base(base_url);
+
+    let client: Client<OpenAIConfig> = Client::with_config(config);
+
+    // Build messages
+    let mut messages: Vec<ChatCompletionRequestMessage> = vec![];
+
+    if let Some(ref sys) = request.system_prompt {
+        if let Ok(msg) = ChatCompletionRequestSystemMessageArgs::default()
+            .content(sys.clone())
+            .build()
+        {
+            messages.push(msg.into());
+        }
+    }
+
+    if let Ok(msg) = ChatCompletionRequestUserMessageArgs::default()
+        .content(request.prompt.clone())
+        .build()
+    {
+        messages.push(msg.into());
+    }
+
+    // Build request
+    let mut req_builder = CreateChatCompletionRequestArgs::default();
+    req_builder.model(model).messages(messages);
+
+    if let Some(max_tokens) = request.max_tokens {
+        req_builder.max_completion_tokens(max_tokens as u32);
+    }
+
+    let chat_request = match req_builder.build() {
+        Ok(r) => r,
+        Err(e) => {
+            return CompletionResponse {
+                success: false,
+                content: None,
+                error: Some(format!("Failed to build request: {}", e)),
+                model_used: None,
+            }
+        }
     };
 
-    // Build OpenAI-compatible request
-    let mut messages = vec![];
-    if let Some(ref sys) = request.system_prompt {
-        messages.push(serde_json::json!({
-            "role": "system",
-            "content": sys
-        }));
-    }
-    messages.push(serde_json::json!({
-        "role": "user",
-        "content": request.prompt
-    }));
+    // Run async request in blocking context
+    let runtime = match tokio::runtime::Handle::try_current() {
+        Ok(handle) => {
+            // We're already in a tokio runtime, use block_in_place
+            let result = tokio::task::block_in_place(|| {
+                handle.block_on(client.chat().create(chat_request))
+            });
+            return handle_api_response(result, name, model);
+        }
+        Err(_) => {
+            // Create a new runtime for blocking call
+            match tokio::runtime::Runtime::new() {
+                Ok(rt) => rt,
+                Err(e) => {
+                    return CompletionResponse {
+                        success: false,
+                        content: None,
+                        error: Some(format!("Failed to create runtime: {}", e)),
+                        model_used: None,
+                    }
+                }
+            }
+        }
+    };
 
-    let body = serde_json::json!({
-        "model": model,
-        "messages": messages,
-        "max_tokens": request.max_tokens.unwrap_or(1000),
-    });
+    let result = runtime.block_on(client.chat().create(chat_request));
+    handle_api_response(result, name, model)
+}
 
-    let url = format!("{}/chat/completions", base_url.trim_end_matches('/'));
+fn handle_api_response(
+    result: Result<async_openai::types::CreateChatCompletionResponse, async_openai::error::OpenAIError>,
+    name: &str,
+    model: &str,
+) -> CompletionResponse {
+    match result {
+        Ok(response) => {
+            if let Some(choice) = response.choices.first() {
+                // Try content first, then check for refusal
+                let content = choice.message.content.clone()
+                    .or_else(|| choice.message.refusal.clone());
 
-    let response = client
-        .post(&url)
-        .header("Authorization", format!("Bearer {}", api_key))
-        .header("Content-Type", "application/json")
-        .json(&body)
-        .send();
-
-    match response {
-        Ok(resp) => {
-            if resp.status().is_success() {
-                match resp.json::<serde_json::Value>() {
-                    Ok(json) => {
-                        let content = json["choices"][0]["message"]["content"]
-                            .as_str()
-                            .map(|s| s.to_string());
-
+                if let Some(content) = content {
+                    if content.is_empty() {
                         CompletionResponse {
-                            success: content.is_some(),
-                            content,
+                            success: false,
+                            content: None,
+                            error: Some("Response content is empty".to_string()),
+                            model_used: None,
+                        }
+                    } else {
+                        CompletionResponse {
+                            success: true,
+                            content: Some(content),
                             error: None,
                             model_used: Some(format!("{}/{}", name, model)),
                         }
                     }
-                    Err(e) => CompletionResponse {
+                } else {
+                    CompletionResponse {
                         success: false,
                         content: None,
-                        error: Some(format!("Failed to parse response: {}", e)),
+                        error: Some(format!("Response has no content. Finish reason: {:?}", choice.finish_reason)),
                         model_used: None,
-                    },
+                    }
                 }
             } else {
-                let status = resp.status();
-                let body = resp.text().unwrap_or_default();
                 CompletionResponse {
                     success: false,
                     content: None,
-                    error: Some(format!("API error {}: {}", status, body)),
+                    error: Some("API returned no choices".to_string()),
                     model_used: None,
                 }
             }
         }
-        Err(e) => CompletionResponse {
-            success: false,
-            content: None,
-            error: Some(e.to_string()),
-            model_used: None,
-        },
+        Err(e) => {
+            CompletionResponse {
+                success: false,
+                content: None,
+                error: Some(e.to_string()),
+                model_used: None,
+            }
+        }
     }
 }
 

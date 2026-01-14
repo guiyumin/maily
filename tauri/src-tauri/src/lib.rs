@@ -1,15 +1,35 @@
+mod ai;
+mod calendar;
 mod config;
 mod imap_queue;
 mod mail;
+mod smtp;
 
 use tauri::WebviewWindowBuilder;
+use ai::{
+    complete as do_ai_complete, init_summaries_table, summarize_email as ai_summarize,
+    generate_reply as ai_generate_reply, extract_event as ai_extract_event,
+    get_cached_summary, delete_summary, list_available_providers, test_provider as ai_test_provider,
+    CompletionRequest, CompletionResponse, EmailSummary,
+};
 use config::{get_config as load_config, save_config as store_config, AIProvider, Config};
 use imap_queue::{init as init_imap_queue, queue_mark_read, queue_move_to_trash, queue_sync};
 use mail::{
     delete_email_from_cache, get_accounts, get_email as fetch_email, get_emails,
     list_emails_paginated, get_emails_count_since_days, init_db, get_initial_state,
     sync_emails as do_sync_emails, update_email_read_status, update_email_cache_only,
-    Account, Email, ListEmailsResult, SyncResult, InitialState,
+    get_all_unread_counts as fetch_all_unread_counts,
+    save_draft as mail_save_draft, get_draft as mail_get_draft,
+    list_drafts as mail_list_drafts, delete_draft as mail_delete_draft,
+    Account, Email, ListEmailsResult, SyncResult, InitialState, Draft,
+};
+use smtp::{send_email as smtp_send, ComposeEmail, SendResult};
+use calendar::{
+    AuthStatus as CalendarAuthStatus, Calendar as CalendarInfo, Event as CalendarEvent,
+    NewEvent, get_auth_status as cal_auth_status, request_access as cal_request_access,
+    list_calendars as cal_list_calendars, list_events as cal_list_events,
+    create_event as cal_create_event, delete_event as cal_delete_event,
+    get_default_calendar as cal_default_calendar,
 };
 
 #[tauri::command]
@@ -91,6 +111,12 @@ fn start_sync(account: String, mailbox: String) {
     queue_sync(account, mailbox);
 }
 
+/// Get unread counts for all accounts (INBOX)
+#[tauri::command]
+fn get_all_unread_counts() -> Result<Vec<(String, usize)>, String> {
+    fetch_all_unread_counts().map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 fn get_config() -> Result<Config, String> {
     load_config().map_err(|e| e.to_string())
@@ -119,6 +145,141 @@ fn remove_ai_provider(index: usize) -> Result<Config, String> {
     Ok(config)
 }
 
+#[tauri::command]
+fn save_account_order(order: Vec<String>) -> Result<Config, String> {
+    let mut config = load_config().map_err(|e| e.to_string())?;
+    config.account_order = order;
+    store_config(&config).map_err(|e| e.to_string())?;
+    Ok(config)
+}
+
+// ============ COMPOSE / SMTP COMMANDS ============
+
+#[tauri::command]
+fn send_email(account: String, email: ComposeEmail) -> Result<SendResult, String> {
+    smtp_send(&account, email).map_err(|e| e.to_string())
+}
+
+// ============ DRAFT COMMANDS ============
+
+#[tauri::command]
+fn save_draft(draft: Draft) -> Result<i64, String> {
+    mail_save_draft(&draft).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn get_draft(id: i64) -> Result<Option<Draft>, String> {
+    mail_get_draft(id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn list_drafts(account: String) -> Result<Vec<Draft>, String> {
+    mail_list_drafts(&account).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn delete_draft(id: i64) -> Result<(), String> {
+    mail_delete_draft(id).map_err(|e| e.to_string())
+}
+
+// ============ AI COMMANDS ============
+
+#[tauri::command]
+fn summarize_email(
+    account: String,
+    mailbox: String,
+    uid: u32,
+    subject: String,
+    from: String,
+    body_text: String,
+    force_refresh: bool,
+) -> CompletionResponse {
+    ai_summarize(&account, &mailbox, uid, &subject, &from, &body_text, force_refresh)
+}
+
+#[tauri::command]
+fn get_email_summary(account: String, mailbox: String, uid: u32) -> Option<EmailSummary> {
+    get_cached_summary(&account, &mailbox, uid)
+}
+
+#[tauri::command]
+fn delete_email_summary(account: String, mailbox: String, uid: u32) -> Result<(), String> {
+    delete_summary(&account, &mailbox, uid).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn generate_reply(
+    original_from: String,
+    original_subject: String,
+    original_body: String,
+    reply_intent: String,
+) -> CompletionResponse {
+    ai_generate_reply(&original_from, &original_subject, &original_body, &reply_intent)
+}
+
+#[tauri::command]
+fn extract_event(subject: String, body_text: String) -> CompletionResponse {
+    ai_extract_event(&subject, &body_text)
+}
+
+#[tauri::command]
+fn ai_complete(request: CompletionRequest) -> CompletionResponse {
+    do_ai_complete(request)
+}
+
+#[tauri::command]
+fn get_available_ai_providers() -> Vec<String> {
+    list_available_providers()
+}
+
+#[tauri::command]
+fn test_ai_provider(
+    provider_name: String,
+    provider_model: String,
+    provider_type: String,
+    base_url: String,
+    api_key: String,
+) -> CompletionResponse {
+    ai_test_provider(&provider_name, &provider_model, &provider_type, &base_url, &api_key)
+}
+
+// ============ CALENDAR COMMANDS ============
+
+#[tauri::command]
+fn calendar_get_auth_status() -> CalendarAuthStatus {
+    cal_auth_status()
+}
+
+#[tauri::command]
+fn calendar_request_access() -> Result<(), String> {
+    cal_request_access().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn calendar_list_calendars() -> Result<Vec<CalendarInfo>, String> {
+    cal_list_calendars().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn calendar_list_events(start_timestamp: i64, end_timestamp: i64) -> Result<Vec<CalendarEvent>, String> {
+    cal_list_events(start_timestamp, end_timestamp).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn calendar_create_event(event: NewEvent) -> Result<String, String> {
+    cal_create_event(&event).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn calendar_delete_event(event_id: String) -> Result<(), String> {
+    cal_delete_event(&event_id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn calendar_get_default() -> Result<String, String> {
+    cal_default_calendar().map_err(|e| e.to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // Initialize tokio runtime for background tasks
@@ -132,9 +293,12 @@ pub fn run() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             // Initialize database eagerly
             init_db();
+            // Initialize summaries table
+            init_summaries_table();
 
             // Get initial state for injection
             let initial_state = get_initial_state().ok();
@@ -167,6 +331,7 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            // Email operations
             list_accounts,
             get_startup_state,
             list_emails,
@@ -178,10 +343,37 @@ pub fn run() {
             mark_email_read_async,
             sync_emails,
             start_sync,
+            get_all_unread_counts,
+            // Config operations
             get_config,
             save_config,
             add_ai_provider,
-            remove_ai_provider
+            remove_ai_provider,
+            save_account_order,
+            // Compose / SMTP
+            send_email,
+            // Drafts
+            save_draft,
+            get_draft,
+            list_drafts,
+            delete_draft,
+            // AI operations
+            summarize_email,
+            get_email_summary,
+            delete_email_summary,
+            generate_reply,
+            extract_event,
+            ai_complete,
+            get_available_ai_providers,
+            test_ai_provider,
+            // Calendar operations
+            calendar_get_auth_status,
+            calendar_request_access,
+            calendar_list_calendars,
+            calendar_list_events,
+            calendar_create_event,
+            calendar_delete_event,
+            calendar_get_default
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

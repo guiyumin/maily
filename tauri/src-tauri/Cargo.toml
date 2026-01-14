@@ -33,4 +33,17 @@ ammonia = "4"
 tokio = { version = "1", features = ["rt-multi-thread", "sync", "time"] }
 once_cell = "1"
 rusqlite = { version = "0.32", features = ["bundled"] }
+lettre = { version = "0.11", features = ["smtp-transport", "native-tls", "builder"] }
+reqwest = { version = "0.12", features = ["json", "blocking"] }
+base64 = "0.22"
+tauri-plugin-dialog = "2"
+
+# macOS native framework bindings
+[target.'cfg(target_os = "macos")'.dependencies]
+objc = "0.2"
+objc_id = "0.1"
+block = "0.1"
+
+[target.'cfg(target_os = "macos")'.build-dependencies]
+cc = "1.0"
 

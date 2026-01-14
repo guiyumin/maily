@@ -112,3 +112,76 @@ For when the project has more traction. Unverified OAuth apps show scary warning
 - [ ] Email templates
 - [ ] Vim-style navigation (j/k)
 - [ ] Custom keybindings config
+
+---
+
+## Tauri Desktop App
+
+### Compose
+
+- [x] Implement compose view in Tauri frontend
+- [x] Connect to Rust backend SMTP/send functionality
+- [ ] Rich text editor or markdown support
+- [ ] Recipient autocomplete from contacts/history
+- [ ] Attachment support (drag & drop, file picker)
+- [ ] Draft saving (auto-save to SQLite)
+- [x] Reply/Reply All/Forward actions
+
+### AI Features
+
+- [x] Email summarization in desktop UI
+- [x] AI-powered email drafting/suggestions (smart reply)
+- [x] Smart reply generation (accept/decline/ask more)
+- [x] Event extraction from emails
+- [ ] Natural language calendar event creation (needs calendar UI)
+
+### Configuration Management
+
+- [x] Config editor UI in Tauri
+- [x] AI providers configuration panel
+  - [x] Add/edit/remove providers
+  - [ ] Drag to reorder priority
+  - [ ] Test provider connection
+  - [x] Show auto-detected CLI tools (runtime detection)
+- [ ] Account settings management
+- [x] General preferences (theme, language, etc.)
+
+### Sidebar Account Display
+
+- [x] Display max 3 accounts in sidebar
+- [x] Overflow accounts hidden under "..." menu
+- [x] Click overflow menu to see all accounts
+- [x] Click any account to switch to it
+- [x] Visual indicator for active account (ring highlight)
+- [ ] Account badge showing unread count
+
+### Email Summary Caching
+
+- [x] Add `email_summaries` table to SQLite schema
+  - [x] Fields: email_uid, account, mailbox, summary, model_used, created_at
+- [x] Check for existing summary before AI call
+- [x] Display cached summary if available
+- [x] Option to regenerate summary (bypass cache)
+- [ ] Clear summary cache per email or bulk
+
+### libghostty Integration
+
+> **Status**: libghostty (libghostty-vt) is available but not yet stable (no tagged release as of Jan 2025).
+> Integration is planned once the library reaches a stable release.
+> Resources: https://github.com/ghostty-org/ghostty, https://mitchellh.com/writing/libghostty-is-coming
+
+- [x] Research libghostty API and requirements
+- [ ] Integrate libghostty as embedded terminal (waiting for stable release)
+- [ ] Terminal view for running maily CLI commands
+- [ ] Support for terminal themes/colors
+- [ ] Copy/paste support
+- [ ] Scrollback buffer
+
+### AI Chat Integration
+
+- [x] Chat sidebar in desktop app (Sheet component)
+- [ ] Streaming response support (API returns full response)
+- [x] Chat history persistence (localStorage via Zustand persist)
+- [x] Context-aware chat (current email, folder, etc.)
+- [x] Multi-turn conversations (conversation history in prompts)
+- [ ] Provider selection for chat (uses first available)

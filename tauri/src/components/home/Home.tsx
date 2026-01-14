@@ -6,11 +6,18 @@ import { AccountRail } from "./AccountRail";
 import { MailboxNav } from "./MailboxNav";
 import { EmailList, type Email } from "./EmailList";
 import { EmailReader } from "./EmailReader";
+import { AIChat } from "@/components/chat/AIChat";
+import { MessageSquare, Calendar } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Link } from "@tanstack/react-router";
 
 interface Account {
   name: string;
   provider: string;
 }
+
+type UnreadCounts = Record<string, number>;
 
 interface ListEmailsResult {
   emails: Email[];
@@ -74,6 +81,8 @@ export function Home() {
   const [selectedEmail, setSelectedEmail] = useState<Email | null>(null);
   const [loading, setLoading] = useState(!PRELOADED_STATE);
   const [refreshing, setRefreshing] = useState(false);
+  const [unreadCounts, setUnreadCounts] = useState<UnreadCounts>({});
+  const [accountOrder, setAccountOrder] = useState<string[]>([]);
 
   // Pagination state
   const [total, setTotal] = useState(PRELOADED_STATE?.emails.total ?? 0);
@@ -82,6 +91,44 @@ export function Home() {
   const count14DaysRef = useRef(0);
   const backgroundLoadingRef = useRef(false);
   const initialLoadDoneRef = useRef(!!PRELOADED_STATE);
+
+  // Fetch unread counts for all accounts
+  const fetchUnreadCounts = useCallback(async () => {
+    try {
+      const counts = await invoke<[string, number][]>("get_all_unread_counts");
+      const countsMap: UnreadCounts = {};
+      for (const [account, count] of counts) {
+        countsMap[account] = count;
+      }
+      setUnreadCounts(countsMap);
+    } catch (err) {
+      console.error("Failed to fetch unread counts:", err);
+    }
+  }, []);
+
+  // Fetch unread counts on mount and periodically
+  useEffect(() => {
+    fetchUnreadCounts();
+    const interval = setInterval(fetchUnreadCounts, 30000); // Every 30 seconds
+    return () => clearInterval(interval);
+  }, [fetchUnreadCounts]);
+
+  // Fetch account order from config
+  useEffect(() => {
+    invoke<{ account_order?: string[] }>("get_config")
+      .then((config) => {
+        if (config.account_order && config.account_order.length > 0) {
+          setAccountOrder(config.account_order);
+        }
+      })
+      .catch(console.error);
+  }, []);
+
+  // Save account order when changed
+  const handleAccountOrderChange = useCallback((newOrder: string[]) => {
+    setAccountOrder(newOrder);
+    invoke("save_account_order", { order: newOrder }).catch(console.error);
+  }, []);
 
   // Fallback: load via IPC if preloaded state wasn't available
   useEffect(() => {
@@ -267,6 +314,8 @@ export function Home() {
             setRefreshing(false);
             syncingRef.current = null;
           }
+          // Refresh unread counts after any sync
+          fetchUnreadCounts();
         })
       );
 
@@ -289,7 +338,7 @@ export function Home() {
     return () => {
       unlisteners.forEach((unlisten) => unlisten());
     };
-  }, [selectedAccount, selectedMailbox, emails.length]);
+  }, [selectedAccount, selectedMailbox, emails.length, fetchUnreadCounts]);
 
   const handleRefresh = useCallback(() => {
     if (!selectedAccount || refreshing) return;
@@ -309,19 +358,37 @@ export function Home() {
   }, [selectedAccount, selectedMailbox, refreshing]);
 
   const handleEmailDeleted = useCallback((uid: number) => {
+    // Check if the deleted email was unread to update count
+    const deletedEmail = emails.find((e) => e.uid === uid);
+    if (deletedEmail?.unread && selectedMailbox === "INBOX") {
+      setUnreadCounts((prev) => ({
+        ...prev,
+        [selectedAccount]: Math.max(0, (prev[selectedAccount] || 0) - 1),
+      }));
+    }
     setEmails((prev) => prev.filter((e) => e.uid !== uid));
     setSelectedEmail((prev) => (prev?.uid === uid ? null : prev));
     setTotal((prev) => Math.max(0, prev - 1));
-  }, []);
+  }, [emails, selectedAccount, selectedMailbox]);
 
   const handleEmailReadChange = useCallback((uid: number, unread: boolean) => {
+    // Update unread count locally for INBOX
+    if (selectedMailbox === "INBOX") {
+      const email = emails.find((e) => e.uid === uid);
+      if (email && email.unread !== unread) {
+        setUnreadCounts((prev) => ({
+          ...prev,
+          [selectedAccount]: Math.max(0, (prev[selectedAccount] || 0) + (unread ? 1 : -1)),
+        }));
+      }
+    }
     setEmails((prev) =>
       prev.map((e) => (e.uid === uid ? { ...e, unread } : e))
     );
     setSelectedEmail((prev) =>
       prev?.uid === uid ? { ...prev, unread } : prev
     );
-  }, []);
+  }, [emails, selectedAccount, selectedMailbox]);
 
   const handleNavigate = useCallback(
     (direction: "prev" | "next") => {
@@ -391,6 +458,9 @@ export function Home() {
           accounts={accounts}
           selectedAccount={selectedAccount}
           onSelectAccount={setSelectedAccount}
+          unreadCounts={unreadCounts}
+          accountOrder={accountOrder}
+          onOrderChange={handleAccountOrderChange}
         />
 
         <MailboxNav
@@ -423,6 +493,54 @@ export function Home() {
           canNavigatePrev={canNavigatePrev}
           canNavigateNext={canNavigateNext}
         />
+
+        {/* Floating action buttons */}
+        <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-3">
+          {/* Calendar button */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="lg"
+                variant="outline"
+                className="h-14 w-14 rounded-full shadow-lg bg-background"
+                asChild
+              >
+                <Link to="/calendar">
+                  <Calendar className="h-6 w-6" />
+                </Link>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="left">Calendar</TooltipContent>
+          </Tooltip>
+
+          {/* AI Chat button */}
+          <AIChat
+            context={
+              selectedEmail
+                ? {
+                    type: "email",
+                    emailUid: selectedEmail.uid,
+                    emailSubject: selectedEmail.subject,
+                    account: selectedAccount,
+                    mailbox: selectedMailbox,
+                  }
+                : { type: "general" }
+            }
+            trigger={
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    size="lg"
+                    className="h-14 w-14 rounded-full shadow-lg"
+                  >
+                    <MessageSquare className="h-6 w-6" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="left">AI Chat</TooltipContent>
+              </Tooltip>
+            }
+          />
+        </div>
       </div>
     </TooltipProvider>
   );

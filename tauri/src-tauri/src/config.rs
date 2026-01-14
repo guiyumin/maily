@@ -33,6 +33,9 @@ pub struct Config {
     pub language: String,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub ai_providers: Vec<AIProvider>,
+    /// Order of accounts (account names). First 3 are visible in sidebar.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub account_order: Vec<String>,
 }
 
 fn default_max_emails() -> i32 {
@@ -55,6 +58,7 @@ impl Default for Config {
             theme: default_theme(),
             language: String::new(),
             ai_providers: Vec::new(),
+            account_order: Vec::new(),
         }
     }
 }

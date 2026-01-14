@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import {
   ChevronLeft,
@@ -15,6 +15,7 @@ import {
   Calendar,
   Sparkles,
   AlertCircle,
+  RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -34,9 +35,17 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import type { Email as EmailSummary } from "./EmailList";
 import { IsolatedHtml } from "./IsolatedHtml";
 import { useEmailCache } from "@/stores/emailCache";
+import { Compose } from "@/components/compose/Compose";
+import { toast } from "sonner";
 
 interface Attachment {
   part_id: string;
@@ -89,6 +98,13 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+interface CompletionResponse {
+  success: boolean;
+  content: string | null;
+  error: string | null;
+  model_used: string | null;
+}
+
 export function EmailReader({
   email: emailSummary,
   account,
@@ -104,6 +120,20 @@ export function EmailReader({
   const [error, setError] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  // Compose dialog state
+  const [composeOpen, setComposeOpen] = useState(false);
+  const [composeMode, setComposeMode] = useState<"new" | "reply" | "reply-all" | "forward">("reply");
+
+  // AI features state
+  const [summaryDialogOpen, setSummaryDialogOpen] = useState(false);
+  const [summary, setSummary] = useState<string | null>(null);
+  const [summaryModelUsed, setSummaryModelUsed] = useState<string | null>(null);
+  const [summarizing, setSummarizing] = useState(false);
+
+  const [eventDialogOpen, setEventDialogOpen] = useState(false);
+  const [extractedEvent, setExtractedEvent] = useState<string | null>(null);
+  const [extracting, setExtracting] = useState(false);
 
   const cache = useEmailCache();
 
@@ -212,6 +242,97 @@ export function EmailReader({
     }).catch(console.error);
   };
 
+  // Compose handlers
+  const handleReply = useCallback(() => {
+    setComposeMode("reply");
+    setComposeOpen(true);
+  }, []);
+
+  const handleReplyAll = useCallback(() => {
+    setComposeMode("reply-all");
+    setComposeOpen(true);
+  }, []);
+
+  const handleForward = useCallback(() => {
+    setComposeMode("forward");
+    setComposeOpen(true);
+  }, []);
+
+  // AI handlers
+  const handleSummarize = useCallback(async (forceRefresh = false) => {
+    if (!emailFull) return;
+
+    setSummarizing(true);
+    setSummaryDialogOpen(true);
+
+    try {
+      // Get plain text from HTML for summarization
+      const bodyText = emailFull.body_html
+        ? new DOMParser().parseFromString(emailFull.body_html, "text/html").body.textContent || ""
+        : "";
+
+      const response = await invoke<CompletionResponse>("summarize_email", {
+        account,
+        mailbox,
+        uid: emailFull.uid,
+        subject: emailFull.subject,
+        from: emailFull.from,
+        bodyText,
+        forceRefresh,
+      });
+
+      if (response.success && response.content) {
+        setSummary(response.content);
+        setSummaryModelUsed(response.model_used);
+      } else {
+        toast.error(response.error || "Failed to summarize email");
+        setSummaryDialogOpen(false);
+      }
+    } catch (err) {
+      toast.error(`Failed to summarize: ${err}`);
+      setSummaryDialogOpen(false);
+    } finally {
+      setSummarizing(false);
+    }
+  }, [emailFull, account, mailbox]);
+
+  const handleExtractEvent = useCallback(async () => {
+    if (!emailFull) return;
+
+    setExtracting(true);
+    setEventDialogOpen(true);
+
+    try {
+      const bodyText = emailFull.body_html
+        ? new DOMParser().parseFromString(emailFull.body_html, "text/html").body.textContent || ""
+        : "";
+
+      const response = await invoke<CompletionResponse>("extract_event", {
+        subject: emailFull.subject,
+        bodyText,
+      });
+
+      if (response.success && response.content) {
+        setExtractedEvent(response.content);
+      } else {
+        toast.error(response.error || "Failed to extract event");
+        setEventDialogOpen(false);
+      }
+    } catch (err) {
+      toast.error(`Failed to extract event: ${err}`);
+      setEventDialogOpen(false);
+    } finally {
+      setExtracting(false);
+    }
+  }, [emailFull]);
+
+  // Reset AI state when email changes
+  useEffect(() => {
+    setSummary(null);
+    setSummaryModelUsed(null);
+    setExtractedEvent(null);
+  }, [emailSummary?.uid]);
+
   // Empty state
   if (!emailSummary) {
     return (
@@ -243,7 +364,7 @@ export function EmailReader({
         <div className="flex items-center gap-1">
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon">
+              <Button variant="ghost" size="icon" onClick={handleReply} disabled={!emailFull}>
                 <Reply className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
@@ -252,7 +373,7 @@ export function EmailReader({
 
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon">
+              <Button variant="ghost" size="icon" onClick={handleReplyAll} disabled={!emailFull}>
                 <ReplyAll className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
@@ -261,7 +382,7 @@ export function EmailReader({
 
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon">
+              <Button variant="ghost" size="icon" onClick={handleForward} disabled={!emailFull}>
                 <Forward className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
@@ -302,8 +423,17 @@ export function EmailReader({
 
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon">
-                <Sparkles className="h-4 w-4" />
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => handleSummarize(false)}
+                disabled={!emailFull || summarizing}
+              >
+                {summarizing ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Sparkles className="h-4 w-4" />
+                )}
               </Button>
             </TooltipTrigger>
             <TooltipContent>Summarize with AI</TooltipContent>
@@ -311,8 +441,17 @@ export function EmailReader({
 
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon">
-                <Calendar className="h-4 w-4" />
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleExtractEvent}
+                disabled={!emailFull || extracting}
+              >
+                {extracting ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Calendar className="h-4 w-4" />
+                )}
               </Button>
             </TooltipTrigger>
             <TooltipContent>Extract calendar event</TooltipContent>
@@ -471,6 +610,85 @@ export function EmailReader({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Summary dialog */}
+      <Dialog open={summaryDialogOpen} onOpenChange={setSummaryDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5" />
+              Email Summary
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {summarizing ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : summary ? (
+              <>
+                <p className="text-sm leading-relaxed">{summary}</p>
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>Generated by {summaryModelUsed}</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleSummarize(true)}
+                  >
+                    <RefreshCw className="h-3 w-3 mr-1" />
+                    Regenerate
+                  </Button>
+                </div>
+              </>
+            ) : null}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Extract event dialog */}
+      <Dialog open={eventDialogOpen} onOpenChange={setEventDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Calendar className="h-5 w-5" />
+              Extracted Event
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {extracting ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : extractedEvent ? (
+              <pre className="text-sm bg-muted p-4 rounded-lg overflow-auto max-h-64">
+                {extractedEvent}
+              </pre>
+            ) : null}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Compose dialog */}
+      {emailFull && (
+        <Compose
+          open={composeOpen}
+          onClose={() => setComposeOpen(false)}
+          account={account}
+          mode={composeMode}
+          originalEmail={{
+            from: emailFull.from,
+            to: emailFull.to,
+            cc: emailFull.cc,
+            subject: emailFull.subject,
+            body_text: emailFull.body_html
+              ? new DOMParser().parseFromString(emailFull.body_html, "text/html").body.textContent || ""
+              : "",
+            body_html: emailFull.body_html,
+            message_id: emailFull.message_id,
+            date: emailFull.date,
+          }}
+        />
+      )}
     </div>
   );
 }

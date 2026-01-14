@@ -28,8 +28,16 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
-import { Plus, Trash2, ArrowLeft } from "lucide-react";
+import { Plus, Trash2, ArrowLeft, PlayCircle, CheckCircle, XCircle, Loader2 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
+import { toast } from "sonner";
+
+interface TestResult {
+  success: boolean;
+  content: string | null;
+  error: string | null;
+  model_used: string | null;
+}
 
 interface AIProvider {
   provider_type: "cli" | "api";
@@ -64,6 +72,10 @@ function Settings() {
   const [providerModel, setProviderModel] = useState("");
   const [providerBaseUrl, setProviderBaseUrl] = useState("");
   const [providerApiKey, setProviderApiKey] = useState("");
+
+  // Test provider state
+  const [testingProvider, setTestingProvider] = useState<number | "new" | null>(null);
+  const [testResults, setTestResults] = useState<Record<string, TestResult>>({});
 
   useEffect(() => {
     invoke<Config>("get_config")
@@ -127,6 +139,39 @@ function Settings() {
       setConfig(newConfig);
     } catch (err) {
       console.error("Failed to remove provider:", err);
+    }
+  };
+
+  const testProvider = async (
+    index: number | "new",
+    name: string,
+    model: string,
+    type: "cli" | "api",
+    baseUrl: string,
+    apiKey: string
+  ) => {
+    setTestingProvider(index);
+    try {
+      const result = await invoke<TestResult>("test_ai_provider", {
+        providerName: name,
+        providerModel: model,
+        providerType: type,
+        baseUrl,
+        apiKey,
+      });
+
+      const key = index === "new" ? "new" : `${index}`;
+      setTestResults((prev) => ({ ...prev, [key]: result }));
+
+      if (result.success) {
+        toast.success(`${name} is working! Response: "${result.content?.slice(0, 50)}"`);
+      } else {
+        toast.error(`${name} failed: ${result.error || "Unknown error"}`);
+      }
+    } catch (err) {
+      toast.error(`Failed to test provider: ${err}`);
+    } finally {
+      setTestingProvider(null);
     }
   };
 
@@ -268,29 +313,64 @@ function Settings() {
               </p>
             ) : (
               <div className="space-y-2">
-                {config.ai_providers.map((provider, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between rounded-lg border p-3"
-                  >
-                    <div>
-                      <p className="font-medium">
-                        {provider.name}/{provider.model}
-                      </p>
-                      <p className="text-sm text-muted-foreground">
-                        {provider.provider_type === "cli" ? "CLI Tool" : "API"}
-                        {provider.base_url && ` • ${provider.base_url}`}
-                      </p>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => removeProvider(index)}
+                {config.ai_providers.map((provider, index) => {
+                  const testResult = testResults[`${index}`];
+                  return (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between rounded-lg border p-3"
                     >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
+                      <div className="flex items-center gap-3">
+                        {testResult && (
+                          testResult.success ? (
+                            <CheckCircle className="h-4 w-4 text-green-500" />
+                          ) : (
+                            <XCircle className="h-4 w-4 text-red-500" />
+                          )
+                        )}
+                        <div>
+                          <p className="font-medium">
+                            {provider.name}/{provider.model}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {provider.provider_type === "cli" ? "CLI Tool" : "API"}
+                            {provider.base_url && ` • ${provider.base_url}`}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() =>
+                            testProvider(
+                              index,
+                              provider.name,
+                              provider.model,
+                              provider.provider_type,
+                              provider.base_url,
+                              provider.api_key
+                            )
+                          }
+                          disabled={testingProvider === index}
+                        >
+                          {testingProvider === index ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <PlayCircle className="h-4 w-4" />
+                          )}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => removeProvider(index)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
 
@@ -390,19 +470,64 @@ function Settings() {
                   )}
                 </div>
 
-                <DialogFooter>
-                  <Button
-                    variant="outline"
-                    onClick={() => setProviderDialogOpen(false)}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    onClick={addProvider}
-                    disabled={!providerName || !providerModel}
-                  >
-                    Add Provider
-                  </Button>
+                <DialogFooter className="flex-col sm:flex-row gap-2">
+                  <div className="flex items-center gap-2">
+                    {testResults["new"] && (
+                      testResults["new"].success ? (
+                        <span className="flex items-center gap-1 text-sm text-green-600">
+                          <CheckCircle className="h-4 w-4" />
+                          Working
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-1 text-sm text-red-600">
+                          <XCircle className="h-4 w-4" />
+                          Failed
+                        </span>
+                      )
+                    )}
+                    <Button
+                      variant="outline"
+                      onClick={() =>
+                        testProvider(
+                          "new",
+                          providerName,
+                          providerModel,
+                          providerType,
+                          providerBaseUrl,
+                          providerApiKey
+                        )
+                      }
+                      disabled={!providerName || !providerModel || testingProvider === "new"}
+                    >
+                      {testingProvider === "new" ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <PlayCircle className="mr-2 h-4 w-4" />
+                      )}
+                      Test
+                    </Button>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setProviderDialogOpen(false);
+                        setTestResults((prev) => {
+                          const next = { ...prev };
+                          delete next["new"];
+                          return next;
+                        });
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={addProvider}
+                      disabled={!providerName || !providerModel}
+                    >
+                      Add Provider
+                    </Button>
+                  </div>
                 </DialogFooter>
               </DialogContent>
             </Dialog>

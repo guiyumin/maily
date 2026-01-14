@@ -1,7 +1,7 @@
 use imap::Session;
 use mailparse::{parse_mail, MailHeaderMap};
 use native_tls::TlsStream;
-use rusqlite::{params, Connection};
+use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::fs;
@@ -100,6 +100,24 @@ pub struct InitialState {
     pub emails: ListEmailsResult,
 }
 
+/// Email draft stored locally
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Draft {
+    pub id: Option<i64>,
+    pub account: String,
+    pub to: String,
+    pub cc: String,
+    pub bcc: String,
+    pub subject: String,
+    pub body_text: String,
+    pub body_html: String,
+    pub attachments_json: String,
+    pub reply_to_message_id: Option<String>,
+    pub compose_mode: String,
+    pub created_at: i64,
+    pub updated_at: i64,
+}
+
 const SCHEMA: &str = r#"
 CREATE TABLE IF NOT EXISTS mailbox_metadata (
     account TEXT NOT NULL,
@@ -158,6 +176,25 @@ CREATE INDEX IF NOT EXISTS idx_emails_date ON emails(account, mailbox, internal_
 CREATE INDEX IF NOT EXISTS idx_emails_internal_date ON emails(internal_date);
 CREATE INDEX IF NOT EXISTS idx_op_logs_account ON op_logs(account);
 CREATE INDEX IF NOT EXISTS idx_op_logs_processed ON op_logs(processed_at DESC);
+
+CREATE TABLE IF NOT EXISTS drafts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    account TEXT NOT NULL,
+    to_addrs TEXT NOT NULL DEFAULT '',
+    cc TEXT NOT NULL DEFAULT '',
+    bcc TEXT NOT NULL DEFAULT '',
+    subject TEXT NOT NULL DEFAULT '',
+    body_text TEXT NOT NULL DEFAULT '',
+    body_html TEXT NOT NULL DEFAULT '',
+    attachments_json TEXT NOT NULL DEFAULT '[]',
+    reply_to_message_id TEXT,
+    compose_mode TEXT NOT NULL DEFAULT 'new',
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_drafts_account ON drafts(account);
+CREATE INDEX IF NOT EXISTS idx_drafts_updated ON drafts(updated_at DESC);
 "#;
 
 /// Initialize database eagerly (call on app startup)
@@ -166,8 +203,8 @@ pub fn init_db() {
     drop(DB.lock());
 }
 
-// Thread-safe database connection
-static DB: Lazy<Mutex<Connection>> = Lazy::new(|| {
+// Thread-safe database connection (pub for ai.rs access)
+pub static DB: Lazy<Mutex<Connection>> = Lazy::new(|| {
     let db_path = config_dir().join("maily.db");
     let conn = Connection::open(&db_path).expect("Failed to open database");
 
@@ -459,6 +496,35 @@ pub fn delete_email_from_cache(account: &str, mailbox: &str, uid: u32) -> Result
         params![account, mailbox, uid]
     )?;
     Ok(())
+}
+
+/// Get unread email count for an account/mailbox
+pub fn get_unread_count(account: &str, mailbox: &str) -> Result<usize, Box<dyn std::error::Error>> {
+    let conn = DB.lock().unwrap();
+    let count: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM emails WHERE account = ?1 AND mailbox = ?2 AND unread = 1",
+        params![account, mailbox],
+        |row| row.get(0),
+    )?;
+    Ok(count as usize)
+}
+
+/// Get unread counts for all accounts (INBOX only)
+pub fn get_all_unread_counts() -> Result<Vec<(String, usize)>, Box<dyn std::error::Error>> {
+    let conn = DB.lock().unwrap();
+    let mut stmt = conn.prepare(
+        "SELECT account, COUNT(*) FROM emails WHERE mailbox = 'INBOX' AND unread = 1 GROUP BY account"
+    )?;
+    let rows = stmt.query_map([], |row| {
+        Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?))
+    })?;
+
+    let mut counts = Vec::new();
+    for row in rows {
+        let (account, count) = row?;
+        counts.push((account, count as usize));
+    }
+    Ok(counts)
 }
 
 pub fn log_op(account: &str, mailbox: &str, operation: &str, uid: u32, status: &str, error: &str) -> Result<(), Box<dyn std::error::Error>> {
@@ -1032,4 +1098,92 @@ fn extract_attachments_recursive(parsed: &mailparse::ParsedMail, attachments: &m
         };
         extract_attachments_recursive(subpart, attachments, &new_prefix);
     }
+}
+
+// ============ DRAFT FUNCTIONS ============
+
+/// Save or update a draft
+pub fn save_draft(draft: &Draft) -> Result<i64, Box<dyn std::error::Error>> {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let now = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs() as i64;
+    let conn = DB.lock().unwrap();
+
+    if let Some(id) = draft.id {
+        // Update existing draft
+        conn.execute(
+            "UPDATE drafts SET to_addrs = ?1, cc = ?2, bcc = ?3, subject = ?4, body_text = ?5, body_html = ?6, attachments_json = ?7, reply_to_message_id = ?8, compose_mode = ?9, updated_at = ?10 WHERE id = ?11",
+            params![draft.to, draft.cc, draft.bcc, draft.subject, draft.body_text, draft.body_html, draft.attachments_json, draft.reply_to_message_id, draft.compose_mode, now, id]
+        )?;
+        Ok(id)
+    } else {
+        // Insert new draft
+        conn.execute(
+            "INSERT INTO drafts (account, to_addrs, cc, bcc, subject, body_text, body_html, attachments_json, reply_to_message_id, compose_mode, created_at, updated_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+            params![draft.account, draft.to, draft.cc, draft.bcc, draft.subject, draft.body_text, draft.body_html, draft.attachments_json, draft.reply_to_message_id, draft.compose_mode, now, now]
+        )?;
+        Ok(conn.last_insert_rowid())
+    }
+}
+
+/// Get a draft by ID
+pub fn get_draft(id: i64) -> Result<Option<Draft>, Box<dyn std::error::Error>> {
+    let conn = DB.lock().unwrap();
+    let mut stmt = conn.prepare(
+        "SELECT id, account, to_addrs, cc, bcc, subject, body_text, body_html, attachments_json, reply_to_message_id, compose_mode, created_at, updated_at FROM drafts WHERE id = ?1"
+    )?;
+
+    let draft = stmt.query_row(params![id], |row| {
+        Ok(Draft {
+            id: Some(row.get(0)?),
+            account: row.get(1)?,
+            to: row.get(2)?,
+            cc: row.get(3)?,
+            bcc: row.get(4)?,
+            subject: row.get(5)?,
+            body_text: row.get(6)?,
+            body_html: row.get(7)?,
+            attachments_json: row.get(8)?,
+            reply_to_message_id: row.get(9)?,
+            compose_mode: row.get(10)?,
+            created_at: row.get(11)?,
+            updated_at: row.get(12)?,
+        })
+    }).optional()?;
+
+    Ok(draft)
+}
+
+/// List all drafts for an account
+pub fn list_drafts(account: &str) -> Result<Vec<Draft>, Box<dyn std::error::Error>> {
+    let conn = DB.lock().unwrap();
+    let mut stmt = conn.prepare(
+        "SELECT id, account, to_addrs, cc, bcc, subject, body_text, body_html, attachments_json, reply_to_message_id, compose_mode, created_at, updated_at FROM drafts WHERE account = ?1 ORDER BY updated_at DESC"
+    )?;
+
+    let drafts = stmt.query_map(params![account], |row| {
+        Ok(Draft {
+            id: Some(row.get(0)?),
+            account: row.get(1)?,
+            to: row.get(2)?,
+            cc: row.get(3)?,
+            bcc: row.get(4)?,
+            subject: row.get(5)?,
+            body_text: row.get(6)?,
+            body_html: row.get(7)?,
+            attachments_json: row.get(8)?,
+            reply_to_message_id: row.get(9)?,
+            compose_mode: row.get(10)?,
+            created_at: row.get(11)?,
+            updated_at: row.get(12)?,
+        })
+    })?.collect::<Result<Vec<_>, _>>()?;
+
+    Ok(drafts)
+}
+
+/// Delete a draft
+pub fn delete_draft(id: i64) -> Result<(), Box<dyn std::error::Error>> {
+    let conn = DB.lock().unwrap();
+    conn.execute("DELETE FROM drafts WHERE id = ?1", params![id])?;
+    Ok(())
 }

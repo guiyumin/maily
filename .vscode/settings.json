@@ -1,3 +1,6 @@
 {
-  "makefile.configureOnOpen": false
+  "makefile.configureOnOpen": false,
+  "rust-analyzer.linkedProjects": [
+    "tauri/src-tauri/Cargo.toml"
+  ]
 }

@@ -50,26 +50,91 @@ func (a App) initClient() tea.Cmd {
 
 func (a *App) loadEmails() tea.Cmd {
 	label := a.currentLabel
-	accountEmail := ""
-	if account := a.currentAccount(); account != nil {
-		accountEmail = account.Credentials.Email
+	account := a.currentAccount()
+	if account == nil {
+		return func() tea.Msg {
+			return errorMsg{err: fmt.Errorf("no account configured")}
+		}
 	}
+	accountEmail := account.Credentials.Email
+	creds := &account.Credentials
 	since := time.Now().AddDate(0, 0, -SyncDays)
 	imapClient := a.imap // capture for nil check in closure
+	emailLimit := a.emailLimit
 	return func() tea.Msg {
-		if imapClient == nil {
-			return errorMsg{err: fmt.Errorf("connecting to server"), accountEmail: accountEmail}
+		var newClient *mail.IMAPClient
+		client := imapClient
+
+		// Helper to check if error is connection-related
+		isConnectionError := func(err error) bool {
+			if err == nil {
+				return false
+			}
+			errStr := err.Error()
+			return strings.Contains(errStr, "closed network connection") ||
+				strings.Contains(errStr, "connection reset") ||
+				strings.Contains(errStr, "broken pipe") ||
+				strings.Contains(errStr, "EOF")
 		}
+
+		// Try with existing client first, reconnect if needed
+		if client == nil {
+			var err error
+			client, err = mail.NewIMAPClient(creds)
+			if err != nil {
+				return errorMsg{err: err, accountEmail: accountEmail}
+			}
+			newClient = client
+		}
+
 		// Get UIDValidity for cache consistency with daemon
-		mailboxInfo, err := imapClient.SelectMailboxWithInfo(label)
+		mailboxInfo, err := client.SelectMailboxWithInfo(label)
 		if err != nil {
-			return errorMsg{err: err, accountEmail: accountEmail}
+			if isConnectionError(err) && newClient == nil {
+				// Connection is stale, try reconnecting
+				client, err = mail.NewIMAPClient(creds)
+				if err != nil {
+					return errorMsg{err: err, accountEmail: accountEmail}
+				}
+				newClient = client
+				mailboxInfo, err = client.SelectMailboxWithInfo(label)
+				if err != nil {
+					return errorMsg{err: err, accountEmail: accountEmail}
+				}
+			} else {
+				return errorMsg{err: err, accountEmail: accountEmail}
+			}
 		}
-		emails, err := imapClient.FetchMessagesSince(label, since, a.emailLimit)
+
+		emails, err := client.FetchMessagesSince(label, since, emailLimit)
 		if err != nil {
-			return errorMsg{err: err, accountEmail: accountEmail}
+			if isConnectionError(err) && newClient == nil {
+				// Connection is stale, try reconnecting
+				client, err = mail.NewIMAPClient(creds)
+				if err != nil {
+					return errorMsg{err: err, accountEmail: accountEmail}
+				}
+				newClient = client
+				// Re-select mailbox and retry
+				mailboxInfo, err = client.SelectMailboxWithInfo(label)
+				if err != nil {
+					return errorMsg{err: err, accountEmail: accountEmail}
+				}
+				emails, err = client.FetchMessagesSince(label, since, emailLimit)
+				if err != nil {
+					return errorMsg{err: err, accountEmail: accountEmail}
+				}
+			} else {
+				return errorMsg{err: err, accountEmail: accountEmail}
+			}
 		}
-		return emailsLoadedMsg{emails: emails, accountEmail: accountEmail, uidValidity: mailboxInfo.UIDValidity}
+
+		return emailsLoadedMsg{
+			emails:       emails,
+			accountEmail: accountEmail,
+			uidValidity:  mailboxInfo.UIDValidity,
+			imap:         newClient,
+		}
 	}
 }
 

@@ -1,6 +1,5 @@
 {
   "makefile.configureOnOpen": false,
-  "rust-analyzer.linkedProjects": [
-    "tauri/src-tauri/Cargo.toml"
-  ]
+  "diffEditor.hideUnchangedRegions.enabled": false,
+  "rust-analyzer.linkedProjects": ["tauri/src-tauri/Cargo.toml"]
 }

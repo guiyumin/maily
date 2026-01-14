@@ -134,6 +134,7 @@ type emailsLoadedMsg struct {
 	emails       []mail.Email
 	accountEmail string // which account this belongs to
 	uidValidity  uint32 // for cache consistency with daemon
+	imap         *mail.IMAPClient // new client if reconnection was needed
 }
 
 type errorMsg struct {
@@ -1039,6 +1040,11 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		if msg.accountEmail != "" && msg.accountEmail != currentEmail {
 			return a, nil
+		}
+		// Update imap client if reconnection happened
+		if msg.imap != nil {
+			a.imap = msg.imap
+			a.imapCache[a.accountIdx] = msg.imap
 		}
 		a.mailList.SetEmails(msg.emails)
 		cacheKey := fmt.Sprintf("%d:%s", a.accountIdx, a.currentLabel)

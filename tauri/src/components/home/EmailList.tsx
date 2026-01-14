@@ -162,12 +162,12 @@ export function EmailList({
           </div>
         ) : (
           <div className="EmailList flex min-w-0 flex-col">
-            {emails.map((email) => {
+            {emails.map((email, index) => {
               const isSelected = selectedEmail?.uid === email.uid;
 
               return (
                 <button
-                  key={email.uid}
+                  key={`${email.uid}-${index}`}
                   onClick={() => onSelectEmail(email)}
                   className={cn(
                     "flex w-full flex-col gap-1 border-b border-l-4 p-3 text-left transition-colors",

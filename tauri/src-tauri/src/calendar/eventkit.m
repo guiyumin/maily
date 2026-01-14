@@ -73,11 +73,14 @@ int ek_get_auth_status(void) {
                 return EK_AUTH_DENIED;
 #if __MAC_OS_X_VERSION_MAX_ALLOWED >= 140000
             case EKAuthorizationStatusFullAccess:
+                accessGranted = YES;  // Update flag when authorized
                 return EK_AUTH_AUTHORIZED;
             case EKAuthorizationStatusWriteOnly:
+                accessGranted = YES;  // Update flag when authorized
                 return EK_AUTH_AUTHORIZED;
 #else
             case EKAuthorizationStatusAuthorized:
+                accessGranted = YES;  // Update flag when authorized
                 return EK_AUTH_AUTHORIZED;
 #endif
             default:

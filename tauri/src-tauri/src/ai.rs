@@ -553,6 +553,7 @@ Write a concise, professional reply:"#,
 
 /// Extract calendar event from email
 pub fn extract_event(
+    from: &str,
     subject: &str,
     body_text: &str,
 ) -> CompletionResponse {
@@ -566,6 +567,7 @@ pub fn extract_event(
 
 Current date/time: {}
 
+From: {}
 Subject: {}
 
 {}
@@ -591,7 +593,71 @@ Rules:
 - Set alarm_minutes_before=0 and alarm_specified=false (user will set reminder later)
 
 Respond with ONLY the JSON or NO_EVENTS_FOUND, no other text."#,
-        now, subject, body_truncated
+        now, from, subject, body_truncated
+    );
+
+    complete(CompletionRequest {
+        prompt,
+        system_prompt: None,
+        max_tokens: Some(300),
+        provider_name: None,
+    })
+}
+
+/// Parse natural language into a calendar event, with optional email context
+pub fn parse_event_nlp(
+    user_input: &str,
+    email_from: &str,
+    email_subject: &str,
+    email_body: &str,
+) -> CompletionResponse {
+    let now = chrono::Local::now().format("%Y-%m-%dT%H:%M:%S%:z").to_string();
+
+    // Build email context if provided
+    let email_context = if !email_from.is_empty() || !email_subject.is_empty() || !email_body.is_empty() {
+        let body_truncated: String = email_body.chars().take(1000).collect();
+        format!(
+            r#"
+Email context (use this to understand references like "them", "the meeting", etc.):
+From: {}
+Subject: {}
+Body: {}
+
+"#,
+            email_from, email_subject, body_truncated
+        )
+    } else {
+        String::new()
+    };
+
+    let prompt = format!(
+        r#"Parse this natural language into a calendar event.
+
+Current date/time: {}
+{}
+User input: "{}"
+
+Respond with ONLY a JSON object (no markdown, no explanation):
+{{
+  "title": "event title",
+  "start_time": "2024-12-25T10:00:00-08:00",
+  "end_time": "2024-12-25T11:00:00-08:00",
+  "location": "location if mentioned, otherwise empty string",
+  "alarm_minutes_before": 5,
+  "alarm_specified": true
+}}
+
+Rules:
+- start_time and end_time must be in RFC3339 format with timezone
+- If no duration specified, default to 1 hour
+- If user says "remind me X minutes before" or similar, set alarm_minutes_before and alarm_specified=true
+- If no reminder mentioned, set alarm_minutes_before=0 and alarm_specified=false
+- Extract location if mentioned (e.g., "at the coffee shop")
+- Use the current date/time to interpret relative dates like "tomorrow", "next Monday"
+- Use the email context to resolve references (e.g., "them" = sender, "the meeting" = subject)
+
+Respond with ONLY the JSON, no other text."#,
+        now, email_context, user_input
     );
 
     complete(CompletionRequest {

@@ -9,6 +9,7 @@ use tauri::WebviewWindowBuilder;
 use ai::{
     complete as do_ai_complete, init_summaries_table, summarize_email as ai_summarize,
     generate_reply as ai_generate_reply, extract_event as ai_extract_event,
+    parse_event_nlp as ai_parse_event_nlp,
     get_cached_summary, delete_summary, list_available_providers, test_provider as ai_test_provider,
     CompletionRequest, CompletionResponse, EmailSummary,
 };
@@ -329,9 +330,26 @@ async fn generate_reply(
 }
 
 #[tauri::command]
-async fn extract_event(subject: String, body_text: String) -> CompletionResponse {
+async fn extract_event(from: String, subject: String, body_text: String) -> CompletionResponse {
     tauri::async_runtime::spawn_blocking(move || {
-        ai_extract_event(&subject, &body_text)
+        ai_extract_event(&from, &subject, &body_text)
+    }).await.unwrap_or_else(|_| CompletionResponse {
+        success: false,
+        content: None,
+        error: Some("Task panicked".to_string()),
+        model_used: None,
+    })
+}
+
+#[tauri::command]
+async fn parse_event_nlp(
+    user_input: String,
+    email_from: String,
+    email_subject: String,
+    email_body: String,
+) -> CompletionResponse {
+    tauri::async_runtime::spawn_blocking(move || {
+        ai_parse_event_nlp(&user_input, &email_from, &email_subject, &email_body)
     }).await.unwrap_or_else(|_| CompletionResponse {
         success: false,
         content: None,
@@ -507,6 +525,7 @@ pub fn run() {
             delete_email_summary,
             generate_reply,
             extract_event,
+            parse_event_nlp,
             ai_complete,
             get_available_ai_providers,
             test_ai_provider,

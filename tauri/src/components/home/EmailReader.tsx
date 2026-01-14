@@ -8,6 +8,7 @@ import {
   Loader2,
   Mail,
   MailOpen,
+  MapPin,
   Paperclip,
   Reply,
   ReplyAll,
@@ -16,8 +17,18 @@ import {
   Sparkles,
   AlertCircle,
   RefreshCw,
+  CalendarPlus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -103,6 +114,370 @@ interface CompletionResponse {
   content: string | null;
   error: string | null;
   model_used: string | null;
+}
+
+interface ExtractedEvent {
+  title: string;
+  start_time: string;
+  end_time: string;
+  location?: string;
+  alarm_minutes_before?: number;
+  alarm_specified?: boolean;
+}
+
+interface ExtractedEventDisplayProps {
+  eventJson: string | null; // null means extraction failed or not attempted
+  emailFrom: string;
+  emailSubject: string;
+  emailBody: string;
+  onClose: () => void;
+}
+
+// Strip markdown code fences from AI response
+function stripMarkdownCodeFences(s: string): string {
+  s = s.trim();
+
+  // Remove opening fence (```json or ```)
+  if (s.startsWith("```")) {
+    const idx = s.indexOf("\n");
+    if (idx !== -1) {
+      s = s.slice(idx + 1);
+    }
+  }
+
+  // Remove closing fence
+  if (s.endsWith("```")) {
+    s = s.slice(0, -3);
+  }
+
+  return s.trim();
+}
+
+function ExtractedEventDisplay({
+  eventJson,
+  emailFrom,
+  emailSubject,
+  emailBody,
+  onClose,
+}: ExtractedEventDisplayProps) {
+  const [adding, setAdding] = useState(false);
+  const [title, setTitle] = useState("");
+  const [date, setDate] = useState("");
+  const [startTime, setStartTime] = useState("");
+  const [endTime, setEndTime] = useState("");
+  const [location, setLocation] = useState("");
+  const [alarm, setAlarm] = useState("15");
+  const [showForm, setShowForm] = useState(false);
+  const [nlpInput, setNlpInput] = useState("");
+  const [nlpProcessing, setNlpProcessing] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Parse the event JSON and populate form fields
+  useEffect(() => {
+    if (!eventJson) {
+      setErrorMessage("Failed to extract event");
+      return;
+    }
+
+    const raw = eventJson.trim();
+
+    // Check for NO_EVENTS_FOUND response
+    if (raw === "NO_EVENTS_FOUND" || raw.includes("NO_EVENTS_FOUND")) {
+      setErrorMessage("No calendar event found in this email. Describe the event below:");
+      return;
+    }
+
+    try {
+      // Strip markdown code fences if present
+      const cleaned = stripMarkdownCodeFences(raw);
+      console.log("Parsing event JSON:", cleaned);
+      const event: ExtractedEvent = JSON.parse(cleaned);
+
+      setTitle(event.title || "");
+      setLocation(event.location || "");
+
+      const startDate = new Date(event.start_time);
+      const endDate = new Date(event.end_time);
+
+      if (!isNaN(startDate.getTime())) {
+        setDate(startDate.toISOString().split("T")[0]);
+        setStartTime(startDate.toTimeString().slice(0, 5));
+      }
+      if (!isNaN(endDate.getTime())) {
+        setEndTime(endDate.toTimeString().slice(0, 5));
+      }
+
+      if (event.alarm_specified && event.alarm_minutes_before !== undefined) {
+        setAlarm(event.alarm_minutes_before.toString());
+      }
+
+      setShowForm(true);
+      setErrorMessage(null);
+    } catch (e) {
+      console.error("Failed to parse event JSON. Raw response:", raw, e);
+      setErrorMessage("Failed to parse event. Describe the event below:");
+    }
+  }, [eventJson]);
+
+  // Parse NLP input with email context
+  const handleParseNlp = async () => {
+    if (!nlpInput.trim()) return;
+
+    setNlpProcessing(true);
+    try {
+      const response = await invoke<CompletionResponse>("parse_event_nlp", {
+        userInput: nlpInput,
+        emailFrom,
+        emailSubject,
+        emailBody,
+      });
+
+      if (response.success && response.content) {
+        const cleaned = stripMarkdownCodeFences(response.content);
+        console.log("Parsed NLP response:", cleaned);
+        const event: ExtractedEvent = JSON.parse(cleaned);
+
+        setTitle(event.title || "");
+        setLocation(event.location || "");
+
+        const startDate = new Date(event.start_time);
+        const endDate = new Date(event.end_time);
+
+        if (!isNaN(startDate.getTime())) {
+          setDate(startDate.toISOString().split("T")[0]);
+          setStartTime(startDate.toTimeString().slice(0, 5));
+        }
+        if (!isNaN(endDate.getTime())) {
+          setEndTime(endDate.toTimeString().slice(0, 5));
+        }
+
+        if (event.alarm_specified && event.alarm_minutes_before !== undefined) {
+          setAlarm(event.alarm_minutes_before.toString());
+        }
+
+        setShowForm(true);
+        setErrorMessage(null);
+        setNlpInput("");
+      } else {
+        toast.error(response.error || "Failed to parse event");
+      }
+    } catch (e) {
+      console.error("NLP parse error:", e);
+      toast.error(`Failed to parse: ${e}`);
+    } finally {
+      setNlpProcessing(false);
+    }
+  };
+
+  // Show NLP input when there's an error or no event found
+  if (!showForm) {
+    return (
+      <div className="space-y-4">
+        {errorMessage && (
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <AlertCircle className="h-4 w-4" />
+            <span>{errorMessage}</span>
+          </div>
+        )}
+
+        {/* NLP Input */}
+        <div className="space-y-2">
+          <Label htmlFor="nlp-input">Describe the event</Label>
+          <div className="flex gap-2">
+            <Input
+              id="nlp-input"
+              placeholder='e.g., "Meeting tomorrow at 3pm" or "the event mentioned above"'
+              value={nlpInput}
+              onChange={(e) => setNlpInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleParseNlp()}
+            />
+            <Button
+              onClick={handleParseNlp}
+              disabled={nlpProcessing || !nlpInput.trim()}
+            >
+              {nlpProcessing ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                "Parse"
+              )}
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Use natural language. References like "them" or "the meeting" will be resolved from the email.
+          </p>
+        </div>
+
+        <div className="flex justify-end">
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  const handleAddToCalendar = async () => {
+    console.log("handleAddToCalendar called with state:", { title, date, startTime, endTime, location, alarm });
+
+    if (!title.trim()) {
+      toast.error("Title is required");
+      return;
+    }
+
+    if (!date) {
+      toast.error("Date is required");
+      return;
+    }
+
+    if (!startTime || !endTime) {
+      toast.error("Start and end time are required");
+      return;
+    }
+
+    setAdding(true);
+    try {
+      // Check calendar access first
+      const authStatus = await invoke<string>("calendar_get_auth_status");
+      console.log("Calendar auth status:", authStatus);
+
+      if (authStatus !== "authorized") {
+        // Request access
+        await invoke("calendar_request_access");
+        const newStatus = await invoke<string>("calendar_get_auth_status");
+        if (newStatus !== "authorized") {
+          toast.error("Calendar access denied. Please enable in System Settings → Privacy & Security → Calendars");
+          setAdding(false);
+          return;
+        }
+      }
+
+      const startDateTime = new Date(`${date}T${startTime}`);
+      const endDateTime = new Date(`${date}T${endTime}`);
+
+      console.log("Creating event:", { date, startTime, endTime, startDateTime, endDateTime });
+
+      if (isNaN(startDateTime.getTime()) || isNaN(endDateTime.getTime())) {
+        toast.error("Invalid date or time format");
+        setAdding(false);
+        return;
+      }
+
+      const newEvent = {
+        title: title.trim(),
+        start_time: Math.floor(startDateTime.getTime() / 1000),
+        end_time: Math.floor(endDateTime.getTime() / 1000),
+        location: location.trim(),
+        notes: "",
+        calendar_id: "", // Will use default calendar
+        all_day: false,
+        alarm_minutes_before: parseInt(alarm) || 0,
+      };
+
+      console.log("Invoking calendar_create_event with:", newEvent);
+      await invoke("calendar_create_event", { event: newEvent });
+      toast.success("Event added to calendar");
+      onClose();
+    } catch (err) {
+      console.error("Failed to create calendar event:", err);
+      toast.error(`Failed to add event: ${err}`);
+    } finally {
+      setAdding(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Title */}
+      <div className="space-y-2">
+        <Label htmlFor="event-title">Title</Label>
+        <Input
+          id="event-title"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="Event title"
+        />
+      </div>
+
+      {/* Date & Time */}
+      <div className="grid grid-cols-3 gap-3">
+        <div className="space-y-2">
+          <Label htmlFor="event-date">Date</Label>
+          <Input
+            id="event-date"
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="event-start">Start</Label>
+          <Input
+            id="event-start"
+            type="time"
+            value={startTime}
+            onChange={(e) => setStartTime(e.target.value)}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="event-end">End</Label>
+          <Input
+            id="event-end"
+            type="time"
+            value={endTime}
+            onChange={(e) => setEndTime(e.target.value)}
+          />
+        </div>
+      </div>
+
+      {/* Location */}
+      <div className="space-y-2">
+        <Label htmlFor="event-location">Location</Label>
+        <div className="relative">
+          <MapPin className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            id="event-location"
+            value={location}
+            onChange={(e) => setLocation(e.target.value)}
+            placeholder="Add location"
+            className="pl-9"
+          />
+        </div>
+      </div>
+
+      {/* Reminder */}
+      <div className="space-y-2">
+        <Label>Reminder</Label>
+        <Select value={alarm} onValueChange={setAlarm}>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="0">None</SelectItem>
+            <SelectItem value="5">5 minutes before</SelectItem>
+            <SelectItem value="15">15 minutes before</SelectItem>
+            <SelectItem value="30">30 minutes before</SelectItem>
+            <SelectItem value="60">1 hour before</SelectItem>
+            <SelectItem value="1440">1 day before</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Actions */}
+      <div className="flex justify-end gap-2 pt-2 border-t">
+        <Button variant="outline" onClick={onClose}>
+          Cancel
+        </Button>
+        <Button onClick={handleAddToCalendar} disabled={adding || !title.trim()}>
+          {adding ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <CalendarPlus className="mr-2 h-4 w-4" />
+          )}
+          Add to Calendar
+        </Button>
+      </div>
+    </div>
+  );
 }
 
 export function EmailReader({
@@ -314,6 +689,7 @@ export function EmailReader({
         : "";
 
       const response = await invoke<CompletionResponse>("extract_event", {
+        from: emailFull.from,
         subject: emailFull.subject,
         bodyText,
       });
@@ -321,12 +697,14 @@ export function EmailReader({
       if (response.success && response.content) {
         setExtractedEvent(response.content);
       } else {
-        toast.error(response.error || "Failed to extract event");
-        setEventDialogOpen(false);
+        // Don't close dialog - show NLP input for manual entry
+        setExtractedEvent(null);
+        console.error("Extract event failed:", response.error);
       }
     } catch (err) {
-      toast.error(`Failed to extract event: ${err}`);
-      setEventDialogOpen(false);
+      // Don't close dialog - show NLP input for manual entry
+      setExtractedEvent(null);
+      console.error("Extract event error:", err);
     } finally {
       setExtracting(false);
     }
@@ -709,10 +1087,18 @@ export function EmailReader({
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
               </div>
-            ) : extractedEvent ? (
-              <pre className="text-sm bg-muted p-4 rounded-lg overflow-auto max-h-64">
-                {extractedEvent}
-              </pre>
+            ) : emailFull ? (
+              <ExtractedEventDisplay
+                eventJson={extractedEvent}
+                emailFrom={emailFull.from}
+                emailSubject={emailFull.subject}
+                emailBody={
+                  emailFull.body_html
+                    ? new DOMParser().parseFromString(emailFull.body_html, "text/html").body.textContent || ""
+                    : ""
+                }
+                onClose={() => setEventDialogOpen(false)}
+              />
             ) : null}
           </div>
         </DialogContent>

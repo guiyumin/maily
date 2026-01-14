@@ -65,6 +65,25 @@ type PendingOp struct {
 	LastError string
 }
 
+// Status constants for op_logs
+const (
+	StatusSuccess = "success"
+	StatusFailed  = "failed"
+)
+
+// OpLog represents a completed operation log entry
+type OpLog struct {
+	ID          int64
+	Account     string
+	Mailbox     string
+	Operation   string
+	UID         imap.UID
+	Status      string
+	Error       string
+	CreatedAt   time.Time
+	ProcessedAt time.Time
+}
+
 // Cache manages persistent email storage using SQLite
 type Cache struct {
 	db     *sql.DB
@@ -130,9 +149,23 @@ CREATE TABLE IF NOT EXISTS pending_ops (
     last_error TEXT NOT NULL DEFAULT ''
 );
 
+CREATE TABLE IF NOT EXISTS op_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    account TEXT NOT NULL,
+    mailbox TEXT NOT NULL,
+    operation TEXT NOT NULL,
+    uid INTEGER NOT NULL,
+    status TEXT NOT NULL,
+    error TEXT NOT NULL DEFAULT '',
+    created_at INTEGER NOT NULL,
+    processed_at INTEGER NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_emails_date ON emails(account, mailbox, internal_date DESC);
 CREATE INDEX IF NOT EXISTS idx_emails_internal_date ON emails(internal_date);
 CREATE INDEX IF NOT EXISTS idx_pending_ops_account ON pending_ops(account);
+CREATE INDEX IF NOT EXISTS idx_op_logs_account ON op_logs(account);
+CREATE INDEX IF NOT EXISTS idx_op_logs_processed ON op_logs(processed_at DESC);
 `
 
 // New creates a new cache instance with SQLite backend
@@ -676,4 +709,13 @@ func (c *Cache) GetPendingOpsCount() (int, error) {
 	var count int
 	err := c.db.QueryRow("SELECT COUNT(*) FROM pending_ops").Scan(&count)
 	return count, err
+}
+
+// LogOp inserts a completed operation into op_logs
+func (c *Cache) LogOp(op PendingOp, status string, errMsg string) error {
+	_, err := c.db.Exec(`
+		INSERT INTO op_logs (account, mailbox, operation, uid, status, error, created_at, processed_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+	`, op.Account, op.Mailbox, op.Operation, uint32(op.UID), status, errMsg, op.CreatedAt.Unix(), time.Now().Unix())
+	return err
 }

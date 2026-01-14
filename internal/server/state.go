@@ -399,9 +399,11 @@ func (sm *StateManager) ProcessPendingOps() (processed int, failed int) {
 
 			if opErr != nil {
 				sm.cache.UpdatePendingOpError(op.ID, opErr.Error())
+				sm.cache.LogOp(op, cache.StatusFailed, opErr.Error())
 				failed++
 			} else {
 				sm.cache.RemovePendingOp(op.ID)
+				sm.cache.LogOp(op, cache.StatusSuccess, "")
 				// Delete from cache again in case sync pulled email back
 				if op.Operation == cache.OpDelete || op.Operation == cache.OpMoveTrash {
 					sm.cache.DeleteEmail(op.Account, op.Mailbox, op.UID)

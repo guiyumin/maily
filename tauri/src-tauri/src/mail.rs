@@ -142,8 +142,22 @@ CREATE TABLE IF NOT EXISTS attachments (
         REFERENCES emails(account, mailbox, uid) ON DELETE CASCADE
 );
 
+CREATE TABLE IF NOT EXISTS op_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    account TEXT NOT NULL,
+    mailbox TEXT NOT NULL,
+    operation TEXT NOT NULL,
+    uid INTEGER NOT NULL,
+    status TEXT NOT NULL,
+    error TEXT NOT NULL DEFAULT '',
+    created_at INTEGER NOT NULL,
+    processed_at INTEGER NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_emails_date ON emails(account, mailbox, internal_date DESC);
 CREATE INDEX IF NOT EXISTS idx_emails_internal_date ON emails(internal_date);
+CREATE INDEX IF NOT EXISTS idx_op_logs_account ON op_logs(account);
+CREATE INDEX IF NOT EXISTS idx_op_logs_processed ON op_logs(processed_at DESC);
 "#;
 
 /// Initialize database eagerly (call on app startup)
@@ -443,6 +457,17 @@ pub fn delete_email_from_cache(account: &str, mailbox: &str, uid: u32) -> Result
     conn.execute(
         "DELETE FROM emails WHERE account = ?1 AND mailbox = ?2 AND uid = ?3",
         params![account, mailbox, uid]
+    )?;
+    Ok(())
+}
+
+pub fn log_op(account: &str, mailbox: &str, operation: &str, uid: u32, status: &str, error: &str) -> Result<(), Box<dyn std::error::Error>> {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let now = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs() as i64;
+    let conn = DB.lock().unwrap();
+    conn.execute(
+        "INSERT INTO op_logs (account, mailbox, operation, uid, status, error, created_at, processed_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?7)",
+        params![account, mailbox, operation, uid, status, error, now]
     )?;
     Ok(())
 }

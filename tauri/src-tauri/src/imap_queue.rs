@@ -7,7 +7,7 @@ use serde::Serialize;
 use tauri::{AppHandle, Emitter};
 use tokio::sync::mpsc::{self, Sender};
 
-use crate::mail::{delete_email_from_cache, get_accounts, sync_emails_since};
+use crate::mail::{delete_email_from_cache, get_accounts, log_op, sync_emails_since};
 
 /// Operations that can be queued for an account
 #[derive(Debug, Clone)]
@@ -165,11 +165,14 @@ async fn process_pending_ops(
 
                 if let Err(e) = result {
                     eprintln!("[imap] spawn_blocking error: {}", e);
+                    let _ = log_op(account_name, &mailbox, "delete", uid, "failed", &e.to_string());
                 } else if let Ok(Err(e)) = result {
                     eprintln!("[imap] delete failed {}:{}/{}: {}", account_name, mailbox, uid, e);
+                    let _ = log_op(account_name, &mailbox, "delete", uid, "failed", &e.to_string());
                 } else {
                     // Delete from cache again in case sync pulled email back
                     let _ = delete_email_from_cache(account_name, &mailbox, uid);
+                    let _ = log_op(account_name, &mailbox, "delete", uid, "success", "");
                 }
             }
             ImapOperation::MoveToTrash { mailbox, uid } => {
@@ -181,11 +184,14 @@ async fn process_pending_ops(
 
                 if let Err(e) = result {
                     eprintln!("[imap] spawn_blocking error: {}", e);
+                    let _ = log_op(account_name, &mailbox, "move_trash", uid, "failed", &e.to_string());
                 } else if let Ok(Err(e)) = result {
                     eprintln!("[imap] move_to_trash failed {}:{}/{}: {}", account_name, mailbox, uid, e);
+                    let _ = log_op(account_name, &mailbox, "move_trash", uid, "failed", &e.to_string());
                 } else {
                     // Delete from cache again in case sync pulled email back
                     let _ = delete_email_from_cache(account_name, &mailbox, uid);
+                    let _ = log_op(account_name, &mailbox, "move_trash", uid, "success", "");
                 }
             }
             ImapOperation::SyncMailbox { .. } => {

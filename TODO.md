@@ -123,8 +123,8 @@ For when the project has more traction. Unverified OAuth apps show scary warning
 - [x] Connect to Rust backend SMTP/send functionality
 - [ ] Rich text editor or markdown support
 - [ ] Recipient autocomplete from contacts/history
-- [ ] Attachment support (drag & drop, file picker)
-- [ ] Draft saving (auto-save to SQLite)
+- [x] Attachment support (drag & drop, file picker)
+- [x] Draft saving (auto-save to SQLite)
 - [x] Reply/Reply All/Forward actions
 
 ### AI Features
@@ -133,7 +133,7 @@ For when the project has more traction. Unverified OAuth apps show scary warning
 - [x] AI-powered email drafting/suggestions (smart reply)
 - [x] Smart reply generation (accept/decline/ask more)
 - [x] Event extraction from emails
-- [ ] Natural language calendar event creation (needs calendar UI)
+- [x] Natural language calendar event creation (calendar UI with NLP parsing)
 
 ### Configuration Management
 
@@ -141,7 +141,7 @@ For when the project has more traction. Unverified OAuth apps show scary warning
 - [x] AI providers configuration panel
   - [x] Add/edit/remove providers
   - [ ] Drag to reorder priority
-  - [ ] Test provider connection
+  - [x] Test provider connection
   - [x] Show auto-detected CLI tools (runtime detection)
 - [ ] Account settings management
 - [x] General preferences (theme, language, etc.)
@@ -153,7 +153,8 @@ For when the project has more traction. Unverified OAuth apps show scary warning
 - [x] Click overflow menu to see all accounts
 - [x] Click any account to switch to it
 - [x] Visual indicator for active account (ring highlight)
-- [ ] Account badge showing unread count
+- [x] Account badge showing unread count
+- [x] Drag to reorder accounts (persisted to config)
 
 ### Email Summary Caching
 
@@ -184,4 +185,34 @@ For when the project has more traction. Unverified OAuth apps show scary warning
 - [x] Chat history persistence (localStorage via Zustand persist)
 - [x] Context-aware chat (current email, folder, etc.)
 - [x] Multi-turn conversations (conversation history in prompts)
-- [ ] Provider selection for chat (uses first available)
+- [x] Provider selection for chat (dropdown to choose provider)
+
+### Calendar Integration (macOS - Tauri)
+
+- [x] Rust FFI to EventKit via Objective-C
+- [x] Authorization handling (request access, check status)
+- [x] List all calendars with colors
+- [x] List events in date range
+- [x] Create events with alarms
+- [x] Delete events
+- [x] Calendar UI route (/calendar)
+- [x] Week view with navigation
+- [x] Natural language event parsing via AI
+- [x] Floating calendar button on home page
+- [ ] Month view
+- [ ] Event editing
+- [ ] Recurring events support
+- [ ] Calendar color picker for new events
+
+### Native macOS Integration (Future)
+
+> Foundation for future native features via Rust FFI
+
+- [x] EventKit (Calendar) - implemented
+- [ ] Metal (GPU-accelerated rendering)
+- [ ] Contacts.framework (address book)
+- [ ] UserNotifications (rich notifications)
+- [ ] NaturalLanguage.framework (on-device NLP)
+- [ ] Vision.framework (OCR for attachments)
+- [ ] CoreML (on-device ML)
+- [ ] CoreSpotlight (system-wide search indexing)

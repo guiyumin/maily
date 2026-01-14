@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/bubbles/spinner"
+	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
@@ -75,7 +76,7 @@ type TodayApp struct {
 	editFormStart    textinput.Model
 	editFormEnd      textinput.Model
 	editFormLocation textinput.Model
-	editFormNotes    textinput.Model
+	editFormNotes    textarea.Model
 	editFormFocus    int
 	editEventID      string
 }
@@ -900,9 +901,12 @@ func (m *TodayApp) initEditEventForm(event calendar.Event) {
 	m.editFormLocation.Placeholder = "Location (optional)"
 	m.editFormLocation.SetValue(event.Location)
 
-	m.editFormNotes = textinput.New()
+	m.editFormNotes = textarea.New()
 	m.editFormNotes.Placeholder = "Notes (optional)"
 	m.editFormNotes.SetValue(event.Notes)
+	m.editFormNotes.SetWidth(40)
+	m.editFormNotes.SetHeight(6)
+	m.editFormNotes.ShowLineNumbers = false
 
 	m.editFormFocus = 0
 	m.editEventID = event.ID

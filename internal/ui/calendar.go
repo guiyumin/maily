@@ -525,7 +525,7 @@ func (m *CalendarApp) initEditForm(event calendar.Event) {
 	notes.Placeholder = "Notes (optional)"
 	notes.CharLimit = 500
 	notes.SetWidth(35)
-	notes.SetHeight(2)
+	notes.SetHeight(6)
 	notes.ShowLineNumbers = false
 
 	m.form = eventForm{

@@ -10,7 +10,7 @@ use tauri::WebviewWindowBuilder;
 use ai::{
     complete as do_ai_complete, init_summaries_table, summarize_email as ai_summarize,
     generate_reply as ai_generate_reply, extract_event as ai_extract_event,
-    parse_event_nlp as ai_parse_event_nlp,
+    extract_reminder as ai_extract_reminder, parse_event_nlp as ai_parse_event_nlp,
     get_cached_summary, delete_summary, list_available_providers, test_provider as ai_test_provider,
     CompletionRequest, CompletionResponse, EmailSummary,
 };
@@ -362,6 +362,18 @@ async fn extract_event(from: String, subject: String, body_text: String) -> Comp
 }
 
 #[tauri::command]
+async fn extract_reminder(from: String, subject: String, body_text: String) -> CompletionResponse {
+    tauri::async_runtime::spawn_blocking(move || {
+        ai_extract_reminder(&from, &subject, &body_text)
+    }).await.unwrap_or_else(|_| CompletionResponse {
+        success: false,
+        content: None,
+        error: Some("Task panicked".to_string()),
+        model_used: None,
+    })
+}
+
+#[tauri::command]
 async fn parse_event_nlp(
     user_input: String,
     email_from: String,
@@ -484,7 +496,7 @@ fn reminders_create(reminder: NewReminder) -> Result<String, String> {
 
 /// Create reminder from email - the main use case
 #[tauri::command]
-fn reminders_create_from_email(
+async fn reminders_create_from_email(
     email_subject: String,
     email_from: String,
     email_body: String,
@@ -492,15 +504,19 @@ fn reminders_create_from_email(
     priority: Option<i32>,
     list_id: Option<String>,
 ) -> Result<String, String> {
-    let req = ReminderFromEmail {
-        email_subject,
-        email_from,
-        email_body,
-        due_date,
-        priority: priority.unwrap_or(0),
-        list_id: list_id.unwrap_or_default(),
-    };
-    rem_create_from_email(&req).map_err(|e| e.to_string())
+    tauri::async_runtime::spawn_blocking(move || {
+        let req = ReminderFromEmail {
+            email_subject,
+            email_from,
+            email_body,
+            due_date,
+            priority: priority.unwrap_or(0),
+            list_id: list_id.unwrap_or_default(),
+        };
+        rem_create_from_email(&req).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
@@ -643,6 +659,7 @@ pub fn run() {
             delete_email_summary,
             generate_reply,
             extract_event,
+            extract_reminder,
             parse_event_nlp,
             ai_complete,
             get_available_ai_providers,

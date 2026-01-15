@@ -606,6 +606,62 @@ Respond with ONLY the JSON or NO_EVENTS_FOUND, no other text."#,
     })
 }
 
+/// Extract actionable reminder/task from email
+pub fn extract_reminder(
+    from: &str,
+    subject: &str,
+    body_text: &str,
+) -> CompletionResponse {
+    let body_truncated: String = body_text.chars().take(3000).collect();
+
+    // Get current time for relative date parsing
+    let now = chrono::Local::now().format("%Y-%m-%dT%H:%M:%S%:z").to_string();
+
+    let prompt = format!(
+        r#"Extract an actionable task or follow-up from this email.
+
+Current date/time: {}
+
+From: {}
+Subject: {}
+
+{}
+
+If a task/action is found, respond with ONLY a JSON object (no markdown, no explanation):
+{{
+  "title": "brief actionable task title (start with verb)",
+  "notes": "relevant context from email",
+  "due_date": "2024-12-25T09:00:00-08:00",
+  "priority": 5
+}}
+
+If NO actionable task found, respond with exactly: NO_TASK_FOUND
+
+Rules:
+- title: Start with action verb (Reply to, Review, Send, Schedule, Follow up with, etc.)
+- title: Keep it brief (under 50 chars), include person/company name if relevant
+- notes: Include key context (what specifically needs to be done, deadline mentioned)
+- due_date: RFC3339 format. If deadline mentioned, use it. If "ASAP" or urgent, use today. Otherwise default to tomorrow 9am.
+- priority: 1=high (urgent/ASAP), 5=medium (normal), 9=low (whenever)
+
+Examples of good titles:
+- "Reply to John about Q4 budget"
+- "Review contract from Acme Corp"
+- "Send invoice to client"
+- "Schedule call with Sarah"
+
+Respond with ONLY the JSON or NO_TASK_FOUND, no other text."#,
+        now, from, subject, body_truncated
+    );
+
+    complete(CompletionRequest {
+        prompt,
+        system_prompt: None,
+        max_tokens: Some(300),
+        provider_name: None,
+    })
+}
+
 /// Parse natural language into a calendar event, with optional email context
 pub fn parse_event_nlp(
     user_input: &str,

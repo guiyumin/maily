@@ -392,20 +392,9 @@ mod macos {
     }
 
     pub fn create_reminder_from_email(req: &ReminderFromEmail) -> Result<String, ReminderError> {
-        let title = format!("Follow up: {}", req.email_subject);
-        let notes = format!(
-            "From: {}\n\n---\n\n{}",
-            req.email_from,
-            if req.email_body.len() > 500 {
-                format!("{}...", &req.email_body[..500])
-            } else {
-                req.email_body.clone()
-            }
-        );
-
         let reminder = NewReminder {
-            title,
-            notes,
+            title: req.email_subject.clone(),
+            notes: format!("From: {}", req.email_from),
             due_date: req.due_date,
             priority: req.priority,
             list_id: req.list_id.clone(),

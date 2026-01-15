@@ -18,6 +18,7 @@ import {
   AlertCircle,
   RefreshCw,
   CalendarPlus,
+  ListTodo,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -124,6 +125,20 @@ interface ExtractedEvent {
   location?: string;
   alarm_minutes_before?: number;
   alarm_specified?: boolean;
+}
+
+interface ExtractedReminder {
+  title: string;
+  notes: string;
+  due_date: string;
+  priority: number;
+}
+
+interface ExtractedReminderDisplayProps {
+  reminderJson: string | null;
+  emailFrom: string;
+  emailSubject: string;
+  onClose: () => void;
 }
 
 interface ExtractedEventDisplayProps {
@@ -489,6 +504,215 @@ function ExtractedEventDisplay({
   );
 }
 
+function ExtractedReminderDisplay({
+  reminderJson,
+  emailFrom,
+  emailSubject,
+  onClose,
+}: ExtractedReminderDisplayProps) {
+  const [adding, setAdding] = useState(false);
+  const [title, setTitle] = useState("");
+  const [notes, setNotes] = useState("");
+  const [dueDate, setDueDate] = useState("");
+  const [dueTime, setDueTime] = useState("09:00");
+  const [priority, setPriority] = useState("5");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Parse the reminder JSON and populate form fields
+  useEffect(() => {
+    if (!reminderJson) {
+      // No extraction - use defaults
+      setTitle(`Follow up: ${emailSubject}`);
+      setNotes(`From: ${emailFrom}`);
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      setDueDate(tomorrow.toISOString().split("T")[0]);
+      setDueTime("09:00");
+      setPriority("5");
+      return;
+    }
+
+    const raw = reminderJson.trim();
+
+    // Check for NO_TASK_FOUND response
+    if (raw === "NO_TASK_FOUND" || raw.includes("NO_TASK_FOUND")) {
+      setTitle(`Follow up: ${emailSubject}`);
+      setNotes(`From: ${emailFrom}`);
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      setDueDate(tomorrow.toISOString().split("T")[0]);
+      setDueTime("09:00");
+      setPriority("5");
+      setErrorMessage("No specific task found. Using defaults:");
+      return;
+    }
+
+    try {
+      const cleaned = stripMarkdownCodeFences(raw);
+      const reminder: ExtractedReminder = JSON.parse(cleaned);
+
+      setTitle(reminder.title || "");
+      setNotes(reminder.notes || "");
+      setPriority(reminder.priority?.toString() || "5");
+
+      if (reminder.due_date) {
+        const date = new Date(reminder.due_date);
+        if (!isNaN(date.getTime())) {
+          setDueDate(date.toISOString().split("T")[0]);
+          setDueTime(date.toTimeString().slice(0, 5));
+        }
+      }
+
+      setErrorMessage(null);
+    } catch (e) {
+      console.error("Failed to parse reminder JSON:", raw, e);
+      setTitle(`Follow up: ${emailSubject}`);
+      setNotes(`From: ${emailFrom}`);
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      setDueDate(tomorrow.toISOString().split("T")[0]);
+      setErrorMessage("Failed to parse AI response. Using defaults:");
+    }
+  }, [reminderJson, emailFrom, emailSubject]);
+
+  const handleAddToReminders = async () => {
+    if (!title.trim()) {
+      toast.error("Title is required");
+      return;
+    }
+
+    setAdding(true);
+    try {
+      // Check reminders access
+      const authStatus = await invoke<string>("reminders_get_auth_status");
+
+      if (authStatus !== "authorized") {
+        await invoke("reminders_request_access");
+        const newStatus = await invoke<string>("reminders_get_auth_status");
+        if (newStatus !== "authorized") {
+          toast.error("Reminders access denied. Please enable in System Settings → Privacy & Security → Reminders");
+          setAdding(false);
+          return;
+        }
+      }
+
+      // Calculate due date timestamp
+      let dueDateTimestamp: number | undefined;
+      if (dueDate) {
+        const dateTime = new Date(`${dueDate}T${dueTime}`);
+        if (!isNaN(dateTime.getTime())) {
+          dueDateTimestamp = Math.floor(dateTime.getTime() / 1000);
+        }
+      }
+
+      await invoke("reminders_create", {
+        reminder: {
+          title: title.trim(),
+          notes: notes.trim(),
+          due_date: dueDateTimestamp,
+          priority: parseInt(priority) || 5,
+          list_id: "",
+        },
+      });
+
+      toast.success("Reminder created");
+      onClose();
+    } catch (err) {
+      console.error("Failed to create reminder:", err);
+      toast.error(`Failed to create reminder: ${err}`);
+    } finally {
+      setAdding(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      {errorMessage && (
+        <div className="flex items-center gap-2 text-muted-foreground text-sm">
+          <AlertCircle className="h-4 w-4" />
+          <span>{errorMessage}</span>
+        </div>
+      )}
+
+      {/* Title */}
+      <div className="space-y-2">
+        <Label htmlFor="reminder-title">Title</Label>
+        <Input
+          id="reminder-title"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="Task title"
+        />
+      </div>
+
+      {/* Due Date & Time */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-2">
+          <Label htmlFor="reminder-date">Due Date</Label>
+          <Input
+            id="reminder-date"
+            type="date"
+            value={dueDate}
+            onChange={(e) => setDueDate(e.target.value)}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="reminder-time">Time</Label>
+          <Input
+            id="reminder-time"
+            type="time"
+            value={dueTime}
+            onChange={(e) => setDueTime(e.target.value)}
+          />
+        </div>
+      </div>
+
+      {/* Priority */}
+      <div className="space-y-2">
+        <Label>Priority</Label>
+        <Select value={priority} onValueChange={setPriority}>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="1">High</SelectItem>
+            <SelectItem value="5">Medium</SelectItem>
+            <SelectItem value="9">Low</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Notes */}
+      <div className="space-y-2">
+        <Label htmlFor="reminder-notes">Notes</Label>
+        <Textarea
+          id="reminder-notes"
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          placeholder="Additional notes"
+          rows={3}
+          className="resize-none"
+        />
+      </div>
+
+      {/* Actions */}
+      <div className="flex justify-end gap-2 pt-2 border-t">
+        <Button variant="outline" onClick={onClose}>
+          Cancel
+        </Button>
+        <Button onClick={handleAddToReminders} disabled={adding || !title.trim()}>
+          {adding ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <ListTodo className="mr-2 h-4 w-4" />
+          )}
+          Add to Reminders
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export function EmailReader({
   email: emailSummary,
   account,
@@ -520,6 +744,10 @@ export function EmailReader({
   const [eventDialogOpen, setEventDialogOpen] = useState(false);
   const [extractedEvent, setExtractedEvent] = useState<string | null>(null);
   const [extracting, setExtracting] = useState(false);
+
+  const [reminderDialogOpen, setReminderDialogOpen] = useState(false);
+  const [extractedReminder, setExtractedReminder] = useState<string | null>(null);
+  const [extractingReminder, setExtractingReminder] = useState(false);
 
   const cache = useEmailCache();
 
@@ -719,11 +947,45 @@ export function EmailReader({
     }
   };
 
+  const handleExtractReminder = async () => {
+    if (!emailFull) return;
+
+    setReminderDialogOpen(true);
+    setExtractingReminder(true);
+
+    try {
+      const bodyText = emailFull.body_html
+        ? new DOMParser().parseFromString(emailFull.body_html, "text/html").body.textContent || ""
+        : "";
+
+      const response = await invoke<CompletionResponse>("extract_reminder", {
+        from: emailFull.from,
+        subject: emailFull.subject,
+        bodyText,
+      });
+
+      if (response.success && response.content) {
+        setExtractedReminder(response.content);
+      } else {
+        // Show dialog with defaults even if extraction fails
+        setExtractedReminder(null);
+        console.error("Extract reminder failed:", response.error);
+      }
+    } catch (err) {
+      // Show dialog with defaults
+      setExtractedReminder(null);
+      console.error("Extract reminder error:", err);
+    } finally {
+      setExtractingReminder(false);
+    }
+  };
+
   // Reset AI state when email changes
   useEffect(() => {
     setSummary(null);
     setSummaryModelUsed(null);
     setExtractedEvent(null);
+    setExtractedReminder(null);
   }, [emailSummary?.uid]);
 
   // Empty state
@@ -870,6 +1132,24 @@ export function EmailReader({
               </Button>
             </TooltipTrigger>
             <TooltipContent>Extract calendar event</TooltipContent>
+          </Tooltip>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleExtractReminder}
+                disabled={!emailFull || extractingReminder}
+              >
+                {extractingReminder ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <ListTodo className="h-4 w-4" />
+                )}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Add to Reminders</TooltipContent>
           </Tooltip>
         </div>
 
@@ -1052,14 +1332,23 @@ export function EmailReader({
                     const lines = section.split("\n");
                     const title = lines[0];
                     const content = lines.slice(1);
+                    const bulletItems = content.filter(l => l.trim().startsWith("- "));
+                    const nonBulletItems = content.filter(l => !l.trim().startsWith("- ") && l.trim());
                     return (
                       <div key={i}>
                         <div className="font-medium">{title}</div>
-                        {content.map((line, j) => (
-                          <div key={j} className="ml-4 text-muted-foreground">
+                        {nonBulletItems.map((line, j) => (
+                          <div key={`t-${j}`} className="ml-4 text-muted-foreground">
                             {line.trim()}
                           </div>
                         ))}
+                        {bulletItems.length > 0 && (
+                          <ul className="ml-4 mt-1 space-y-1 text-muted-foreground list-disc list-inside">
+                            {bulletItems.map((line, j) => (
+                              <li key={`b-${j}`}>{line.trim().slice(2)}</li>
+                            ))}
+                          </ul>
+                        )}
                       </div>
                     );
                   })}
@@ -1107,6 +1396,32 @@ export function EmailReader({
                     : ""
                 }
                 onClose={() => setEventDialogOpen(false)}
+              />
+            ) : null}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Extract reminder dialog */}
+      <Dialog open={reminderDialogOpen} onOpenChange={setReminderDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ListTodo className="h-5 w-5" />
+              Create Reminder
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {extractingReminder ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : emailFull ? (
+              <ExtractedReminderDisplay
+                reminderJson={extractedReminder}
+                emailFrom={emailFull.from}
+                emailSubject={emailFull.subject}
+                onClose={() => setReminderDialogOpen(false)}
               />
             ) : null}
           </div>

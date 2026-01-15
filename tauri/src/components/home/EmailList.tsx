@@ -30,6 +30,7 @@ interface EmailListProps {
 }
 
 function formatDate(dateString: string): string {
+  console.log("DEBUG date string:", JSON.stringify(dateString));
   const date = new Date(dateString);
   const now = new Date();
   const diff = now.getTime() - date.getTime();

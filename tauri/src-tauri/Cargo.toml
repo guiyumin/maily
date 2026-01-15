@@ -41,12 +41,11 @@ tauri-plugin-dialog = "2"
 tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
 
-# macOS native framework bindings
+# macOS native framework bindings (objc2 ecosystem)
 [target.'cfg(target_os = "macos")'.dependencies]
-objc = "0.2"
-objc_id = "0.1"
-block = "0.1"
-
-[target.'cfg(target_os = "macos")'.build-dependencies]
-cc = "1.0"
+objc2 = "0.6"
+objc2-foundation = { version = "0.3", features = ["NSDate", "NSCalendar", "NSString", "NSArray", "NSError", "NSDictionary", "NSThread"] }
+objc2-event-kit = { version = "0.3", features = ["EKEventStore", "EKEvent", "EKCalendar", "EKReminder", "EKAlarm", "EKSource", "EKCalendarItem"] }
+block2 = "0.6"
+dispatch2 = "0.2"
 

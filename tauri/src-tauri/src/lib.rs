@@ -3,6 +3,7 @@ mod calendar;
 mod config;
 mod imap_queue;
 mod mail;
+mod reminders;
 mod smtp;
 
 use tauri::WebviewWindowBuilder;
@@ -35,6 +36,16 @@ use calendar::{
     list_calendars as cal_list_calendars, list_events as cal_list_events,
     create_event as cal_create_event, delete_event as cal_delete_event,
     get_default_calendar as cal_default_calendar,
+};
+use reminders::{
+    AuthStatus as ReminderAuthStatus, Reminder, ReminderList, NewReminder, ReminderFromEmail,
+    get_auth_status as rem_auth_status, request_access as rem_request_access,
+    list_lists as rem_list_lists, list_reminders as rem_list_reminders,
+    get_reminder as rem_get, create_reminder as rem_create,
+    create_reminder_from_email as rem_create_from_email, update_reminder as rem_update,
+    delete_reminder as rem_delete, complete_reminder as rem_complete,
+    uncomplete_reminder as rem_uncomplete, get_default_list as rem_default_list,
+    search_reminders as rem_search,
 };
 
 #[tauri::command]
@@ -439,6 +450,103 @@ fn calendar_get_default() -> Result<String, String> {
     cal_default_calendar().map_err(|e| e.to_string())
 }
 
+// ============ REMINDERS COMMANDS ============
+
+#[tauri::command]
+fn reminders_get_auth_status() -> ReminderAuthStatus {
+    rem_auth_status()
+}
+
+#[tauri::command]
+fn reminders_request_access() -> Result<(), String> {
+    rem_request_access().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn reminders_list_lists() -> Result<Vec<ReminderList>, String> {
+    rem_list_lists().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn reminders_list(list_id: Option<String>, include_completed: bool) -> Result<Vec<Reminder>, String> {
+    rem_list_reminders(list_id.as_deref(), include_completed).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn reminders_get(reminder_id: String) -> Result<Reminder, String> {
+    rem_get(&reminder_id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn reminders_create(reminder: NewReminder) -> Result<String, String> {
+    rem_create(&reminder).map_err(|e| e.to_string())
+}
+
+/// Create reminder from email - the main use case
+#[tauri::command]
+fn reminders_create_from_email(
+    email_subject: String,
+    email_from: String,
+    email_body: String,
+    due_date: Option<i64>,
+    priority: Option<i32>,
+    list_id: Option<String>,
+) -> Result<String, String> {
+    let req = ReminderFromEmail {
+        email_subject,
+        email_from,
+        email_body,
+        due_date,
+        priority: priority.unwrap_or(0),
+        list_id: list_id.unwrap_or_default(),
+    };
+    rem_create_from_email(&req).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn reminders_update(
+    reminder_id: String,
+    title: Option<String>,
+    notes: Option<String>,
+    due_date: Option<i64>,
+    clear_due_date: Option<bool>,
+    priority: Option<i32>,
+) -> Result<(), String> {
+    rem_update(
+        &reminder_id,
+        title.as_deref(),
+        notes.as_deref(),
+        due_date,
+        clear_due_date.unwrap_or(false),
+        priority.unwrap_or(0),
+    ).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn reminders_delete(reminder_id: String) -> Result<(), String> {
+    rem_delete(&reminder_id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn reminders_complete(reminder_id: String) -> Result<(), String> {
+    rem_complete(&reminder_id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn reminders_uncomplete(reminder_id: String) -> Result<(), String> {
+    rem_uncomplete(&reminder_id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn reminders_get_default_list() -> Result<String, String> {
+    rem_default_list().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn reminders_search(query: String, list_id: Option<String>) -> Result<Vec<Reminder>, String> {
+    rem_search(&query, list_id.as_deref()).map_err(|e| e.to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // Initialize tokio runtime for background tasks
@@ -546,7 +654,21 @@ pub fn run() {
             calendar_list_events,
             calendar_create_event,
             calendar_delete_event,
-            calendar_get_default
+            calendar_get_default,
+            // Reminders operations
+            reminders_get_auth_status,
+            reminders_request_access,
+            reminders_list_lists,
+            reminders_list,
+            reminders_get,
+            reminders_create,
+            reminders_create_from_email,
+            reminders_update,
+            reminders_delete,
+            reminders_complete,
+            reminders_uncomplete,
+            reminders_get_default_list,
+            reminders_search
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

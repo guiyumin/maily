@@ -16,8 +16,8 @@ type SettingsSection = "general" | "ai" | "accounts" | "notifications" | "integr
 
 const sections: { id: SettingsSection; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { id: "general", label: "General", icon: Settings },
-  { id: "ai", label: "AI Providers", icon: Bot },
   { id: "accounts", label: "Accounts", icon: Users },
+  { id: "ai", label: "AI Providers", icon: Bot },
   { id: "notifications", label: "Notifications", icon: Bell },
   { id: "integrations", label: "Integrations", icon: Plug },
 ];
@@ -106,7 +106,7 @@ export function SettingsPage() {
     <div className="flex h-screen bg-background">
       {/* Sidebar */}
       <aside className="w-56 border-r bg-muted/30 flex flex-col">
-        <div className="p-4 border-b">
+        <div className="h-14 px-4 border-b flex items-center">
           <Link
             to="/"
             className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"

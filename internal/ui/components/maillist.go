@@ -113,6 +113,15 @@ func (m *MailList) MarkAsRead(uid imap.UID) {
 	}
 }
 
+func (m *MailList) MarkAsUnread(uid imap.UID) {
+	for i := range m.emails {
+		if m.emails[i].UID == uid {
+			m.emails[i].Unread = true
+			return
+		}
+	}
+}
+
 // UpdateEmailBody updates the body content for an email that was loaded without body
 func (m *MailList) UpdateEmailBody(uid imap.UID, bodyHTML, snippet string) {
 	for i := range m.emails {

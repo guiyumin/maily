@@ -247,6 +247,26 @@ func (a *App) moveSingleToTrash(uid imap.UID) tea.Cmd {
 	}
 }
 
+func (a *App) markSingleAsUnread(uid imap.UID) tea.Cmd {
+	account := a.currentAccount()
+	accountEmail := ""
+	if account != nil {
+		accountEmail = account.Credentials.Email
+	}
+	mailbox := a.currentLabel
+	serverClient := a.serverClient
+
+	return func() tea.Msg {
+		if serverClient == nil {
+			return errorMsg{err: fmt.Errorf("server unavailable"), accountEmail: accountEmail}
+		}
+		if err := serverClient.MarkUnread(accountEmail, mailbox, uid); err != nil {
+			return errorMsg{err: err, accountEmail: accountEmail}
+		}
+		return markUnreadCompleteMsg{uid: uid}
+	}
+}
+
 func (a *App) sendReply() tea.Cmd {
 	account := a.currentAccount()
 	if account == nil {

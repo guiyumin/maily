@@ -18,11 +18,12 @@
 
 ## Read View
 
-| Key   | Action         |
-| ----- | -------------- |
-| `r`   | Reply          |
-| `s`   | Summarize (AI) |
-| `esc` | Back to list   |
+| Key   | Action           |
+| ----- | ---------------- |
+| `r`   | Reply            |
+| `s`   | Summarize (AI)   |
+| `u`   | Mark as unread   |
+| `esc` | Back to list     |
 
 ## Search Results
 

@@ -192,6 +192,10 @@ type singleDeleteCompleteMsg struct {
 	uid imap.UID
 }
 
+type markUnreadCompleteMsg struct {
+	uid imap.UID
+}
+
 type autoRefreshTickMsg struct{}
 
 type attachmentDownloadedMsg struct {
@@ -814,6 +818,17 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				a.mailList.SetSelections(a.selected)
 			}
+		case "u":
+			// Mark as unread (read view only)
+			if a.state == stateReady && a.view == readView && !a.confirmDelete {
+				email := a.mailList.SelectedEmail()
+				if email != nil {
+					uid := email.UID
+					a.state = stateLoading
+					a.statusMsg = "Marking as unread..."
+					return a, tea.Batch(a.spinner.Tick, a.markSingleAsUnread(uid))
+				}
+			}
 		case "d":
 			if a.state == stateReady && !a.confirmDelete {
 				// In search mode with selections, delete selected emails
@@ -1145,6 +1160,12 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.state = stateReady
 		a.mailList.RemoveByUID(msg.uid)
 		a.statusMsg = "Successfully deleted 1 email"
+
+	case markUnreadCompleteMsg:
+		a.state = stateReady
+		a.view = listView
+		a.mailList.MarkAsUnread(msg.uid)
+		a.statusMsg = "Marked as unread"
 
 	case replySentMsg:
 		a.state = stateReady

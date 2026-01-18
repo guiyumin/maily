@@ -211,7 +211,7 @@ func (c *Client) GetEmail(account, mailbox string, uid imap.UID) (*cache.CachedE
 		Account: account,
 		Mailbox: mailbox,
 		UID:     uint32(uid),
-	}, 10*time.Second)
+	}, 30*time.Second)
 	if err != nil {
 		return nil, err
 	}
@@ -300,10 +300,47 @@ func (c *Client) DeleteMulti(account, mailbox string, uids []imap.UID) error {
 	return err
 }
 
+// QueueDeleteEmail queues a delete operation (no immediate IMAP action).
+func (c *Client) QueueDeleteEmail(account, mailbox string, uid imap.UID) error {
+	_, err := c.request(server.Request{
+		Type:    server.ReqQueueDelete,
+		Account: account,
+		Mailbox: mailbox,
+		UID:     uint32(uid),
+	}, 30*time.Second)
+	return err
+}
+
+// QueueDeleteMulti queues delete operations for multiple emails.
+func (c *Client) QueueDeleteMulti(account, mailbox string, uids []imap.UID) error {
+	uint32UIDs := make([]uint32, len(uids))
+	for i, uid := range uids {
+		uint32UIDs[i] = uint32(uid)
+	}
+	_, err := c.request(server.Request{
+		Type:    server.ReqQueueDeleteMulti,
+		Account: account,
+		Mailbox: mailbox,
+		UIDs:    uint32UIDs,
+	}, 30*time.Second)
+	return err
+}
+
 // MoveToTrash moves an email to trash
 func (c *Client) MoveToTrash(account, mailbox string, uid imap.UID) error {
 	_, err := c.request(server.Request{
 		Type:    server.ReqMoveToTrash,
+		Account: account,
+		Mailbox: mailbox,
+		UID:     uint32(uid),
+	}, 30*time.Second)
+	return err
+}
+
+// QueueMoveToTrash queues a move-to-trash operation (no immediate IMAP action).
+func (c *Client) QueueMoveToTrash(account, mailbox string, uid imap.UID) error {
+	_, err := c.request(server.Request{
+		Type:    server.ReqQueueMoveTrash,
 		Account: account,
 		Mailbox: mailbox,
 		UID:     uint32(uid),
@@ -319,6 +356,21 @@ func (c *Client) MoveMultiToTrash(account, mailbox string, uids []imap.UID) erro
 	}
 	_, err := c.request(server.Request{
 		Type:    server.ReqMoveMultiTrash,
+		Account: account,
+		Mailbox: mailbox,
+		UIDs:    uint32UIDs,
+	}, 30*time.Second)
+	return err
+}
+
+// QueueMoveMultiToTrash queues move-to-trash operations for multiple emails.
+func (c *Client) QueueMoveMultiToTrash(account, mailbox string, uids []imap.UID) error {
+	uint32UIDs := make([]uint32, len(uids))
+	for i, uid := range uids {
+		uint32UIDs[i] = uint32(uid)
+	}
+	_, err := c.request(server.Request{
+		Type:    server.ReqQueueMoveMultiTrash,
 		Account: account,
 		Mailbox: mailbox,
 		UIDs:    uint32UIDs,

@@ -43,11 +43,11 @@ type App struct {
 	store           *auth.AccountStore
 	cfg             *config.Config
 	accountIdx      int
-	serverClient    *client.Client          // connection to maily server
-	imap            *mail.IMAPClient        // for operations not yet delegated (compose, drafts)
-	imapCache       map[int]*mail.IMAPClient
-	emailCache      map[string][]mail.Email // key: "accountIdx:label"
-	diskCache       *cache.Cache            // persistent disk cache (fallback only)
+	serverClient    *client.Client                // connection to maily server
+	imap            *mail.IMAPClient              // for operations not yet delegated (compose, drafts)
+	imapCache       map[int]*mail.IMAPClient      // main clients per account index
+	emailCache      map[string][]mail.Email       // key: "accountIdx:label"
+	diskCache       *cache.Cache                  // persistent disk cache (fallback only)
 	mailList        components.MailList
 	viewport        viewport.Model
 	spinner         spinner.Model
@@ -213,6 +213,28 @@ type attachmentDownloadedMsg struct {
 
 type attachmentDownloadErrorMsg struct {
 	err error
+}
+
+type emailBodyLoadedMsg struct {
+	uid          imap.UID
+	bodyHTML     string
+	snippet      string
+	accountEmail string
+	mailbox      string
+}
+
+type emailBodyErrorMsg struct {
+	uid          imap.UID
+	err          error
+	accountEmail string
+	mailbox      string
+}
+
+type serverRefreshCompleteMsg struct {
+	emails       []mail.Email
+	accountEmail string
+	mailbox      string
+	err          error
 }
 
 const autoRefreshInterval = 5 * time.Minute
@@ -674,22 +696,39 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					vpHeight := max(5, a.height-10-emailHeaderHeight)
 					a.viewport = viewport.New(a.width-8, vpHeight)
 					a.viewport.Style = lipgloss.NewStyle().Padding(1, 4, 3, 4)
+
+					// Check if body needs to be fetched
+					if email.BodyHTML == "" && email.Snippet == "" {
+						a.viewport.SetContent("Loading email content...")
+						// Trigger async body fetch
+						cmd := a.fetchEmailBody(email.UID)
+						if email.Unread {
+							uid := email.UID
+							account := a.currentAccount()
+							label := a.currentLabel
+							serverClient := a.serverClient
+							a.mailList.MarkAsRead(uid)
+							go func() {
+								if serverClient != nil && account != nil {
+									_ = serverClient.MarkRead(account.Credentials.Email, label, uid)
+								}
+							}()
+						}
+						return a, cmd
+					}
+
 					a.viewport.SetContent(a.renderEmailContent(*email))
 
 					if email.Unread {
 						uid := email.UID
 						account := a.currentAccount()
-						imapClient := a.imap
 						label := a.currentLabel
+						serverClient := a.serverClient
 						// Update in-memory state immediately for responsive UI
 						a.mailList.MarkAsRead(uid)
 						go func() {
-							if imapClient != nil {
-								imapClient.MarkAsRead(uid)
-							}
-							// Update disk cache
-							if a.diskCache != nil && account != nil {
-								a.diskCache.UpdateEmailFlags(account.Credentials.Email, label, uid, false)
+							if serverClient != nil && account != nil {
+								_ = serverClient.MarkRead(account.Credentials.Email, label, uid)
 							}
 						}()
 					}
@@ -720,11 +759,11 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 			}
 		case "R":
-			// Shift+R for refresh from IMAP server
+			// Shift+R for refresh - direct IMAP metadata-only refresh
 			if a.state == stateReady && !a.isSearchResult && a.view == listView {
 				a.state = stateLoading
 				a.statusMsg = "Refreshing..."
-				return a, tea.Batch(a.spinner.Tick, a.loadEmails())
+				return a, tea.Batch(a.spinner.Tick, a.refreshFromIMAP())
 			}
 		case "s":
 			// Context-aware: search in list view, summarize in read view
@@ -970,12 +1009,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		a.imap = msg.imap
 		a.imapCache[a.accountIdx] = msg.imap
-		// If we have emails visible, load labels silently (user already has usable UI)
-		if len(a.mailList.Emails()) > 0 {
-			return a, a.loadLabels()
-		}
-		a.statusMsg = "Loading labels..."
-		return a, a.loadLabels()
+		return a, nil
 
 	case labelsLoadedMsg:
 		// Ignore messages from other accounts (stale messages after switching)
@@ -1036,7 +1070,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				a.statusMsg = fmt.Sprintf("%s: %d emails", labelName, len(msg.emails))
 			}
 		}
-		return a, a.initClient()
+		return a, tea.Batch(a.initClient(), a.loadLabels())
 
 	case emailsLoadedMsg:
 		// Ignore messages from other accounts (stale messages after switching)
@@ -1060,14 +1094,42 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		labelName := components.GetLabelDisplayName(a.currentLabel)
 		a.statusMsg = fmt.Sprintf("%s: %d emails", labelName, len(msg.emails))
 		// Update cache metadata so future runs know cache is fresh
-		if a.diskCache != nil && currentEmail != "" && msg.uidValidity != 0 {
+		if a.diskCache != nil && currentEmail != "" {
 			uidValidity := msg.uidValidity
 			label := a.currentLabel
-			go func() {
+			go func(email, mailbox string, uidValidity uint32) {
+				if uidValidity == 0 {
+					if meta, err := a.diskCache.LoadMetadata(email, mailbox); err == nil && meta != nil {
+						uidValidity = meta.UIDValidity
+					}
+				}
 				meta := &cache.Metadata{UIDValidity: uidValidity, LastSync: time.Now()}
-				a.diskCache.SaveMetadata(currentEmail, label, meta)
-			}()
+				_ = a.diskCache.SaveMetadata(email, mailbox, meta)
+			}(currentEmail, label, uidValidity)
 		}
+
+	case serverRefreshCompleteMsg:
+		// Ignore messages from other accounts/mailboxes (stale messages after switching)
+		currentAccount := a.currentAccount()
+		currentEmail := ""
+		if currentAccount != nil {
+			currentEmail = currentAccount.Credentials.Email
+		}
+		if msg.accountEmail != currentEmail || msg.mailbox != a.currentLabel {
+			return a, nil
+		}
+		if msg.err != nil {
+			a.state = stateError
+			a.err = msg.err
+			a.statusMsg = fmt.Sprintf("Refresh failed: %v", msg.err)
+			return a, nil
+		}
+		a.mailList.SetEmails(msg.emails)
+		cacheKey := fmt.Sprintf("%d:%s", a.accountIdx, a.currentLabel)
+		a.emailCache[cacheKey] = msg.emails
+		a.state = stateReady
+		labelName := components.GetLabelDisplayName(a.currentLabel)
+		a.statusMsg = fmt.Sprintf("%s: %d emails (refreshed)", labelName, len(msg.emails))
 
 	case autoRefreshTickMsg:
 		// Schedule next tick
@@ -1276,6 +1338,34 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case attachmentDownloadErrorMsg:
 		a.state = stateReady
 		a.statusMsg = fmt.Sprintf("Download failed: %v", msg.err)
+
+	case emailBodyLoadedMsg:
+		// Skip UI update if account/mailbox changed since fetch started
+		currentAccount := a.currentAccount()
+		if currentAccount == nil || msg.accountEmail != currentAccount.Credentials.Email || msg.mailbox != a.currentLabel {
+			return a, nil
+		}
+		// Update the email body in the mail list
+		a.mailList.UpdateEmailBody(msg.uid, msg.bodyHTML, msg.snippet)
+		// Re-render if we're still viewing this email
+		if a.view == readView {
+			if email := a.mailList.SelectedEmail(); email != nil && email.UID == msg.uid {
+				a.viewport.SetContent(a.renderEmailContent(*email))
+			}
+		}
+
+	case emailBodyErrorMsg:
+		// Skip error display if account/mailbox changed since fetch started
+		currentAccount := a.currentAccount()
+		if currentAccount == nil || msg.accountEmail != currentAccount.Credentials.Email || msg.mailbox != a.currentLabel {
+			return a, nil
+		}
+		// Only show error if still viewing the same email
+		if a.view == readView {
+			if email := a.mailList.SelectedEmail(); email != nil && email.UID == msg.uid {
+				a.viewport.SetContent(fmt.Sprintf("Failed to load email content: %v", msg.err))
+			}
+		}
 	}
 
 	if a.view == listView && a.state == stateReady {

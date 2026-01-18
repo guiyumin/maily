@@ -21,7 +21,7 @@ import (
 )
 
 const (
-	syncInterval = 30 * time.Minute
+	syncInterval = 10 * time.Minute
 )
 
 // Server is the long-running maily server process
@@ -160,6 +160,9 @@ func (s *Server) Run() error {
 	// Wait for goroutines to finish
 	s.wg.Wait()
 
+	// Close any pooled IMAP clients
+	s.state.CloseIMAPClients()
+
 	// Clean up socket
 	os.Remove(s.sockPath)
 
@@ -271,7 +274,7 @@ func (s *Server) handleRequest(_ *Client, req *Request) Response {
 		return Response{Type: RespEmails, Emails: emails}
 
 	case ReqGetEmail:
-		email, err := s.state.GetEmail(req.Account, req.Mailbox, imap.UID(req.UID))
+		email, err := s.state.GetEmailWithBody(req.Account, req.Mailbox, imap.UID(req.UID))
 		if err != nil {
 			return Response{Type: RespError, Error: err.Error()}
 		}
@@ -321,6 +324,18 @@ func (s *Server) handleRequest(_ *Client, req *Request) Response {
 	case ReqMoveMultiTrash:
 		return s.moveMultiToTrash(req.Account, req.Mailbox, req.UIDs)
 
+	case ReqQueueDelete:
+		return s.queueDeleteEmail(req.Account, req.Mailbox, imap.UID(req.UID))
+
+	case ReqQueueDeleteMulti:
+		return s.queueDeleteMultiEmails(req.Account, req.Mailbox, req.UIDs)
+
+	case ReqQueueMoveTrash:
+		return s.queueMoveToTrash(req.Account, req.Mailbox, imap.UID(req.UID))
+
+	case ReqQueueMoveMultiTrash:
+		return s.queueMoveMultiToTrash(req.Account, req.Mailbox, req.UIDs)
+
 	case ReqMarkMultiRead:
 		return s.markMultiRead(req.Account, req.Mailbox, req.UIDs)
 
@@ -341,66 +356,61 @@ func (s *Server) handleRequest(_ *Client, req *Request) Response {
 
 // markEmailRead updates read status on IMAP and cache
 func (s *Server) markEmailRead(account, mailbox string, uid imap.UID, read bool) Response {
-	creds, err := s.state.GetAccountCredentials(account)
+	err := s.state.withIMAPClient(account, func(client *mail.IMAPClient) error {
+		if err := client.SelectMailbox(mailbox); err != nil {
+			return err
+		}
+		if read {
+			return client.MarkAsRead(uid)
+		}
+		return client.MarkAsUnread(uid)
+	})
 	if err != nil {
 		return Response{Type: RespError, Error: err.Error()}
 	}
 
-	client, err := mail.NewIMAPClient(creds)
-	if err != nil {
-		return Response{Type: RespError, Error: err.Error()}
-	}
-	defer client.Close()
-
-	// Select mailbox first
-	if err := client.SelectMailbox(mailbox); err != nil {
-		return Response{Type: RespError, Error: err.Error()}
-	}
-
-	if read {
-		err = client.MarkAsRead(uid)
-	} else {
-		err = client.MarkAsUnread(uid)
-	}
-	if err != nil {
-		return Response{Type: RespError, Error: err.Error()}
-	}
-
-	// Update cache
-	email, _ := s.state.GetEmail(account, mailbox, uid)
-	if email != nil {
-		email.Unread = !read
-		s.state.UpdateEmail(account, mailbox, *email)
-	}
-
+	_ = s.state.UpdateEmailFlags(account, mailbox, uid, !read)
 	return Response{Type: RespOK}
 }
 
 // deleteEmail deletes an email from IMAP and cache
 func (s *Server) deleteEmail(account, mailbox string, uid imap.UID) Response {
-	creds, err := s.state.GetAccountCredentials(account)
+	err := s.state.withIMAPClient(account, func(client *mail.IMAPClient) error {
+		if err := client.SelectMailbox(mailbox); err != nil {
+			return err
+		}
+		return client.DeleteMessage(uid)
+	})
 	if err != nil {
-		return Response{Type: RespError, Error: err.Error()}
-	}
-
-	client, err := mail.NewIMAPClient(creds)
-	if err != nil {
-		return Response{Type: RespError, Error: err.Error()}
-	}
-	defer client.Close()
-
-	// Select mailbox first
-	if err := client.SelectMailbox(mailbox); err != nil {
-		return Response{Type: RespError, Error: err.Error()}
-	}
-
-	if err := client.DeleteMessage(uid); err != nil {
 		return Response{Type: RespError, Error: err.Error()}
 	}
 
 	// Update cache
 	s.state.DeleteEmail(account, mailbox, uid)
 
+	return Response{Type: RespOK}
+}
+
+// queueDeleteEmail deletes an email from cache and enqueues a delete op.
+func (s *Server) queueDeleteEmail(account, mailbox string, uid imap.UID) Response {
+	if err := s.state.QueueOp(account, mailbox, cache.OpDelete, uid); err != nil {
+		return Response{Type: RespError, Error: err.Error()}
+	}
+	return Response{Type: RespOK}
+}
+
+// queueDeleteMultiEmails deletes multiple emails from cache and enqueues delete ops.
+func (s *Server) queueDeleteMultiEmails(account, mailbox string, uids []uint32) Response {
+	if len(uids) == 0 {
+		return Response{Type: RespOK}
+	}
+	imapUIDs := make([]imap.UID, len(uids))
+	for i, uid := range uids {
+		imapUIDs[i] = imap.UID(uid)
+	}
+	if err := s.state.QueueOps(account, mailbox, cache.OpDelete, imapUIDs); err != nil {
+		return Response{Type: RespError, Error: err.Error()}
+	}
 	return Response{Type: RespOK}
 }
 
@@ -471,28 +481,19 @@ func (s *Server) deleteMultiEmails(account, mailbox string, uids []uint32) Respo
 		return Response{Type: RespOK}
 	}
 
-	creds, err := s.state.GetAccountCredentials(account)
-	if err != nil {
-		return Response{Type: RespError, Error: err.Error()}
-	}
-
-	client, err := mail.NewIMAPClient(creds)
-	if err != nil {
-		return Response{Type: RespError, Error: err.Error()}
-	}
-	defer client.Close()
-
-	if err := client.SelectMailbox(mailbox); err != nil {
-		return Response{Type: RespError, Error: err.Error()}
-	}
-
 	// Convert to imap.UID slice
 	imapUIDs := make([]imap.UID, len(uids))
 	for i, uid := range uids {
 		imapUIDs[i] = imap.UID(uid)
 	}
 
-	if err := client.DeleteMessages(imapUIDs); err != nil {
+	err := s.state.withIMAPClient(account, func(client *mail.IMAPClient) error {
+		if err := client.SelectMailbox(mailbox); err != nil {
+			return err
+		}
+		return client.DeleteMessages(imapUIDs)
+	})
+	if err != nil {
 		return Response{Type: RespError, Error: err.Error()}
 	}
 
@@ -506,18 +507,10 @@ func (s *Server) deleteMultiEmails(account, mailbox string, uids []uint32) Respo
 
 // moveToTrash moves a single email to trash
 func (s *Server) moveToTrash(account, mailbox string, uid imap.UID) Response {
-	creds, err := s.state.GetAccountCredentials(account)
+	err := s.state.withIMAPClient(account, func(client *mail.IMAPClient) error {
+		return client.MoveToTrashFromMailbox([]imap.UID{uid}, mailbox)
+	})
 	if err != nil {
-		return Response{Type: RespError, Error: err.Error()}
-	}
-
-	client, err := mail.NewIMAPClient(creds)
-	if err != nil {
-		return Response{Type: RespError, Error: err.Error()}
-	}
-	defer client.Close()
-
-	if err := client.MoveToTrashFromMailbox([]imap.UID{uid}, mailbox); err != nil {
 		return Response{Type: RespError, Error: err.Error()}
 	}
 
@@ -527,22 +520,19 @@ func (s *Server) moveToTrash(account, mailbox string, uid imap.UID) Response {
 	return Response{Type: RespOK}
 }
 
+// queueMoveToTrash deletes an email from cache and enqueues a move-to-trash op.
+func (s *Server) queueMoveToTrash(account, mailbox string, uid imap.UID) Response {
+	if err := s.state.QueueOp(account, mailbox, cache.OpMoveTrash, uid); err != nil {
+		return Response{Type: RespError, Error: err.Error()}
+	}
+	return Response{Type: RespOK}
+}
+
 // moveMultiToTrash moves multiple emails to trash
 func (s *Server) moveMultiToTrash(account, mailbox string, uids []uint32) Response {
 	if len(uids) == 0 {
 		return Response{Type: RespOK}
 	}
-
-	creds, err := s.state.GetAccountCredentials(account)
-	if err != nil {
-		return Response{Type: RespError, Error: err.Error()}
-	}
-
-	client, err := mail.NewIMAPClient(creds)
-	if err != nil {
-		return Response{Type: RespError, Error: err.Error()}
-	}
-	defer client.Close()
 
 	// Convert to imap.UID slice
 	imapUIDs := make([]imap.UID, len(uids))
@@ -550,7 +540,10 @@ func (s *Server) moveMultiToTrash(account, mailbox string, uids []uint32) Respon
 		imapUIDs[i] = imap.UID(uid)
 	}
 
-	if err := client.MoveToTrashFromMailbox(imapUIDs, mailbox); err != nil {
+	err := s.state.withIMAPClient(account, func(client *mail.IMAPClient) error {
+		return client.MoveToTrashFromMailbox(imapUIDs, mailbox)
+	})
+	if err != nil {
 		return Response{Type: RespError, Error: err.Error()}
 	}
 
@@ -562,25 +555,25 @@ func (s *Server) moveMultiToTrash(account, mailbox string, uids []uint32) Respon
 	return Response{Type: RespOK}
 }
 
+// queueMoveMultiToTrash deletes multiple emails from cache and enqueues move-to-trash ops.
+func (s *Server) queueMoveMultiToTrash(account, mailbox string, uids []uint32) Response {
+	if len(uids) == 0 {
+		return Response{Type: RespOK}
+	}
+	imapUIDs := make([]imap.UID, len(uids))
+	for i, uid := range uids {
+		imapUIDs[i] = imap.UID(uid)
+	}
+	if err := s.state.QueueOps(account, mailbox, cache.OpMoveTrash, imapUIDs); err != nil {
+		return Response{Type: RespError, Error: err.Error()}
+	}
+	return Response{Type: RespOK}
+}
+
 // markMultiRead marks multiple emails as read
 func (s *Server) markMultiRead(account, mailbox string, uids []uint32) Response {
 	if len(uids) == 0 {
 		return Response{Type: RespOK}
-	}
-
-	creds, err := s.state.GetAccountCredentials(account)
-	if err != nil {
-		return Response{Type: RespError, Error: err.Error()}
-	}
-
-	client, err := mail.NewIMAPClient(creds)
-	if err != nil {
-		return Response{Type: RespError, Error: err.Error()}
-	}
-	defer client.Close()
-
-	if err := client.SelectMailbox(mailbox); err != nil {
-		return Response{Type: RespError, Error: err.Error()}
 	}
 
 	// Convert to imap.UID slice
@@ -589,17 +582,19 @@ func (s *Server) markMultiRead(account, mailbox string, uids []uint32) Response 
 		imapUIDs[i] = imap.UID(uid)
 	}
 
-	if err := client.MarkMessagesAsRead(imapUIDs); err != nil {
+	err := s.state.withIMAPClient(account, func(client *mail.IMAPClient) error {
+		if err := client.SelectMailbox(mailbox); err != nil {
+			return err
+		}
+		return client.MarkMessagesAsRead(imapUIDs)
+	})
+	if err != nil {
 		return Response{Type: RespError, Error: err.Error()}
 	}
 
 	// Update cache
 	for _, uid := range imapUIDs {
-		email, _ := s.state.GetEmail(account, mailbox, uid)
-		if email != nil {
-			email.Unread = false
-			s.state.UpdateEmail(account, mailbox, *email)
-		}
+		_ = s.state.UpdateEmailFlags(account, mailbox, uid, false)
 	}
 
 	return Response{Type: RespOK}
@@ -607,18 +602,12 @@ func (s *Server) markMultiRead(account, mailbox string, uids []uint32) Response 
 
 // searchEmails searches emails via IMAP
 func (s *Server) searchEmails(account, mailbox, query string) Response {
-	creds, err := s.state.GetAccountCredentials(account)
-	if err != nil {
-		return Response{Type: RespError, Error: err.Error()}
-	}
-
-	client, err := mail.NewIMAPClient(creds)
-	if err != nil {
-		return Response{Type: RespError, Error: err.Error()}
-	}
-	defer client.Close()
-
-	emails, err := client.SearchMessages(mailbox, query)
+	var emails []mail.Email
+	err := s.state.withIMAPClient(account, func(client *mail.IMAPClient) error {
+		var err error
+		emails, err = client.SearchMessages(mailbox, query)
+		return err
+	})
 	if err != nil {
 		return Response{Type: RespError, Error: err.Error()}
 	}

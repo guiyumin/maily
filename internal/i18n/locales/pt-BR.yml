@@ -145,6 +145,21 @@ login.yahoo.hint: 'Você precisa de uma senha de app para continuar.
   2. Clique em ''Gerar senha de app''
 
   3. Selecione ''Outro app'' e gere'
+login.qq.title: Login QQ Mail
+login.qq.password_label: 'Código de autorização:'
+login.qq.hint: 'Você precisa de um código de autorização (授权码) para continuar.
+
+
+  1. Acesse: mail.qq.com → Configurações → Conta
+
+  2. Ative o serviço IMAP/SMTP
+
+  3. Gere o código de autorização'
+login.qq.error_hint: 'Certifique-se de:
+
+  • Usar um código de autorização (não sua senha QQ)
+
+  • Ter o serviço IMAP/SMTP ativado nas configurações do QQ Mail'
 login.hint_fields: Tab alternar campo · Enter enviar · Esc cancelar
 login.hint_exit: Pressione Enter para sair.
 provider.select_title: Selecionar provedor de e-mail
@@ -155,6 +170,8 @@ provider.yahoo: Yahoo Mail
 provider.yahoo_desc: Yahoo Mail
 provider.imap: IMAP
 provider.imap_desc: Servidor IMAP personalizado
+provider.qq: QQ Mail
+provider.qq_desc: Tencent QQ Mail
 config.title: Configurações do Maily
 config.section.general: Geral
 config.section.ai_providers: Provedores de IA

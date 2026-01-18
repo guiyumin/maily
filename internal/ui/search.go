@@ -3,7 +3,6 @@ package ui
 import (
 	"fmt"
 	"strings"
-	"maily/internal/ui/utils"
 
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/viewport"
@@ -12,8 +11,11 @@ import (
 	"github.com/emersion/go-imap/v2"
 
 	"maily/internal/auth"
+	"maily/internal/cache"
+	"maily/internal/client"
 	"maily/internal/mail"
 	"maily/internal/ui/components"
+	"maily/internal/ui/utils"
 )
 
 type searchState int
@@ -53,9 +55,9 @@ const (
 type SearchApp struct {
 	account             *auth.Account
 	query               string
-	imap                *mail.IMAPClient
+	serverClient        *client.Client
 	uids                []imap.UID       // All matching UIDs from search
-	emails              map[int]mail.Email // Lazily loaded emails by index
+	emails              map[int]mail.Email // Loaded emails by index
 	selected            map[int]bool
 	cursor              int
 	state               searchState
@@ -70,20 +72,12 @@ type SearchApp struct {
 	scrollCount         int
 	confirmDeleteSingle bool
 	confirmSelection    confirmOption // Selected button in confirm dialogs
-	loadingRange        bool          // True when fetching a new range
-	lastLoadedStart     int           // Start of last loaded range
-	lastLoadedEnd       int           // End of last loaded range
 }
 
-// searchUIDsMsg is sent when UIDs are fetched (first phase)
-type searchUIDsMsg struct {
-	uids []imap.UID
-}
-
-// searchRangeMsg is sent when a range of emails is loaded (lazy loading)
-type searchRangeMsg struct {
-	start  int
-	emails []mail.Email
+// searchResultsMsg is sent when search results are loaded.
+type searchResultsMsg struct {
+	client *client.Client
+	emails []cache.CachedEmail
 }
 
 type searchErrorMsg struct {
@@ -92,6 +86,12 @@ type searchErrorMsg struct {
 
 type actionCompleteMsg struct {
 	count int
+}
+
+type searchEmailBodyLoadedMsg struct {
+	uid      imap.UID
+	bodyHTML string
+	snippet  string
 }
 
 func NewSearchApp(account *auth.Account, query string) SearchApp {
@@ -123,49 +123,22 @@ func (a SearchApp) Init() tea.Cmd {
 
 func (a SearchApp) connect() tea.Cmd {
 	return func() tea.Msg {
-		// Phase 1: Only fetch UIDs (fast)
-		uids, err := mail.Search(&a.account.Credentials, "INBOX", a.query)
+		serverClient, err := client.Connect()
 		if err != nil {
 			return searchErrorMsg{err: err}
 		}
-
-		return searchUIDsMsg{uids: uids}
-	}
-}
-
-// loadRange fetches email details for a range of UIDs
-func (a *SearchApp) loadRange(start, end int) tea.Cmd {
-	return func() tea.Msg {
-		if start >= len(a.uids) {
-			return searchRangeMsg{start: start, emails: nil}
-		}
-		if end > len(a.uids) {
-			end = len(a.uids)
-		}
-
-		// Get UIDs for this range
-		rangeUIDs := a.uids[start:end]
-		if len(rangeUIDs) == 0 {
-			return searchRangeMsg{start: start, emails: nil}
-		}
-
-		// Fetch email details
-		client, err := mail.NewIMAPClient(&a.account.Credentials)
+		cached, err := serverClient.Search(a.account.Credentials.Email, "INBOX", a.query)
 		if err != nil {
+			serverClient.Close()
 			return searchErrorMsg{err: err}
 		}
-		defer client.Close()
-
-		emails, err := client.FetchByUIDs("INBOX", rangeUIDs)
-		if err != nil {
-			return searchErrorMsg{err: err}
-		}
-
-		return searchRangeMsg{start: start, emails: emails}
+		return searchResultsMsg{client: serverClient, emails: cached}
 	}
 }
 
 func (a *SearchApp) executeAction() tea.Cmd {
+	accountEmail := a.account.Credentials.Email
+	serverClient := a.serverClient
 	return func() tea.Msg {
 		var uids []imap.UID
 		for i := range a.selected {
@@ -177,9 +150,15 @@ func (a *SearchApp) executeAction() tea.Cmd {
 		var err error
 		switch a.action {
 		case actionDelete:
-			err = a.imap.DeleteMessages(uids)
+			if serverClient == nil {
+				return searchErrorMsg{err: fmt.Errorf("server unavailable")}
+			}
+			err = serverClient.QueueDeleteMulti(accountEmail, "INBOX", uids)
 		case actionMarkRead:
-			err = a.imap.MarkMessagesAsRead(uids)
+			if serverClient == nil {
+				return searchErrorMsg{err: fmt.Errorf("server unavailable")}
+			}
+			err = serverClient.MarkMultiRead(accountEmail, "INBOX", uids)
 		}
 
 		if err != nil {
@@ -187,6 +166,28 @@ func (a *SearchApp) executeAction() tea.Cmd {
 		}
 
 		return actionCompleteMsg{count: len(uids)}
+	}
+}
+
+func (a *SearchApp) fetchEmailBody(uid imap.UID) tea.Cmd {
+	accountEmail := a.account.Credentials.Email
+	serverClient := a.serverClient
+	return func() tea.Msg {
+		if serverClient == nil {
+			return searchErrorMsg{err: fmt.Errorf("server unavailable")}
+		}
+		cached, err := serverClient.GetEmail(accountEmail, "INBOX", uid)
+		if err != nil {
+			return searchErrorMsg{err: err}
+		}
+		if cached == nil {
+			return searchErrorMsg{err: fmt.Errorf("email not found")}
+		}
+		return searchEmailBodyLoadedMsg{
+			uid:      uid,
+			bodyHTML: cached.BodyHTML,
+			snippet:  cached.Snippet,
+		}
 	}
 }
 
@@ -200,10 +201,16 @@ func (a SearchApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return a.handleConfirmKeys(msg)
 		case searchStateDone:
 			if msg.String() == "q" || msg.String() == "enter" || msg.String() == "esc" {
+				if a.serverClient != nil {
+					a.serverClient.Close()
+				}
 				return a, tea.Quit
 			}
 		case searchStateError:
 			if msg.String() == "q" || msg.String() == "enter" || msg.String() == "esc" {
+				if a.serverClient != nil {
+					a.serverClient.Close()
+				}
 				return a, tea.Quit
 			}
 		}
@@ -253,43 +260,44 @@ func (a SearchApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.spinner, cmd = a.spinner.Update(msg)
 		return a, cmd
 
-	case searchUIDsMsg:
-		a.uids = msg.uids
-		if len(a.uids) == 0 {
+	case searchResultsMsg:
+		a.serverClient = msg.client
+		if len(msg.emails) == 0 {
 			a.message = "No emails found matching your query."
 			a.state = searchStateDone
 			return a, nil
 		}
-		// Load first visible range
-		a.loadingRange = true
-		return a, a.loadRange(0, 50) // Load first 50 emails
 
-	case searchRangeMsg:
-		a.loadingRange = false
-		// Store loaded emails in map
-		for i, email := range msg.emails {
-			a.emails[msg.start+i] = email
+		a.uids = make([]imap.UID, len(msg.emails))
+		a.emails = make(map[int]mail.Email, len(msg.emails))
+		for i, cached := range msg.emails {
+			email := cachedToGmail(cached)
+			a.uids[i] = email.UID
+			a.emails[i] = email
 		}
-		a.lastLoadedStart = msg.start
-		a.lastLoadedEnd = msg.start + len(msg.emails)
-
-		// First load - transition to ready state and create action client
 		if a.state == searchStateLoading {
 			a.state = searchStateReady
-			// Create IMAP client for later actions
-			client, err := mail.NewIMAPClient(&a.account.Credentials)
-			if err != nil {
-				a.state = searchStateError
-				a.err = fmt.Errorf("failed to connect for actions: %w", err)
-				return a, nil
-			}
-			client.SelectMailbox("INBOX")
-			a.imap = client
 		}
 
 	case searchErrorMsg:
 		a.state = searchStateError
 		a.err = msg.err
+
+	case searchEmailBodyLoadedMsg:
+		for idx, email := range a.emails {
+			if email.UID == msg.uid {
+				email.BodyHTML = msg.bodyHTML
+				email.Snippet = msg.snippet
+				a.emails[idx] = email
+				break
+			}
+		}
+		if a.view == searchReadView && a.cursor < len(a.emails) {
+			email := a.emails[a.cursor]
+			if email.UID == msg.uid {
+				a.viewport.SetContent(a.renderEmailContent(email))
+			}
+		}
 
 	case actionCompleteMsg:
 		actionName := ""
@@ -359,14 +367,14 @@ func (a SearchApp) handleReadyKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	// Handle list view keys
 	switch msg.String() {
 	case "q":
-		if a.imap != nil {
-			a.imap.Close()
+		if a.serverClient != nil {
+			a.serverClient.Close()
 		}
 		return a, tea.Quit
 
 	case "esc":
-		if a.imap != nil {
-			a.imap.Close()
+		if a.serverClient != nil {
+			a.serverClient.Close()
 		}
 		return a, tea.Quit
 
@@ -379,13 +387,15 @@ func (a SearchApp) handleReadyKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			a.viewport.GotoTop()
 
 			// Mark as read in background
-			if email.Unread && a.imap != nil {
-				imapClient := a.imap
+			if email.Unread && a.serverClient != nil {
+				serverClient := a.serverClient
 				uid := email.UID
+				accountEmail := a.account.Credentials.Email
 				go func() {
-					imapClient.MarkAsRead(uid)
+					_ = serverClient.MarkRead(accountEmail, "INBOX", uid)
 				}()
 			}
+			return a, a.fetchEmailBody(email.UID)
 		}
 
 	case "up", "k":
@@ -396,17 +406,6 @@ func (a SearchApp) handleReadyKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "down", "j":
 		if a.cursor < len(a.emails)-1 {
 			a.cursor++
-		}
-
-	case "l": // Load more emails
-		if !a.loadingRange && len(a.emails) < len(a.uids) {
-			a.loadingRange = true
-			start := len(a.emails)
-			end := start + 50
-			if end > len(a.uids) {
-				end = len(a.uids)
-			}
-			return a, a.loadRange(start, end)
 		}
 
 	case " ": // Space to toggle selection
@@ -448,8 +447,8 @@ func (a SearchApp) handleReadyKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 func (a SearchApp) handleReadViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
 	case "q":
-		if a.imap != nil {
-			a.imap.Close()
+		if a.serverClient != nil {
+			a.serverClient.Close()
 		}
 		return a, tea.Quit
 
@@ -502,10 +501,11 @@ func (a SearchApp) handleReadViewKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 						a.cursor--
 					}
 					// Delete in background
-					if a.imap != nil {
-						imapClient := a.imap
+					if a.serverClient != nil {
+						serverClient := a.serverClient
+						accountEmail := a.account.Credentials.Email
 						go func() {
-							imapClient.DeleteMessage(uid)
+							_ = serverClient.QueueDeleteEmail(accountEmail, "INBOX", uid)
 						}()
 					}
 					// Go back to list view
@@ -549,6 +549,7 @@ func (a SearchApp) renderEmailContent(email mail.Email) string {
 	}
 	return components.RenderHTMLBody(body, width)
 }
+
 
 func (a SearchApp) handleConfirmKeys(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	switch msg.String() {
@@ -922,16 +923,9 @@ func (a SearchApp) renderStatusBar() string {
 					Render(fmt.Sprintf(" %d selected ", count))
 			}
 
-			// Show load more hint if there are more emails
-			loadMoreHint := ""
-			if len(a.emails) < len(a.uids) {
-				loadMoreHint = components.HelpKeyStyle.Render("l") + components.HelpDescStyle.Render(" load more  ")
-			}
-
 			help = components.HelpKeyStyle.Render("enter") + components.HelpDescStyle.Render(" read  ") +
 				components.HelpKeyStyle.Render("space") + components.HelpDescStyle.Render(" toggle  ") +
 				components.HelpKeyStyle.Render("a") + components.HelpDescStyle.Render(" all  ") +
-				loadMoreHint +
 				components.HelpKeyStyle.Render("d") + components.HelpDescStyle.Render(" delete  ") +
 				components.HelpKeyStyle.Render("r") + components.HelpDescStyle.Render(" mark read  ") +
 				components.HelpKeyStyle.Render("q") + components.HelpDescStyle.Render(" quit") +
@@ -945,8 +939,6 @@ func (a SearchApp) renderStatusBar() string {
 	var status string
 	if a.message != "" && a.state == searchStateReady {
 		status = components.SuccessStyle.Render(a.message)
-	} else if a.loadingRange {
-		status = components.StatusKeyStyle.Render(fmt.Sprintf("Loading... %d/%d emails", len(a.emails), len(a.uids)))
 	} else {
 		status = components.StatusKeyStyle.Render(fmt.Sprintf("%d/%d emails", len(a.emails), len(a.uids)))
 	}
@@ -960,4 +952,3 @@ func (a SearchApp) renderStatusBar() string {
 		help + strings.Repeat(" ", gap) + status,
 	)
 }
-

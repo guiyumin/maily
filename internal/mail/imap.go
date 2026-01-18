@@ -161,6 +161,37 @@ func (c *IMAPClient) FetchUIDsAndFlags(mailbox string, since time.Time) (map[ima
 	return result, nil
 }
 
+// FetchEmailBody fetches just the body content for a single email by UID
+func (c *IMAPClient) FetchEmailBody(mailbox string, uid imap.UID) (bodyHTML string, snippet string, err error) {
+	_, err = c.client.Select(mailbox, nil).Wait()
+	if err != nil {
+		return "", "", fmt.Errorf("failed to select mailbox: %w", err)
+	}
+
+	uidSet := imap.UIDSet{}
+	uidSet.AddNum(uid)
+
+	fetchOptions := &imap.FetchOptions{
+		BodySection: []*imap.FetchItemBodySection{{Peek: true}},
+	}
+
+	messages, err := c.client.Fetch(uidSet, fetchOptions).Collect()
+	if err != nil {
+		return "", "", fmt.Errorf("failed to fetch body: %w", err)
+	}
+
+	if len(messages) == 0 {
+		return "", "", fmt.Errorf("email not found")
+	}
+
+	msg := messages[0]
+	if len(msg.BodySection) > 0 {
+		bodyHTML, snippet = c.parseBody(msg.BodySection[0].Bytes)
+	}
+
+	return bodyHTML, snippet, nil
+}
+
 // FetchMessagesByUIDs fetches full messages by their UIDs
 func (c *IMAPClient) FetchMessagesByUIDs(mailbox string, uids []imap.UID) ([]Email, error) {
 	if len(uids) == 0 {
@@ -194,6 +225,45 @@ func (c *IMAPClient) FetchMessagesByUIDs(mailbox string, uids []imap.UID) ([]Ema
 	emails := make([]Email, 0, len(messages))
 	for _, msg := range messages {
 		email := c.parseMessage(msg)
+		emails = append(emails, email)
+	}
+
+	return emails, nil
+}
+
+// FetchMessagesByUIDsMetadata fetches metadata only (no body) for given UIDs
+func (c *IMAPClient) FetchMessagesByUIDsMetadata(mailbox string, uids []imap.UID) ([]Email, error) {
+	if len(uids) == 0 {
+		return []Email{}, nil
+	}
+
+	_, err := c.client.Select(mailbox, nil).Wait()
+	if err != nil {
+		return nil, fmt.Errorf("failed to select mailbox: %w", err)
+	}
+
+	uidSet := imap.UIDSet{}
+	for _, uid := range uids {
+		uidSet.AddNum(uid)
+	}
+
+	// Metadata only, no body
+	fetchOptions := &imap.FetchOptions{
+		UID:           true,
+		Flags:         true,
+		Envelope:      true,
+		InternalDate:  true,
+		BodyStructure: &imap.FetchItemBodyStructure{Extended: true},
+	}
+
+	messages, err := c.client.Fetch(uidSet, fetchOptions).Collect()
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch messages: %w", err)
+	}
+
+	emails := make([]Email, 0, len(messages))
+	for _, msg := range messages {
+		email := c.parseMessageMetadata(msg)
 		emails = append(emails, email)
 	}
 
@@ -240,6 +310,106 @@ func (c *IMAPClient) FetchMessages(mailbox string, limit uint32) ([]Email, error
 	}
 
 	return emails, nil
+}
+
+// FetchMessagesMetadata fetches email metadata without body content (fast for slow servers)
+func (c *IMAPClient) FetchMessagesMetadata(mailbox string, limit uint32) ([]Email, error) {
+	mbox, err := c.client.Select(mailbox, nil).Wait()
+	if err != nil {
+		return nil, fmt.Errorf("failed to select mailbox: %w", err)
+	}
+
+	if mbox.NumMessages == 0 {
+		return []Email{}, nil
+	}
+
+	from := uint32(1)
+	if mbox.NumMessages > limit {
+		from = mbox.NumMessages - limit + 1
+	}
+
+	seqSet := imap.SeqSet{}
+	seqSet.AddRange(from, mbox.NumMessages)
+
+	// Only fetch metadata, not body content - much faster for slow servers
+	fetchOptions := &imap.FetchOptions{
+		UID:           true,
+		Flags:         true,
+		Envelope:      true,
+		InternalDate:  true,
+		BodyStructure: &imap.FetchItemBodyStructure{Extended: true},
+		// No BodySection - body will be fetched on-demand
+	}
+
+	messages, err := c.client.Fetch(seqSet, fetchOptions).Collect()
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch messages: %w", err)
+	}
+
+	emails := make([]Email, 0, len(messages))
+	for i := len(messages) - 1; i >= 0; i-- {
+		msg := messages[i]
+		email := c.parseMessageMetadata(msg)
+		emails = append(emails, email)
+	}
+
+	return emails, nil
+}
+
+// parseMessageMetadata parses message without body content
+func (c *IMAPClient) parseMessageMetadata(msg *imapclient.FetchMessageBuffer) Email {
+	email := Email{}
+
+	email.UID = msg.UID
+	email.InternalDate = msg.InternalDate
+
+	// Parse attachments from BODYSTRUCTURE
+	if msg.BodyStructure != nil {
+		email.Attachments = c.parseAttachments(msg.BodyStructure, "")
+	}
+
+	if env := msg.Envelope; env != nil {
+		email.Subject = env.Subject
+		email.Date = env.Date
+		email.MessageID = env.MessageID
+		if len(env.InReplyTo) > 0 {
+			email.References = strings.Join(env.InReplyTo, " ")
+		}
+
+		if len(env.From) > 0 {
+			from := env.From[0]
+			if from.Name != "" {
+				email.From = fmt.Sprintf("%s <%s@%s>", from.Name, from.Mailbox, from.Host)
+			} else {
+				email.From = fmt.Sprintf("%s@%s", from.Mailbox, from.Host)
+			}
+		}
+
+		if len(env.ReplyTo) > 0 {
+			replyTo := env.ReplyTo[0]
+			email.ReplyTo = fmt.Sprintf("%s@%s", replyTo.Mailbox, replyTo.Host)
+		}
+
+		if len(env.To) > 0 {
+			to := env.To[0]
+			if to.Name != "" {
+				email.To = fmt.Sprintf("%s <%s@%s>", to.Name, to.Mailbox, to.Host)
+			} else {
+				email.To = fmt.Sprintf("%s@%s", to.Mailbox, to.Host)
+			}
+		}
+	}
+
+	email.Unread = true
+	for _, flag := range msg.Flags {
+		if flag == imap.FlagSeen {
+			email.Unread = false
+			break
+		}
+	}
+
+	// Body and BodyHTML are empty - will be fetched on-demand
+	return email
 }
 
 // FetchMessagesSince fetches emails since the given date, up to limit

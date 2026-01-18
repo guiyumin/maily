@@ -155,6 +155,21 @@ login.yahoo.hint: 'Potrzebujesz hasła aplikacji, aby kontynuować.
   2. Kliknij ''Wygeneruj hasło aplikacji''
 
   3. Wybierz ''Inna aplikacja'' i wygeneruj'
+login.qq.title: Logowanie QQ Mail
+login.qq.password_label: 'Kod autoryzacji:'
+login.qq.hint: 'Potrzebujesz kodu autoryzacji (授权码), aby kontynuować.
+
+
+  1. Przejdź do: mail.qq.com → Ustawienia → Konto
+
+  2. Włącz usługę IMAP/SMTP
+
+  3. Wygeneruj kod autoryzacji'
+login.qq.error_hint: 'Upewnij się, że:
+
+  • Używasz kodu autoryzacji (nie hasła QQ)
+
+  • Usługa IMAP/SMTP jest włączona w ustawieniach QQ Mail'
 login.hint_fields: Tab zmień pole · Enter wyślij · Esc anuluj
 login.hint_exit: Naciśnij Enter, aby wyjść.
 provider.select_title: Wybierz dostawcę e-mail
@@ -165,6 +180,8 @@ provider.yahoo: Yahoo Mail
 provider.yahoo_desc: Yahoo Mail
 provider.imap: IMAP
 provider.imap_desc: Niestandardowy serwer IMAP
+provider.qq: QQ Mail
+provider.qq_desc: Tencent QQ Mail
 config.title: Ustawienia Maily
 config.section.general: Ogólne
 config.section.ai_providers: Dostawcy AI

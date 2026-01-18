@@ -2,20 +2,25 @@ package ui
 
 import (
 	"fmt"
+	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+
+	"maily/internal/i18n"
 )
 
-type provider struct {
-	id   string
-	name string
-	desc string
+// providerIDs defines available email providers
+var providerIDs = []string{"gmail", "yahoo", "qq"}
+
+// getProviderName returns the translated name for a provider
+func getProviderName(id string) string {
+	return i18n.T("provider." + id)
 }
 
-var providers = []provider{
-	{id: "gmail", name: "Gmail", desc: "Google Mail"},
-	{id: "yahoo", name: "Yahoo Mail", desc: "Yahoo Mail"},
+// getProviderDesc returns the translated description for a provider
+func getProviderDesc(id string) string {
+	return i18n.T("provider." + id + "_desc")
 }
 
 type ProviderSelector struct {
@@ -48,12 +53,12 @@ func (m ProviderSelector) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 		case "down", "j":
-			if m.cursor < len(providers)-1 {
+			if m.cursor < len(providerIDs)-1 {
 				m.cursor++
 			}
 
 		case "enter":
-			m.selected = providers[m.cursor].id
+			m.selected = providerIDs[m.cursor]
 			return m, tea.Quit
 		}
 
@@ -93,28 +98,28 @@ func (m ProviderSelector) View() string {
 		BorderForeground(lipgloss.Color("#7C3AED")).
 		Padding(1, 3)
 
-	title := titleStyle.Render("Select Email Provider")
+	title := titleStyle.Render(i18n.T("provider.select_title"))
 
-	var items string
-	for i, p := range providers {
+	var items strings.Builder
+	for i, id := range providerIDs {
 		cursor := "  "
 		style := itemStyle
 		if i == m.cursor {
 			cursor = "> "
 			style = selectedStyle
 		}
-		line := fmt.Sprintf("%s%s", cursor, style.Render(p.name))
-		desc := descStyle.Render("  " + p.desc)
-		items += line + desc + "\n"
+		line := fmt.Sprintf("%s%s", cursor, style.Render(getProviderName(id)))
+		desc := descStyle.Render("  " + getProviderDesc(id))
+		items.WriteString(line + desc + "\n")
 	}
 
-	hint := hintStyle.Render("↑↓ to move • Enter to select • Esc to cancel")
+	hint := hintStyle.Render(i18n.T("provider.hint"))
 
 	content := lipgloss.JoinVertical(
 		lipgloss.Left,
 		title,
 		"",
-		items,
+		items.String(),
 		hint,
 	)
 

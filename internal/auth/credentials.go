@@ -18,6 +18,7 @@ const accountsFileName = "accounts.yml"
 const (
 	ProviderGmail = "gmail"
 	ProviderYahoo = "yahoo"
+	ProviderQQ    = "qq"
 )
 
 // Gmail IMAP/SMTP hosts
@@ -30,6 +31,17 @@ const (
 const (
 	YahooIMAPHost = "imap.mail.yahoo.com"
 	YahooSMTPHost = "smtp.mail.yahoo.com"
+)
+
+// QQ Mail IMAP/SMTP hosts
+const (
+	QQIMAPHost = "imap.qq.com"
+	QQSMTPHost = "smtp.qq.com"
+)
+
+// QQ Mail uses port 465 for SMTP with SSL
+const (
+	QQSMTPPort = 465
 )
 
 // Standard ports
@@ -79,6 +91,18 @@ func YahooCredentials(email, password string) Credentials {
 		SMTPHost: YahooSMTPHost,
 		SMTPPort: SMTPPort,
 		Provider: ProviderYahoo,
+	}
+}
+
+func QQCredentials(email, password string) Credentials {
+	return Credentials{
+		Email:    email,
+		Password: password,
+		IMAPHost: QQIMAPHost,
+		IMAPPort: IMAPPort,
+		SMTPHost: QQSMTPHost,
+		SMTPPort: QQSMTPPort,
+		Provider: ProviderQQ,
 	}
 }
 

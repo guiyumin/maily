@@ -113,6 +113,17 @@ func (m *MailList) MarkAsRead(uid imap.UID) {
 	}
 }
 
+// UpdateEmailBody updates the body content for an email that was loaded without body
+func (m *MailList) UpdateEmailBody(uid imap.UID, bodyHTML, snippet string) {
+	for i := range m.emails {
+		if m.emails[i].UID == uid {
+			m.emails[i].BodyHTML = bodyHTML
+			m.emails[i].Snippet = snippet
+			return
+		}
+	}
+}
+
 func (m *MailList) ScrollUp() {
 	if m.cursor > 0 {
 		m.cursor--

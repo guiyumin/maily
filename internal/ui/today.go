@@ -15,6 +15,7 @@ import (
 	"github.com/emersion/go-imap/v2"
 	"maily/internal/auth"
 	"maily/internal/calendar"
+	"maily/internal/client"
 	"maily/internal/mail"
 	"maily/internal/ui/components"
 	"maily/internal/ui/utils"
@@ -48,7 +49,7 @@ type AccountEmails struct {
 type TodayApp struct {
 	store        *auth.AccountStore
 	calClient    calendar.Client
-	imapClients  map[int]*mail.IMAPClient
+	serverClient *client.Client
 	width        int
 	height       int
 	activePanel  panel
@@ -92,11 +93,6 @@ type todayEventsLoadedMsg struct {
 	events []calendar.Event
 }
 
-type todayClientReadyMsg struct {
-	accountIdx int
-	imap       *mail.IMAPClient
-}
-
 type todayErrMsg struct {
 	err error
 }
@@ -104,6 +100,16 @@ type todayErrMsg struct {
 type todayEmailDeletedMsg struct{}
 type todayEventDeletedMsg struct{}
 type todayEventUpdatedMsg struct{}
+
+type todayServerReadyMsg struct {
+	client *client.Client
+}
+
+type todayEmailBodyLoadedMsg struct {
+	uid      imap.UID
+	bodyHTML string
+	snippet  string
+}
 
 // NewTodayApp creates a new today dashboard TUI
 func NewTodayApp(store *auth.AccountStore, calClient calendar.Client) *TodayApp {
@@ -117,7 +123,6 @@ func NewTodayApp(store *auth.AccountStore, calClient calendar.Client) *TodayApp 
 	return &TodayApp{
 		store:         store,
 		calClient:     calClient,
-		imapClients:   make(map[int]*mail.IMAPClient),
 		activePanel:   emailPanel,
 		view:          todayDashboard,
 		loading:       true,
@@ -132,43 +137,31 @@ func (m *TodayApp) Init() tea.Cmd {
 	cmds := []tea.Cmd{
 		m.spinner.Tick,
 		m.loadTodayEvents(),
-	}
-
-	// Initialize clients for all accounts
-	for i := range m.store.Accounts {
-		cmds = append(cmds, m.initEmailClient(i))
+		m.connectServer(),
 	}
 
 	return tea.Batch(cmds...)
 }
 
-func (m *TodayApp) initEmailClient(accountIdx int) tea.Cmd {
+func (m *TodayApp) connectServer() tea.Cmd {
 	return func() tea.Msg {
-		if accountIdx >= len(m.store.Accounts) {
-			return todayErrMsg{fmt.Errorf("invalid account index")}
-		}
-
-		account := m.store.Accounts[accountIdx]
-		client, err := mail.NewIMAPClient(&account.Credentials)
+		serverClient, err := client.Connect()
 		if err != nil {
-			return todayErrMsg{err}
+			return todayErrMsg{err: err}
 		}
-
-		return todayClientReadyMsg{accountIdx: accountIdx, imap: client}
+		return todayServerReadyMsg{client: serverClient}
 	}
 }
 
 func (m *TodayApp) loadTodayEmails(accountIdx int) tea.Cmd {
 	return func() tea.Msg {
-		client, ok := m.imapClients[accountIdx]
-		if !ok || client == nil {
-			return todayErrMsg{fmt.Errorf("email client not ready for account %d", accountIdx)}
+		account := m.store.Accounts[accountIdx]
+		if m.serverClient == nil {
+			return todayErrMsg{err: fmt.Errorf("server unavailable")}
 		}
 
-		account := m.store.Accounts[accountIdx]
-
 		// Load today's emails (received today)
-		emails, err := client.FetchMessages("INBOX", 50)
+		cached, err := m.serverClient.GetEmails(account.Credentials.Email, "INBOX", 50)
 		if err != nil {
 			return todayErrMsg{err}
 		}
@@ -178,7 +171,8 @@ func (m *TodayApp) loadTodayEmails(accountIdx int) tea.Cmd {
 		todayStart := time.Date(today.Year(), today.Month(), today.Day(), 0, 0, 0, 0, today.Location())
 
 		var todayEmails []mail.Email
-		for _, email := range emails {
+		for _, c := range cached {
+			email := cachedToGmail(c)
 			if email.Date.After(todayStart) || email.Date.Equal(todayStart) {
 				todayEmails = append(todayEmails, email)
 			}
@@ -221,9 +215,13 @@ func (m *TodayApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.spinner, cmd = m.spinner.Update(msg)
 		return m, cmd
 
-	case todayClientReadyMsg:
-		m.imapClients[msg.accountIdx] = msg.imap
-		return m, m.loadTodayEmails(msg.accountIdx)
+	case todayServerReadyMsg:
+		m.serverClient = msg.client
+		var cmds []tea.Cmd
+		for i := range m.store.Accounts {
+			cmds = append(cmds, m.loadTodayEmails(i))
+		}
+		return m, tea.Batch(cmds...)
 
 	case todayEmailsLoadedMsg:
 		// Store emails for this account
@@ -267,6 +265,16 @@ func (m *TodayApp) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.view = todayDashboard
 		return m, m.loadTodayEvents()
 
+	case todayEmailBodyLoadedMsg:
+		m.updateEmailBody(msg.uid, msg.bodyHTML, msg.snippet)
+		if m.view == todayEmailContent && m.emailCursor < len(m.emails) {
+			email := m.emails[m.emailCursor]
+			if email.UID == msg.uid {
+				m.viewport.SetContent(m.renderEmailContent(email))
+			}
+		}
+		return m, nil
+
 	case tea.KeyMsg:
 		// Route to appropriate handler based on view
 		switch m.view {
@@ -307,10 +315,8 @@ func (m *TodayApp) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	if m.view == todayEmailContent {
 		switch msg.String() {
 		case "q", "ctrl+c":
-			for _, client := range m.imapClients {
-				if client != nil {
-					client.Close()
-				}
+			if m.serverClient != nil {
+				m.serverClient.Close()
 			}
 			return m, tea.Quit
 		case "esc":
@@ -335,10 +341,8 @@ func (m *TodayApp) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	// Dashboard view
 	switch msg.String() {
 	case "q", "ctrl+c":
-		for _, client := range m.imapClients {
-			if client != nil {
-				client.Close()
-			}
+		if m.serverClient != nil {
+			m.serverClient.Close()
 		}
 		return m, tea.Quit
 
@@ -379,19 +383,25 @@ func (m *TodayApp) handleKeyPress(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.view = todayEmailContent
 			m.viewport.SetContent(m.renderEmailContent(email))
 			m.viewport.GotoTop()
+			accountIdx := m.findAccountForEmail(m.emailCursor)
 
 			// Mark as read - find the right client and update local state
 			if email.Unread {
 				// Update local state immediately for responsive UI
 				m.markEmailAsRead(m.emailCursor)
 
-				accountIdx := m.findAccountForEmail(m.emailCursor)
-				if client, ok := m.imapClients[accountIdx]; ok && client != nil {
+				if m.serverClient != nil {
 					uid := email.UID
+					accountEmail := m.store.Accounts[accountIdx].Credentials.Email
+					serverClient := m.serverClient
 					go func() {
-						client.MarkAsRead(uid)
+						_ = serverClient.MarkRead(accountEmail, "INBOX", uid)
 					}()
 				}
+			}
+
+			if m.serverClient != nil {
+				return m, m.fetchEmailBody(accountIdx, email.UID)
 			}
 		}
 
@@ -435,9 +445,11 @@ func (m *TodayApp) handleDeleteConfirm(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			email := m.emails[m.emailCursor]
 			uid := email.UID
 			accountIdx := m.findAccountForEmail(m.emailCursor)
-			if client, ok := m.imapClients[accountIdx]; ok && client != nil {
+			if m.serverClient != nil {
+				accountEmail := m.store.Accounts[accountIdx].Credentials.Email
+				serverClient := m.serverClient
 				go func() {
-					client.DeleteMessage(uid)
+					_ = serverClient.QueueDeleteEmail(accountEmail, "INBOX", uid)
 				}()
 			}
 			// Remove from cache by UID
@@ -830,6 +842,48 @@ func (m *TodayApp) renderEmailContent(email mail.Email) string {
 
 // Helper functions for delete/edit
 
+func (m *TodayApp) fetchEmailBody(accountIdx int, uid imap.UID) tea.Cmd {
+	serverClient := m.serverClient
+	accountEmail := m.store.Accounts[accountIdx].Credentials.Email
+	return func() tea.Msg {
+		if serverClient == nil {
+			return todayErrMsg{err: fmt.Errorf("server unavailable")}
+		}
+		cached, err := serverClient.GetEmail(accountEmail, "INBOX", uid)
+		if err != nil {
+			return todayErrMsg{err: err}
+		}
+		if cached == nil {
+			return todayErrMsg{err: fmt.Errorf("email not found")}
+		}
+		return todayEmailBodyLoadedMsg{
+			uid:      uid,
+			bodyHTML: cached.BodyHTML,
+			snippet:  cached.Snippet,
+		}
+	}
+}
+
+func (m *TodayApp) updateEmailBody(uid imap.UID, bodyHTML, snippet string) {
+	for i := range m.emails {
+		if m.emails[i].UID == uid {
+			m.emails[i].BodyHTML = bodyHTML
+			m.emails[i].Snippet = snippet
+			break
+		}
+	}
+
+	for i := range m.accountEmails {
+		for j := range m.accountEmails[i].Emails {
+			if m.accountEmails[i].Emails[j].UID == uid {
+				m.accountEmails[i].Emails[j].BodyHTML = bodyHTML
+				m.accountEmails[i].Emails[j].Snippet = snippet
+				return
+			}
+		}
+	}
+}
+
 func (m *TodayApp) removeEmailByUID(uid imap.UID) {
 	// Search through all accounts and remove email with matching UID
 	for i := range m.accountEmails {
@@ -1091,4 +1145,3 @@ func (m *TodayApp) renderEditEventForm() string {
 
 	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, formStyle.Render(b.String()))
 }
-

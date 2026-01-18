@@ -643,7 +643,8 @@ func (m ConfigTUI) View() string {
 
 		case rowAction:
 			var line string
-			if r.key == "language" {
+			switch r.key {
+			case "language":
 				// Language row: show like a field with value
 				label := cfgLabelStyle.Render(r.label)
 				value := cfgValueStyle.Render(r.value)
@@ -651,7 +652,7 @@ func (m ConfigTUI) View() string {
 				if selected {
 					line = pad + cfgSelectedStyle.Render(" ▸ " + r.label + ": " + r.value + " ")
 				}
-			} else if r.key == "edit_provider" {
+			case "edit_provider":
 				// Provider row: show type and name/model
 				typeLabel := cfgHintStyle.Render("[" + r.value + "]")
 				if selected {
@@ -659,7 +660,7 @@ func (m ConfigTUI) View() string {
 				} else {
 					line = pad + "  " + cfgValueStyle.Render(r.label) + " " + typeLabel
 				}
-			} else {
+			default:
 				// Add action
 				line = pad + "  " + cfgHintStyle.Render("+ "+r.label)
 				if selected {

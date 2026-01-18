@@ -140,6 +140,21 @@ login.yahoo.hint: '您需要應用程式密碼才能繼續。
   2. 點選「產生應用程式密碼」
 
   3. 選擇「其他應用程式」並產生'
+login.qq.title: QQ郵箱登入
+login.qq.password_label: '授權碼:'
+login.qq.hint: '您需要授權碼才能繼續。
+
+
+  1. 前往: mail.qq.com → 設定 → 帳戶
+
+  2. 開啟IMAP/SMTP服務
+
+  3. 產生授權碼'
+login.qq.error_hint: '請確保:
+
+  • 使用的是授權碼（不是QQ密碼）
+
+  • 已在QQ郵箱設定中開啟IMAP/SMTP服務'
 login.hint_fields: Tab 切換欄位 · Enter 提交 · Esc 取消
 login.hint_exit: 按Enter鍵退出。
 provider.select_title: 選擇郵件供應商
@@ -150,6 +165,8 @@ provider.yahoo: Yahoo Mail
 provider.yahoo_desc: Yahoo郵件
 provider.imap: IMAP
 provider.imap_desc: 自訂IMAP伺服器
+provider.qq: QQ郵箱
+provider.qq_desc: 騰訊QQ郵箱
 config.title: Maily 設定
 config.section.general: 一般
 config.section.ai_providers: AI供應商

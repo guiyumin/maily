@@ -10,7 +10,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/spf13/cobra"
 	"maily/internal/auth"
-	"maily/internal/mail"
+	"maily/internal/client"
 	"maily/internal/ui"
 	"maily/internal/ui/utils"
 )
@@ -169,14 +169,20 @@ func handleNonInteractiveSearch(account *auth.Account) {
 		os.Exit(1)
 	}
 
-	// Get all matching UIDs first (IMAP returns all at once)
-	uids, err := mail.Search(&account.Credentials, "INBOX", searchQuery)
+	serverClient, err := client.Connect()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error connecting to server: %v\n", err)
+		os.Exit(1)
+	}
+	defer serverClient.Close()
+
+	cached, err := serverClient.Search(account.Credentials.Email, "INBOX", searchQuery)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error searching: %v\n", err)
 		os.Exit(1)
 	}
 
-	total := len(uids)
+	total := len(cached)
 
 	// --count mode: just output the count
 	if searchCount {
@@ -199,7 +205,7 @@ func handleNonInteractiveSearch(account *auth.Account) {
 		end = total
 	}
 
-	paginatedUIDs := uids[start:end]
+	paginated := cached[start:end]
 
 	// Build response
 	response := SearchResponse{
@@ -209,22 +215,8 @@ func handleNonInteractiveSearch(account *auth.Account) {
 		Results: []SearchResult{},
 	}
 
-	// Fetch email details for paginated UIDs
-	if len(paginatedUIDs) > 0 {
-		client, err := mail.NewIMAPClient(&account.Credentials)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error connecting: %v\n", err)
-			os.Exit(1)
-		}
-		defer client.Close()
-
-		emails, err := client.FetchByUIDs("INBOX", paginatedUIDs)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error fetching emails: %v\n", err)
-			os.Exit(1)
-		}
-
-		for _, email := range emails {
+	if len(paginated) > 0 {
+		for _, email := range paginated {
 			response.Results = append(response.Results, SearchResult{
 				UID:           uint32(email.UID),
 				From:          email.From,

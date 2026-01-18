@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -25,6 +26,8 @@ type AccountState struct {
 	LastSync  time.Time
 	LastError error
 	mu        sync.Mutex
+	imapMu    sync.Mutex
+	imapClient *mail.IMAPClient
 }
 
 // StateManager manages all account states and provides in-memory locking
@@ -54,6 +57,75 @@ func NewStateManager(store *auth.AccountStore, diskCache *cache.Cache) *StateMan
 	}
 
 	return sm
+}
+
+func (sm *StateManager) getAccountState(email string) (*AccountState, error) {
+	sm.mu.RLock()
+	state, ok := sm.accounts[email]
+	sm.mu.RUnlock()
+	if !ok {
+		return nil, fmt.Errorf("account not found: %s", email)
+	}
+	return state, nil
+}
+
+func isConnectionError(err error) bool {
+	if err == nil {
+		return false
+	}
+	errStr := err.Error()
+	return strings.Contains(errStr, "closed network connection") ||
+		strings.Contains(errStr, "connection reset") ||
+		strings.Contains(errStr, "broken pipe") ||
+		strings.Contains(errStr, "EOF")
+}
+
+func (sm *StateManager) ensureIMAPClientLocked(state *AccountState) (*mail.IMAPClient, error) {
+	if state.imapClient != nil {
+		return state.imapClient, nil
+	}
+	client, err := mail.NewIMAPClient(&state.Account.Credentials)
+	if err != nil {
+		return nil, err
+	}
+	state.imapClient = client
+	return client, nil
+}
+
+func (sm *StateManager) withIMAPClient(email string, fn func(*mail.IMAPClient) error) error {
+	state, err := sm.getAccountState(email)
+	if err != nil {
+		return err
+	}
+
+	state.imapMu.Lock()
+	defer state.imapMu.Unlock()
+
+	client, err := sm.ensureIMAPClientLocked(state)
+	if err != nil {
+		return err
+	}
+
+	err = fn(client)
+	if isConnectionError(err) && state.imapClient != nil {
+		state.imapClient.Close()
+		state.imapClient = nil
+	}
+	return err
+}
+
+func (sm *StateManager) CloseIMAPClients() {
+	sm.mu.RLock()
+	defer sm.mu.RUnlock()
+
+	for _, state := range sm.accounts {
+		state.imapMu.Lock()
+		if state.imapClient != nil {
+			state.imapClient.Close()
+			state.imapClient = nil
+		}
+		state.imapMu.Unlock()
+	}
 }
 
 // GetAccounts returns info about all accounts
@@ -142,7 +214,23 @@ func (sm *StateManager) EndSync(email string, err error) {
 
 // GetEmails returns emails from memory cache, falling back to disk
 func (sm *StateManager) GetEmails(email, mailbox string, limit int) ([]cache.CachedEmail, error) {
-	// Try memory first
+	// Prefer disk cache as the source of truth.
+	var diskErr error
+	if sm.cache != nil {
+		diskEmails, err := sm.cache.LoadEmails(email, mailbox)
+		if err != nil {
+			diskErr = err
+		} else if len(diskEmails) > 0 {
+			// Store in memory for next time
+			sm.memory.Set(email, mailbox, diskEmails)
+			if limit > 0 && len(diskEmails) > limit {
+				return diskEmails[:limit], nil
+			}
+			return diskEmails, nil
+		}
+	}
+
+	// Fall back to memory if disk is unavailable or empty.
 	emails := sm.memory.Get(email, mailbox)
 	if len(emails) > 0 {
 		if limit > 0 && len(emails) > limit {
@@ -151,18 +239,8 @@ func (sm *StateManager) GetEmails(email, mailbox string, limit int) ([]cache.Cac
 		return emails, nil
 	}
 
-	// Fall back to disk cache
-	if sm.cache != nil {
-		diskEmails, err := sm.cache.LoadEmails(email, mailbox)
-		if err != nil {
-			return nil, err
-		}
-		// Store in memory for next time
-		sm.memory.Set(email, mailbox, diskEmails)
-		if limit > 0 && len(diskEmails) > limit {
-			return diskEmails[:limit], nil
-		}
-		return diskEmails, nil
+	if diskErr != nil {
+		return nil, diskErr
 	}
 
 	return nil, nil
@@ -184,11 +262,76 @@ func (sm *StateManager) GetEmail(email, mailbox string, uid imap.UID) (*cache.Ca
 	return nil, nil
 }
 
+// GetEmailWithBody loads an email from cache, fetching body from IMAP if missing.
+func (sm *StateManager) GetEmailWithBody(email, mailbox string, uid imap.UID) (*cache.CachedEmail, error) {
+	var cached *cache.CachedEmail
+	var diskErr error
+
+	// Prefer disk (sqlite) as the source of truth.
+	if sm.cache != nil {
+		diskEmail, err := sm.cache.GetEmail(email, mailbox, uid)
+		if err != nil {
+			diskErr = err
+		} else if diskEmail != nil {
+			cached = diskEmail
+			sm.memory.Update(email, mailbox, *diskEmail)
+		}
+	}
+
+	if cached == nil {
+		cached = sm.memory.GetByUID(email, mailbox, uid)
+	}
+
+	if cached == nil {
+		if diskErr != nil {
+			return nil, diskErr
+		}
+		return nil, nil
+	}
+
+	if cached.BodyHTML != "" || cached.Snippet != "" {
+		return cached, nil
+	}
+
+	// Fetch body from IMAP and persist.
+	err := sm.withIMAPClient(email, func(client *mail.IMAPClient) error {
+		bodyHTML, snippet, err := client.FetchEmailBody(mailbox, uid)
+		if err != nil {
+			return err
+		}
+		cached.BodyHTML = bodyHTML
+		cached.Snippet = snippet
+		return nil
+	})
+	if err != nil {
+		return cached, err
+	}
+
+	sm.memory.Update(email, mailbox, *cached)
+	if sm.cache != nil && (cached.BodyHTML != "" || cached.Snippet != "") {
+		_ = sm.cache.UpdateEmailBody(email, mailbox, uid, cached.BodyHTML, cached.Snippet)
+	}
+
+	return cached, nil
+}
+
 // UpdateEmail updates an email in both memory and disk cache
 func (sm *StateManager) UpdateEmail(email, mailbox string, cached cache.CachedEmail) error {
 	sm.memory.Update(email, mailbox, cached)
 	if sm.cache != nil {
 		return sm.cache.SaveEmail(email, mailbox, cached)
+	}
+	return nil
+}
+
+// UpdateEmailFlags updates only the unread flag in memory and disk.
+func (sm *StateManager) UpdateEmailFlags(email, mailbox string, uid imap.UID, unread bool) error {
+	if cached := sm.memory.GetByUID(email, mailbox, uid); cached != nil {
+		cached.Unread = unread
+		sm.memory.Update(email, mailbox, *cached)
+	}
+	if sm.cache != nil {
+		return sm.cache.UpdateEmailFlags(email, mailbox, uid, unread)
 	}
 	return nil
 }
@@ -202,6 +345,44 @@ func (sm *StateManager) DeleteEmail(email, mailbox string, uid imap.UID) error {
 	return nil
 }
 
+// QueueOp deletes an email from cache and enqueues a pending operation.
+func (sm *StateManager) QueueOp(account, mailbox, operation string, uid imap.UID) error {
+	if sm.cache == nil {
+		return fmt.Errorf("cache unavailable")
+	}
+	if _, err := sm.getAccountState(account); err != nil {
+		return err
+	}
+	if err := sm.cache.DeleteEmail(account, mailbox, uid); err != nil {
+		return err
+	}
+	sm.memory.Delete(account, mailbox, uid)
+	return sm.cache.AddPendingOp(account, mailbox, operation, uid)
+}
+
+// QueueOps deletes multiple emails from cache and enqueues pending operations.
+func (sm *StateManager) QueueOps(account, mailbox, operation string, uids []imap.UID) error {
+	if len(uids) == 0 {
+		return nil
+	}
+	if sm.cache == nil {
+		return fmt.Errorf("cache unavailable")
+	}
+	if _, err := sm.getAccountState(account); err != nil {
+		return err
+	}
+	for _, uid := range uids {
+		if err := sm.cache.DeleteEmail(account, mailbox, uid); err != nil {
+			return err
+		}
+		sm.memory.Delete(account, mailbox, uid)
+		if err := sm.cache.AddPendingOp(account, mailbox, operation, uid); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // SetEmails stores emails in memory cache
 func (sm *StateManager) SetEmails(email, mailbox string, emails []cache.CachedEmail) {
 	sm.memory.Set(email, mailbox, emails)
@@ -209,31 +390,25 @@ func (sm *StateManager) SetEmails(email, mailbox string, emails []cache.CachedEm
 
 // GetAccountCredentials returns credentials for an account
 func (sm *StateManager) GetAccountCredentials(email string) (*auth.Credentials, error) {
-	sm.mu.RLock()
-	state, ok := sm.accounts[email]
-	sm.mu.RUnlock()
-
-	if !ok {
-		return nil, fmt.Errorf("account not found: %s", email)
+	state, err := sm.getAccountState(email)
+	if err != nil {
+		return nil, err
 	}
-
 	return &state.Account.Credentials, nil
 }
 
 // GetLabels fetches labels from IMAP
 func (sm *StateManager) GetLabels(email string) ([]string, error) {
-	creds, err := sm.GetAccountCredentials(email)
+	var labels []string
+	err := sm.withIMAPClient(email, func(client *mail.IMAPClient) error {
+		var err error
+		labels, err = client.ListMailboxes()
+		return err
+	})
 	if err != nil {
 		return nil, err
 	}
-
-	client, err := mail.NewIMAPClient(creds)
-	if err != nil {
-		return nil, err
-	}
-	defer client.Close()
-
-	return client.ListMailboxes()
+	return labels, nil
 }
 
 // Sync performs a full sync for an account using max(14 days, 100 emails)
@@ -246,74 +421,84 @@ func (sm *StateManager) Sync(email, mailbox string) error {
 	if !acquired {
 		return fmt.Errorf("sync already in progress")
 	}
-	defer sm.EndSync(email, nil)
+	var syncErr error
+	defer func() {
+		sm.EndSync(email, syncErr)
+	}()
 
-	creds, err := sm.GetAccountCredentials(email)
-	if err != nil {
-		sm.EndSync(email, err)
-		return err
-	}
-
-	client, err := mail.NewIMAPClient(creds)
-	if err != nil {
-		sm.EndSync(email, err)
-		return err
-	}
-	defer client.Close()
-
-	// Step 1: Fetch last 100 emails by sequence number
-	emails, err := client.FetchMessages(mailbox, MinSyncEmails)
-	if err != nil {
-		sm.EndSync(email, err)
-		return err
-	}
-
-	// Build map of fetched UIDs
-	fetchedUIDs := make(map[imap.UID]bool)
-	for _, e := range emails {
-		fetchedUIDs[e.UID] = true
-	}
-
-	// Step 2: Get UIDs from last 14 days
-	since := time.Now().AddDate(0, 0, -SyncDays)
-	recentUIDs, err := client.FetchUIDsAndFlags(mailbox, since)
-	if err != nil {
-		// Non-fatal: we still have the 100 emails
-		recentUIDs = nil
-	}
-
-	// Step 3: Find UIDs in 14-day window not already fetched
-	var missingUIDs []imap.UID
-	for uid := range recentUIDs {
-		if !fetchedUIDs[uid] {
-			missingUIDs = append(missingUIDs, uid)
+	syncErr = sm.withIMAPClient(email, func(client *mail.IMAPClient) error {
+		var uidValidity uint32
+		if info, err := client.SelectMailboxWithInfo(mailbox); err == nil {
+			uidValidity = info.UIDValidity
 		}
-	}
 
-	// Step 4: Fetch any missing recent emails
-	if len(missingUIDs) > 0 {
-		additional, err := client.FetchMessagesByUIDs(mailbox, missingUIDs)
-		if err == nil {
-			emails = append(emails, additional...)
+		// Step 1: Fetch last 100 emails by sequence number (metadata only, no body)
+		emails, err := client.FetchMessagesMetadata(mailbox, MinSyncEmails)
+		if err != nil {
+			return err
 		}
-	}
 
-	// Convert to cached format and store
-	cached := make([]cache.CachedEmail, len(emails))
-	for i, e := range emails {
-		cached[i] = emailToCached(e)
-	}
-
-	sm.SetEmails(email, mailbox, cached)
-
-	// Also persist to disk
-	if sm.cache != nil {
-		for _, c := range cached {
-			sm.cache.SaveEmail(email, mailbox, c)
+		// Build map of fetched UIDs
+		fetchedUIDs := make(map[imap.UID]bool)
+		for _, e := range emails {
+			fetchedUIDs[e.UID] = true
 		}
-	}
 
-	return nil
+		// Step 2: Get UIDs from last 14 days
+		since := time.Now().AddDate(0, 0, -SyncDays)
+		recentUIDs, err := client.FetchUIDsAndFlags(mailbox, since)
+		if err != nil {
+			// Non-fatal: we still have the 100 emails
+			recentUIDs = nil
+		}
+
+		// Step 3: Find UIDs in 14-day window not already fetched
+		var missingUIDs []imap.UID
+		for uid := range recentUIDs {
+			if !fetchedUIDs[uid] {
+				missingUIDs = append(missingUIDs, uid)
+			}
+		}
+
+		// Step 4: Fetch any missing recent emails (metadata only)
+		if len(missingUIDs) > 0 {
+			additional, err := client.FetchMessagesByUIDsMetadata(mailbox, missingUIDs)
+			if err == nil {
+				emails = append(emails, additional...)
+			}
+		}
+
+		// Convert to cached format and store
+		cached := make([]cache.CachedEmail, len(emails))
+		for i, e := range emails {
+			cached[i] = emailToCached(e)
+		}
+
+		sm.SetEmails(email, mailbox, cached)
+
+		// Also persist to disk (insert metadata only if missing)
+		if sm.cache != nil {
+			for _, c := range cached {
+				_, _ = sm.cache.InsertEmailMetadataIfMissing(email, mailbox, c)
+			}
+		}
+
+		if sm.cache != nil {
+			if uidValidity == 0 {
+				if meta, err := sm.cache.LoadMetadata(email, mailbox); err == nil && meta != nil {
+					uidValidity = meta.UIDValidity
+				}
+			}
+			_ = sm.cache.SaveMetadata(email, mailbox, &cache.Metadata{
+				UIDValidity: uidValidity,
+				LastSync:    time.Now(),
+			})
+		}
+
+		return nil
+	})
+
+	return syncErr
 }
 
 // emailToCached converts mail.Email to cache.CachedEmail
@@ -365,7 +550,7 @@ func (sm *StateManager) ProcessPendingOps() (processed int, failed int) {
 	}
 
 	for account, accountOps := range byAccount {
-		creds, err := sm.GetAccountCredentials(account)
+		state, err := sm.getAccountState(account)
 		if err != nil {
 			// Mark all ops for this account as failed
 			for _, op := range accountOps {
@@ -375,8 +560,10 @@ func (sm *StateManager) ProcessPendingOps() (processed int, failed int) {
 			continue
 		}
 
-		client, err := mail.NewIMAPClient(creds)
+		state.imapMu.Lock()
+		client, err := sm.ensureIMAPClientLocked(state)
 		if err != nil {
+			state.imapMu.Unlock()
 			for _, op := range accountOps {
 				sm.cache.UpdatePendingOpError(op.ID, err.Error())
 				failed++
@@ -384,7 +571,7 @@ func (sm *StateManager) ProcessPendingOps() (processed int, failed int) {
 			continue
 		}
 
-		for _, op := range accountOps {
+		for i, op := range accountOps {
 			var opErr error
 			switch op.Operation {
 			case cache.OpDelete:
@@ -401,19 +588,33 @@ func (sm *StateManager) ProcessPendingOps() (processed int, failed int) {
 				sm.cache.UpdatePendingOpError(op.ID, opErr.Error())
 				sm.cache.LogOp(op, cache.StatusFailed, opErr.Error())
 				failed++
-			} else {
-				sm.cache.RemovePendingOp(op.ID)
-				sm.cache.LogOp(op, cache.StatusSuccess, "")
-				// Delete from cache again in case sync pulled email back
-				if op.Operation == cache.OpDelete || op.Operation == cache.OpMoveTrash {
-					sm.cache.DeleteEmail(op.Account, op.Mailbox, op.UID)
-					sm.memory.Delete(op.Account, op.Mailbox, op.UID)
+
+				if isConnectionError(opErr) {
+					client.Close()
+					state.imapClient = nil
+					client, err = sm.ensureIMAPClientLocked(state)
+					if err != nil {
+						for _, remaining := range accountOps[i+1:] {
+							sm.cache.UpdatePendingOpError(remaining.ID, err.Error())
+							failed++
+						}
+						break
+					}
 				}
-				processed++
+				continue
 			}
+
+			sm.cache.RemovePendingOp(op.ID)
+			sm.cache.LogOp(op, cache.StatusSuccess, "")
+			// Delete from cache again in case sync pulled email back
+			if op.Operation == cache.OpDelete || op.Operation == cache.OpMoveTrash {
+				sm.cache.DeleteEmail(op.Account, op.Mailbox, op.UID)
+				sm.memory.Delete(op.Account, op.Mailbox, op.UID)
+			}
+			processed++
 		}
 
-		client.Close()
+		state.imapMu.Unlock()
 	}
 
 	return processed, failed

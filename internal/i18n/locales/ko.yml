@@ -175,6 +175,20 @@ login.yahoo.hint: |
   2. '앱 비밀번호 생성' 클릭
   3. '기타 앱' 선택 후 생성
 
+login.qq.title: "QQ 메일 로그인"
+login.qq.password_label: "인증 코드:"
+login.qq.hint: |
+  계속하려면 인증 코드(授权码)가 필요합니다.
+
+  1. mail.qq.com → 설정 → 계정 이동
+  2. IMAP/SMTP 서비스 활성화
+  3. 인증 코드 생성
+
+login.qq.error_hint: |
+  다음을 확인하세요:
+  • 인증 코드를 사용했는지 (QQ 비밀번호가 아님)
+  • QQ 메일 설정에서 IMAP/SMTP 서비스가 활성화되어 있는지
+
 login.hint_fields: "Tab 필드 전환 · Enter 제출 · Esc 취소"
 login.hint_exit: "Enter를 눌러 종료하세요."
 
@@ -189,6 +203,8 @@ provider.yahoo: "Yahoo Mail"
 provider.yahoo_desc: "Yahoo 메일"
 provider.imap: "IMAP"
 provider.imap_desc: "사용자 지정 IMAP 서버"
+provider.qq: "QQ 메일"
+provider.qq_desc: "텐센트 QQ 메일"
 
 # ============================================
 # 설정 TUI

@@ -6,15 +6,21 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
+	"maily/config"
+	"maily/internal/i18n"
 	"maily/internal/ui"
 )
 
 var loginCmd = &cobra.Command{
 	Use:   "login [provider]",
 	Short: "Add an email account",
-	Long:  "Add an email account. Currently supports: gmail, yahoo",
+	Long:  "Add an email account. Currently supports: gmail, yahoo, qq",
 	Args:  cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
+		// Initialize i18n for login UI
+		cfg, _ := config.Load()
+		i18n.Init(cfg.Language)
+
 		if len(args) == 0 {
 			selectAndLogin()
 		} else {
@@ -47,12 +53,15 @@ func handleLogin(provider string) {
 		loginWithProvider("gmail")
 	case "yahoo":
 		loginWithProvider("yahoo")
+	case "qq":
+		loginWithProvider("qq")
 	default:
 		fmt.Printf("Unknown provider: %s\n", provider)
 		fmt.Println()
 		fmt.Println("Available providers:")
 		fmt.Println("  gmail    Login with Gmail")
 		fmt.Println("  yahoo    Login with Yahoo Mail")
+		fmt.Println("  qq       Login with QQ Mail")
 		os.Exit(1)
 	}
 }

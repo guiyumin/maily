@@ -175,6 +175,20 @@ login.yahoo.hint: |
   2. 点击"生成应用密码"
   3. 选择"其他应用"并生成
 
+login.qq.title: "QQ邮箱登录"
+login.qq.password_label: "授权码:"
+login.qq.hint: |
+  您需要授权码才能继续。
+
+  1. 访问: mail.qq.com → 设置 → 账户
+  2. 开启IMAP/SMTP服务
+  3. 生成授权码
+
+login.qq.error_hint: |
+  请确保:
+  • 使用的是授权码（不是QQ密码）
+  • 已在QQ邮箱设置中开启IMAP/SMTP服务
+
 login.hint_fields: "Tab 切换字段 · Enter 提交 · Esc 取消"
 login.hint_exit: "按Enter键退出。"
 
@@ -189,6 +203,8 @@ provider.yahoo: "Yahoo Mail"
 provider.yahoo_desc: "Yahoo邮箱"
 provider.imap: "IMAP"
 provider.imap_desc: "自定义IMAP服务器"
+provider.qq: "QQ邮箱"
+provider.qq_desc: "腾讯QQ邮箱"
 
 # ============================================
 # 设置 TUI

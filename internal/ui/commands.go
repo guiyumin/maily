@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -17,6 +18,8 @@ import (
 const (
 	// SyncDays matches the sync window in internal/sync
 	SyncDays = 14
+	// MinSyncEmails matches the minimum sync size in the server
+	MinSyncEmails = 100
 )
 
 type bulkActionCompleteMsg struct {
@@ -49,91 +52,40 @@ func (a App) initClient() tea.Cmd {
 }
 
 func (a *App) loadEmails() tea.Cmd {
-	label := a.currentLabel
+	return a.reloadFromCache()
+}
+
+// fetchEmailBody fetches the body content for an email that was loaded without body
+func (a *App) fetchEmailBody(uid imap.UID) tea.Cmd {
 	account := a.currentAccount()
 	if account == nil {
 		return func() tea.Msg {
-			return errorMsg{err: fmt.Errorf("no account configured")}
+			return emailBodyErrorMsg{uid: uid, err: fmt.Errorf("no account configured")}
 		}
 	}
 	accountEmail := account.Credentials.Email
-	creds := &account.Credentials
-	since := time.Now().AddDate(0, 0, -SyncDays)
-	imapClient := a.imap // capture for nil check in closure
-	emailLimit := a.emailLimit
+	mailbox := a.currentLabel
+	serverClient := a.serverClient
+
 	return func() tea.Msg {
-		var newClient *mail.IMAPClient
-		client := imapClient
-
-		// Helper to check if error is connection-related
-		isConnectionError := func(err error) bool {
-			if err == nil {
-				return false
-			}
-			errStr := err.Error()
-			return strings.Contains(errStr, "closed network connection") ||
-				strings.Contains(errStr, "connection reset") ||
-				strings.Contains(errStr, "broken pipe") ||
-				strings.Contains(errStr, "EOF")
+		if serverClient == nil {
+			return emailBodyErrorMsg{uid: uid, err: fmt.Errorf("server unavailable"), accountEmail: accountEmail, mailbox: mailbox}
 		}
 
-		// Try with existing client first, reconnect if needed
-		if client == nil {
-			var err error
-			client, err = mail.NewIMAPClient(creds)
-			if err != nil {
-				return errorMsg{err: err, accountEmail: accountEmail}
-			}
-			newClient = client
-		}
-
-		// Get UIDValidity for cache consistency with daemon
-		mailboxInfo, err := client.SelectMailboxWithInfo(label)
+		cached, err := serverClient.GetEmail(accountEmail, mailbox, uid)
 		if err != nil {
-			if isConnectionError(err) && newClient == nil {
-				// Connection is stale, try reconnecting
-				client, err = mail.NewIMAPClient(creds)
-				if err != nil {
-					return errorMsg{err: err, accountEmail: accountEmail}
-				}
-				newClient = client
-				mailboxInfo, err = client.SelectMailboxWithInfo(label)
-				if err != nil {
-					return errorMsg{err: err, accountEmail: accountEmail}
-				}
-			} else {
-				return errorMsg{err: err, accountEmail: accountEmail}
-			}
+			return emailBodyErrorMsg{uid: uid, err: err, accountEmail: accountEmail, mailbox: mailbox}
+		}
+		if cached == nil {
+			return emailBodyErrorMsg{uid: uid, err: fmt.Errorf("email not found"), accountEmail: accountEmail, mailbox: mailbox}
 		}
 
-		emails, err := client.FetchMessagesSince(label, since, emailLimit)
-		if err != nil {
-			if isConnectionError(err) && newClient == nil {
-				// Connection is stale, try reconnecting
-				client, err = mail.NewIMAPClient(creds)
-				if err != nil {
-					return errorMsg{err: err, accountEmail: accountEmail}
-				}
-				newClient = client
-				// Re-select mailbox and retry
-				mailboxInfo, err = client.SelectMailboxWithInfo(label)
-				if err != nil {
-					return errorMsg{err: err, accountEmail: accountEmail}
-				}
-				emails, err = client.FetchMessagesSince(label, since, emailLimit)
-				if err != nil {
-					return errorMsg{err: err, accountEmail: accountEmail}
-				}
-			} else {
-				return errorMsg{err: err, accountEmail: accountEmail}
-			}
-		}
-
-		return emailsLoadedMsg{
-			emails:       emails,
+		return emailBodyLoadedMsg{
+			uid:          uid,
+			bodyHTML:     cached.BodyHTML,
+			snippet:      cached.Snippet,
 			accountEmail: accountEmail,
-			uidValidity:  mailboxInfo.UIDValidity,
-			imap:         newClient,
+			mailbox:      mailbox,
 		}
 	}
 }
@@ -146,50 +98,14 @@ func (a *App) loadLabels() tea.Cmd {
 		}
 	}
 	accountEmail := account.Credentials.Email
-	creds := &account.Credentials
 	serverClient := a.serverClient
-	imapClient := a.imap // fallback
 
 	return func() tea.Msg {
-		// Try server first
-		if serverClient != nil {
-			labels, err := serverClient.GetLabels(accountEmail)
-			if err == nil {
-				return labelsLoadedMsg{labels: labels, accountEmail: accountEmail}
-			}
+		if serverClient == nil {
+			return errorMsg{err: fmt.Errorf("server unavailable"), accountEmail: accountEmail}
 		}
-
-		// Fall back to direct IMAP with reconnection support
-		if imapClient == nil {
-			return errorMsg{err: fmt.Errorf("connecting to server"), accountEmail: accountEmail}
-		}
-
-		// Helper to check if error is connection-related
-		isConnectionError := func(err error) bool {
-			if err == nil {
-				return false
-			}
-			errStr := err.Error()
-			return strings.Contains(errStr, "closed network connection") ||
-				strings.Contains(errStr, "connection reset") ||
-				strings.Contains(errStr, "broken pipe") ||
-				strings.Contains(errStr, "EOF")
-		}
-
-		labels, err := imapClient.ListMailboxes()
+		labels, err := serverClient.GetLabels(accountEmail)
 		if err != nil {
-			if isConnectionError(err) {
-				// Connection is stale, try reconnecting
-				newClient, connErr := mail.NewIMAPClient(creds)
-				if connErr != nil {
-					return errorMsg{err: connErr, accountEmail: accountEmail}
-				}
-				labels, err = newClient.ListMailboxes()
-				if err != nil {
-					return errorMsg{err: err, accountEmail: accountEmail}
-				}
-				return labelsLoadedMsg{labels: labels, accountEmail: accountEmail, imap: newClient}
-			}
 			return errorMsg{err: err, accountEmail: accountEmail}
 		}
 		return labelsLoadedMsg{labels: labels, accountEmail: accountEmail}
@@ -205,56 +121,19 @@ func (a *App) executeSearch(query string) tea.Cmd {
 		}
 	}
 	accountEmail := account.Credentials.Email
-	creds := &account.Credentials
 	serverClient := a.serverClient
-	imapClient := a.imap // fallback
 
 	return func() tea.Msg {
-		// Try server first
-		if serverClient != nil {
-			cached, err := serverClient.Search(accountEmail, label, query)
-			if err == nil {
-				emails := make([]mail.Email, len(cached))
-				for i, c := range cached {
-					emails[i] = cachedToGmail(c)
-				}
-				return appSearchResultsMsg{emails: emails, query: query, accountEmail: accountEmail}
-			}
+		if serverClient == nil {
+			return errorMsg{err: fmt.Errorf("server unavailable"), accountEmail: accountEmail}
 		}
-
-		// Fall back to direct IMAP with reconnection support
-		if imapClient == nil {
-			return errorMsg{err: fmt.Errorf("connecting to server"), accountEmail: accountEmail}
-		}
-
-		// Helper to check if error is connection-related
-		isConnectionError := func(err error) bool {
-			if err == nil {
-				return false
-			}
-			errStr := err.Error()
-			return strings.Contains(errStr, "closed network connection") ||
-				strings.Contains(errStr, "connection reset") ||
-				strings.Contains(errStr, "broken pipe") ||
-				strings.Contains(errStr, "EOF")
-		}
-
-		emails, err := imapClient.SearchMessages(label, query)
+		cached, err := serverClient.Search(accountEmail, label, query)
 		if err != nil {
-			if isConnectionError(err) {
-				// Connection is stale, try reconnecting
-				newClient, connErr := mail.NewIMAPClient(creds)
-				if connErr != nil {
-					return errorMsg{err: connErr, accountEmail: accountEmail}
-				}
-				// SearchMessages internally selects the mailbox, so we just retry
-				emails, err = newClient.SearchMessages(label, query)
-				if err != nil {
-					return errorMsg{err: err, accountEmail: accountEmail}
-				}
-				return appSearchResultsMsg{emails: emails, query: query, accountEmail: accountEmail, imap: newClient}
-			}
 			return errorMsg{err: err, accountEmail: accountEmail}
+		}
+		emails := make([]mail.Email, len(cached))
+		for i, c := range cached {
+			emails[i] = cachedToGmail(c)
 		}
 		return appSearchResultsMsg{emails: emails, query: query, accountEmail: accountEmail}
 	}
@@ -276,25 +155,16 @@ func (a *App) markSelectedAsRead() tea.Cmd {
 	}
 	mailbox := a.currentLabel
 	serverClient := a.serverClient
-	imapClient := a.imap // fallback
 
 	return func() tea.Msg {
 		if len(uids) == 0 {
 			return bulkActionCompleteMsg{action: "marked as read", count: 0}
 		}
 
-		// Try server first
-		if serverClient != nil {
-			if err := serverClient.MarkMultiRead(accountEmail, mailbox, uids); err == nil {
-				return bulkActionCompleteMsg{action: "marked as read", count: len(uids)}
-			}
+		if serverClient == nil {
+			return errorMsg{err: fmt.Errorf("server unavailable"), accountEmail: accountEmail}
 		}
-
-		// Fall back to direct IMAP
-		if imapClient == nil {
-			return errorMsg{err: fmt.Errorf("connecting to server"), accountEmail: accountEmail}
-		}
-		if err := imapClient.MarkMessagesAsRead(uids); err != nil {
+		if err := serverClient.MarkMultiRead(accountEmail, mailbox, uids); err != nil {
 			return errorMsg{err: err, accountEmail: accountEmail}
 		}
 		return bulkActionCompleteMsg{action: "marked as read", count: len(uids)}
@@ -316,18 +186,17 @@ func (a *App) deleteSelectedEmails() tea.Cmd {
 		accountEmail = account.Credentials.Email
 	}
 	mailbox := a.currentLabel
-	diskCache := a.diskCache
+	serverClient := a.serverClient
 
 	return func() tea.Msg {
 		if len(uids) == 0 {
 			return bulkActionCompleteMsg{action: "deleted", count: 0}
 		}
-		// Optimistic: delete locally and queue for server
-		if diskCache != nil {
-			for _, uid := range uids {
-				diskCache.DeleteEmail(accountEmail, mailbox, uid)
-				diskCache.AddPendingOp(accountEmail, mailbox, cache.OpDelete, uid)
-			}
+		if serverClient == nil {
+			return errorMsg{err: fmt.Errorf("server unavailable"), accountEmail: accountEmail}
+		}
+		if err := serverClient.QueueDeleteMulti(accountEmail, mailbox, uids); err != nil {
+			return errorMsg{err: err, accountEmail: accountEmail}
 		}
 		return bulkActionCompleteMsg{action: "deleted", count: len(uids)}
 	}
@@ -340,13 +209,14 @@ func (a *App) deleteSingleEmail(uid imap.UID) tea.Cmd {
 		accountEmail = account.Credentials.Email
 	}
 	mailbox := a.currentLabel
-	diskCache := a.diskCache
+	serverClient := a.serverClient
 
 	return func() tea.Msg {
-		// Optimistic: delete locally and queue for server
-		if diskCache != nil {
-			diskCache.DeleteEmail(accountEmail, mailbox, uid)
-			diskCache.AddPendingOp(accountEmail, mailbox, cache.OpDelete, uid)
+		if serverClient == nil {
+			return errorMsg{err: fmt.Errorf("server unavailable"), accountEmail: accountEmail}
+		}
+		if err := serverClient.QueueDeleteEmail(accountEmail, mailbox, uid); err != nil {
+			return errorMsg{err: err, accountEmail: accountEmail}
 		}
 		return singleDeleteCompleteMsg{uid: uid}
 	}
@@ -367,18 +237,17 @@ func (a *App) moveSelectedToTrash() tea.Cmd {
 		accountEmail = account.Credentials.Email
 	}
 	mailbox := a.currentLabel
-	diskCache := a.diskCache
+	serverClient := a.serverClient
 
 	return func() tea.Msg {
 		if len(uids) == 0 {
 			return bulkActionCompleteMsg{action: "moved to trash", count: 0}
 		}
-		// Optimistic: delete locally and queue for server
-		if diskCache != nil {
-			for _, uid := range uids {
-				diskCache.DeleteEmail(accountEmail, mailbox, uid)
-				diskCache.AddPendingOp(accountEmail, mailbox, cache.OpMoveTrash, uid)
-			}
+		if serverClient == nil {
+			return errorMsg{err: fmt.Errorf("server unavailable"), accountEmail: accountEmail}
+		}
+		if err := serverClient.QueueMoveMultiToTrash(accountEmail, mailbox, uids); err != nil {
+			return errorMsg{err: err, accountEmail: accountEmail}
 		}
 		return bulkActionCompleteMsg{action: "moved to trash", count: len(uids)}
 	}
@@ -391,13 +260,14 @@ func (a *App) moveSingleToTrash(uid imap.UID) tea.Cmd {
 		accountEmail = account.Credentials.Email
 	}
 	mailbox := a.currentLabel
-	diskCache := a.diskCache
+	serverClient := a.serverClient
 
 	return func() tea.Msg {
-		// Optimistic: delete locally and queue for server
-		if diskCache != nil {
-			diskCache.DeleteEmail(accountEmail, mailbox, uid)
-			diskCache.AddPendingOp(accountEmail, mailbox, cache.OpMoveTrash, uid)
+		if serverClient == nil {
+			return errorMsg{err: fmt.Errorf("server unavailable"), accountEmail: accountEmail}
+		}
+		if err := serverClient.QueueMoveToTrash(accountEmail, mailbox, uid); err != nil {
+			return errorMsg{err: err, accountEmail: accountEmail}
 		}
 		return singleDeleteCompleteMsg{uid: uid}
 	}
@@ -845,6 +715,143 @@ func (a App) reloadFromCache() tea.Cmd {
 		}
 
 		return emailsLoadedMsg{emails: nil, accountEmail: accountEmail}
+	}
+}
+
+// refreshFromIMAP performs a manual metadata-only refresh (max 14 days or 100 emails).
+// It inserts missing UIDs into the sqlite cache without updating existing rows.
+func (a *App) refreshFromIMAP() tea.Cmd {
+	account := a.currentAccount()
+	if account == nil {
+		return func() tea.Msg {
+			return serverRefreshCompleteMsg{err: fmt.Errorf("no account configured")}
+		}
+	}
+
+	accountEmail := account.Credentials.Email
+	mailbox := a.currentLabel
+	limit := int(a.emailLimit)
+	diskCache := a.diskCache
+
+	return func() tea.Msg {
+		client, err := mail.NewIMAPClient(&account.Credentials)
+		if err != nil {
+			return serverRefreshCompleteMsg{accountEmail: accountEmail, mailbox: mailbox, err: err}
+		}
+		defer client.Close()
+
+		var uidValidity uint32
+		if info, err := client.SelectMailboxWithInfo(mailbox); err == nil {
+			uidValidity = info.UIDValidity
+		}
+
+		// Step 1: Fetch last 100 emails by sequence number (metadata only).
+		emails, err := client.FetchMessagesMetadata(mailbox, MinSyncEmails)
+		if err != nil {
+			return serverRefreshCompleteMsg{accountEmail: accountEmail, mailbox: mailbox, err: err}
+		}
+
+		// Build map of fetched UIDs.
+		fetchedUIDs := make(map[imap.UID]bool)
+		for _, e := range emails {
+			fetchedUIDs[e.UID] = true
+		}
+
+		// Step 2: Get UIDs from last 14 days.
+		since := time.Now().AddDate(0, 0, -SyncDays)
+		recentUIDs, err := client.FetchUIDsAndFlags(mailbox, since)
+		if err != nil {
+			recentUIDs = nil
+		}
+
+		// Step 3: Find missing UIDs in the 14-day window.
+		var missingUIDs []imap.UID
+		for uid := range recentUIDs {
+			if !fetchedUIDs[uid] {
+				missingUIDs = append(missingUIDs, uid)
+			}
+		}
+
+		// Step 4: Fetch missing metadata.
+		if len(missingUIDs) > 0 {
+			additional, err := client.FetchMessagesByUIDsMetadata(mailbox, missingUIDs)
+			if err == nil {
+				emails = append(emails, additional...)
+			}
+		}
+
+		if diskCache != nil {
+			for _, e := range emails {
+				cached := emailToCached(e)
+				_, _ = diskCache.InsertEmailMetadataIfMissing(accountEmail, mailbox, cached)
+			}
+
+			if uidValidity == 0 {
+				if meta, err := diskCache.LoadMetadata(accountEmail, mailbox); err == nil && meta != nil {
+					uidValidity = meta.UIDValidity
+				}
+			}
+			_ = diskCache.SaveMetadata(accountEmail, mailbox, &cache.Metadata{
+				UIDValidity: uidValidity,
+				LastSync:    time.Now(),
+			})
+
+			cachedEmails, err := diskCache.LoadEmailsLimit(accountEmail, mailbox, limit)
+			if err == nil {
+				result := make([]mail.Email, len(cachedEmails))
+				for i, c := range cachedEmails {
+					result[i] = cachedToGmail(c)
+				}
+				return serverRefreshCompleteMsg{
+					emails:       result,
+					accountEmail: accountEmail,
+					mailbox:      mailbox,
+				}
+			}
+		}
+
+		sort.Slice(emails, func(i, j int) bool {
+			return emails[i].InternalDate.After(emails[j].InternalDate)
+		})
+		if limit > 0 && len(emails) > limit {
+			emails = emails[:limit]
+		}
+
+		return serverRefreshCompleteMsg{
+			emails:       emails,
+			accountEmail: accountEmail,
+			mailbox:      mailbox,
+		}
+	}
+}
+
+// emailToCached converts mail.Email to cache.CachedEmail.
+func emailToCached(e mail.Email) cache.CachedEmail {
+	attachments := make([]cache.Attachment, len(e.Attachments))
+	for i, a := range e.Attachments {
+		attachments[i] = cache.Attachment{
+			PartID:      a.PartID,
+			Filename:    a.Filename,
+			ContentType: a.ContentType,
+			Size:        a.Size,
+			Encoding:    a.Encoding,
+		}
+	}
+
+	return cache.CachedEmail{
+		UID:          e.UID,
+		MessageID:    e.MessageID,
+		InternalDate: e.InternalDate,
+		From:         e.From,
+		ReplyTo:      e.ReplyTo,
+		To:           e.To,
+		Subject:      e.Subject,
+		Date:         e.Date,
+		Snippet:      e.Snippet,
+		BodyHTML:     e.BodyHTML,
+		Unread:       e.Unread,
+		References:   e.References,
+		Attachments:  attachments,
 	}
 }
 

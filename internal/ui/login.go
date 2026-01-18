@@ -11,6 +11,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 
 	"maily/internal/auth"
+	"maily/internal/i18n"
 	"maily/internal/mail"
 	"maily/internal/ui/components"
 )
@@ -62,12 +63,18 @@ func NewLoginApp(provider string) LoginApp {
 	switch provider {
 	case "yahoo":
 		emailInput.Placeholder = "you@yahoo.com"
+	case "qq":
+		emailInput.Placeholder = "you@qq.com"
 	default:
 		emailInput.Placeholder = "you@mail.com"
 	}
 
 	passwordInput := textinput.New()
-	passwordInput.Placeholder = "App Password"
+	if provider == "qq" {
+		passwordInput.Placeholder = "Authorization Code"
+	} else {
+		passwordInput.Placeholder = "App Password"
+	}
 	passwordInput.EchoMode = textinput.EchoPassword
 	passwordInput.EchoCharacter = '•'
 	passwordInput.CharLimit = 100
@@ -201,6 +208,8 @@ func (a LoginApp) verifyCredentials() tea.Cmd {
 		switch provider {
 		case "yahoo":
 			creds = auth.YahooCredentials(email, password)
+		case "qq":
+			creds = auth.QQCredentials(email, password)
 		default:
 			creds = auth.GmailCredentials(email, password)
 		}
@@ -279,10 +288,10 @@ func (a LoginApp) View() string {
 
 		var hintText string
 		switch a.provider {
-		case "yahoo":
-			hintText = "\n\nMake sure you:\n• Used an App Password (not your regular password)\n• Have 2-Step Verification enabled\n\nPress Enter to exit."
+		case "qq":
+			hintText = "\n\n" + i18n.T("login.qq.error_hint") + "\n\n" + i18n.T("login.hint_exit")
 		default:
-			hintText = "\n\nMake sure you:\n• Used an App Password (not your regular password)\n• Have IMAP enabled in Gmail settings\n\nPress Enter to exit."
+			hintText = "\n\n" + i18n.T("error.auth_hint") + "\n\n" + i18n.T("login.hint_exit")
 		}
 
 		hint := lipgloss.NewStyle().
@@ -327,11 +336,14 @@ func (a LoginApp) renderInputForm() string {
 	var title, instructions string
 	switch a.provider {
 	case "yahoo":
-		title = titleStyle.Render("Yahoo Mail Login")
-		instructions = hintStyle.Render("You need an App Password to continue.\n\n1. Go to: login.yahoo.com/account/security\n2. Click 'Generate app password'\n3. Select 'Other App' and generate\n")
+		title = titleStyle.Render(i18n.T("login.yahoo.title"))
+		instructions = hintStyle.Render(i18n.T("login.yahoo.hint"))
+	case "qq":
+		title = titleStyle.Render(i18n.T("login.qq.title"))
+		instructions = hintStyle.Render(i18n.T("login.qq.hint"))
 	default:
-		title = titleStyle.Render("Gmail Login")
-		instructions = hintStyle.Render("You need an App Password to continue.\n\n1. Enable 2-Step Verification (if not done)\n2. Go to: myaccount.google.com/apppasswords\n3. Type a name and click Create\n")
+		title = titleStyle.Render(i18n.T("login.gmail.title"))
+		instructions = hintStyle.Render(i18n.T("login.gmail.hint"))
 	}
 
 	// Email field
@@ -350,9 +362,13 @@ func (a LoginApp) renderInputForm() string {
 	if a.focusedField == fieldPassword {
 		passwordLabel = focusedLabelStyle
 	}
+	passwordLabelText := i18n.T("login.password_label")
+	if a.provider == "qq" {
+		passwordLabelText = i18n.T("login.qq.password_label")
+	}
 	passwordRow := lipgloss.JoinHorizontal(
 		lipgloss.Left,
-		passwordLabel.Render("App Password:"),
+		passwordLabel.Render(passwordLabelText),
 		a.passwordInput.View(),
 	)
 

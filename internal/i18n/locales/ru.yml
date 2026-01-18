@@ -155,6 +155,21 @@ login.yahoo.hint: 'Вам нужен пароль приложения для п
   2. Нажмите ''Создать пароль приложения''
 
   3. Выберите ''Другое приложение'' и создайте'
+login.qq.title: Вход в QQ Mail
+login.qq.password_label: 'Код авторизации:'
+login.qq.hint: 'Вам нужен код авторизации (授权码) для продолжения.
+
+
+  1. Перейдите: mail.qq.com → Настройки → Аккаунт
+
+  2. Включите службу IMAP/SMTP
+
+  3. Сгенерируйте код авторизации'
+login.qq.error_hint: 'Убедитесь, что:
+
+  • Вы использовали код авторизации (не пароль QQ)
+
+  • Служба IMAP/SMTP включена в настройках QQ Mail'
 login.hint_fields: Tab сменить поле · Enter отправить · Esc отмена
 login.hint_exit: Нажмите Enter для выхода.
 provider.select_title: Выберите почтовый сервис
@@ -165,6 +180,8 @@ provider.yahoo: Yahoo Mail
 provider.yahoo_desc: Yahoo Mail
 provider.imap: IMAP
 provider.imap_desc: Пользовательский IMAP-сервер
+provider.qq: QQ Mail
+provider.qq_desc: Tencent QQ Mail
 config.title: Настройки Maily
 config.section.general: Общие
 config.section.ai_providers: ИИ-провайдеры

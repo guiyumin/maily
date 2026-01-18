@@ -140,6 +140,21 @@ login.yahoo.hint: '続行するにはアプリパスワードが必要です。
   2. 「アプリパスワードを生成」をクリック
 
   3. 「その他のアプリ」を選択して生成'
+login.qq.title: QQメールログイン
+login.qq.password_label: '認証コード:'
+login.qq.hint: '続行するには認証コード（授权码）が必要です。
+
+
+  1. mail.qq.com → 設定 → アカウントに移動
+
+  2. IMAP/SMTPサービスを有効化
+
+  3. 認証コードを生成'
+login.qq.error_hint: '以下を確認してください:
+
+  • 認証コードを使用している（QQパスワードではない）
+
+  • QQメール設定でIMAP/SMTPサービスが有効になっている'
 login.hint_fields: Tab フィールド切り替え · Enter 送信 · Esc キャンセル
 login.hint_exit: Enterキーで終了します。
 provider.select_title: メールプロバイダーを選択
@@ -150,6 +165,8 @@ provider.yahoo: Yahoo Mail
 provider.yahoo_desc: Yahoo メール
 provider.imap: IMAP
 provider.imap_desc: カスタムIMAPサーバー
+provider.qq: QQメール
+provider.qq_desc: Tencent QQメール
 config.title: Maily 設定
 config.section.general: 一般
 config.section.ai_providers: AIプロバイダー

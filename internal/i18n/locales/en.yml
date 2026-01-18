@@ -191,6 +191,20 @@ login.yahoo.hint: |
   2. Click 'Generate app password'
   3. Select 'Other App' and generate
 
+login.qq.title: "QQ Mail Login"
+login.qq.password_label: "Auth Code:"
+login.qq.hint: |
+  You need an Authorization Code (授权码) to continue.
+
+  1. Go to: mail.qq.com → Settings → Account
+  2. Enable IMAP/SMTP service
+  3. Generate authorization code
+
+login.qq.error_hint: |
+  Make sure you:
+  • Used an Authorization Code (not your QQ password)
+  • Have IMAP/SMTP service enabled in QQ Mail settings
+
 login.hint_fields: "Tab to switch fields · Enter to submit · Esc to cancel"
 login.hint_exit: "Press Enter to exit."
 
@@ -205,6 +219,8 @@ provider.yahoo: "Yahoo Mail"
 provider.yahoo_desc: "Yahoo Mail"
 provider.imap: "IMAP"
 provider.imap_desc: "Custom IMAP server"
+provider.qq: "QQ Mail"
+provider.qq_desc: "Tencent QQ Mail"
 
 # ============================================
 # Configuration TUI

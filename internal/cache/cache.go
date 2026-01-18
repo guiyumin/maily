@@ -518,6 +518,63 @@ func (c *Cache) SaveEmail(account, mailbox string, email CachedEmail) error {
 	return tx.Commit()
 }
 
+// InsertEmailMetadataIfMissing inserts metadata for an email if the UID is not already cached.
+// It does not update existing rows, preserving any previously cached body content.
+func (c *Cache) InsertEmailMetadataIfMissing(account, mailbox string, email CachedEmail) (bool, error) {
+	tx, err := c.db.Begin()
+	if err != nil {
+		return false, err
+	}
+	defer tx.Rollback()
+
+	unread := 0
+	if email.Unread {
+		unread = 1
+	}
+
+	result, err := tx.Exec(`
+		INSERT OR IGNORE INTO emails
+		(account, mailbox, uid, message_id, internal_date, from_addr, reply_to,
+		 to_addr, subject, date, snippet, body_html, unread, references_hdr)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`,
+		account, mailbox, uint32(email.UID), email.MessageID,
+		email.InternalDate.Unix(), email.From, email.ReplyTo, email.To,
+		email.Subject, email.Date.Unix(), email.Snippet, email.BodyHTML,
+		unread, email.References,
+	)
+	if err != nil {
+		return false, err
+	}
+
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return false, err
+	}
+	if affected == 0 {
+		return false, nil
+	}
+
+	for _, att := range email.Attachments {
+		_, err = tx.Exec(`
+			INSERT OR IGNORE INTO attachments
+			(account, mailbox, email_uid, part_id, filename, content_type, size, encoding)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		`,
+			account, mailbox, uint32(email.UID), att.PartID, att.Filename,
+			att.ContentType, att.Size, att.Encoding,
+		)
+		if err != nil {
+			return false, err
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
 // DeleteEmail deletes an email from cache
 func (c *Cache) DeleteEmail(account, mailbox string, uid imap.UID) error {
 	_, err := c.db.Exec(
@@ -619,6 +676,15 @@ func (c *Cache) UpdateEmailFlags(account, mailbox string, uid imap.UID, unread b
 	_, err := c.db.Exec(
 		"UPDATE emails SET unread = ? WHERE account = ? AND mailbox = ? AND uid = ?",
 		unreadVal, account, mailbox, uint32(uid),
+	)
+	return err
+}
+
+// UpdateEmailBody updates the body content of a cached email
+func (c *Cache) UpdateEmailBody(account, mailbox string, uid imap.UID, bodyHTML, snippet string) error {
+	_, err := c.db.Exec(
+		"UPDATE emails SET body_html = ?, snippet = ? WHERE account = ? AND mailbox = ? AND uid = ?",
+		bodyHTML, snippet, account, mailbox, uint32(uid),
 	)
 	return err
 }

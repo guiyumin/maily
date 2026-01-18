@@ -145,6 +145,21 @@ login.yahoo.hint: 'U hebt een app-wachtwoord nodig om door te gaan.
   2. Klik op ''App-wachtwoord genereren''
 
   3. Selecteer ''Andere app'' en genereer'
+login.qq.title: QQ Mail Inloggen
+login.qq.password_label: 'Autorisatiecode:'
+login.qq.hint: 'U hebt een autorisatiecode (授权码) nodig om door te gaan.
+
+
+  1. Ga naar: mail.qq.com → Instellingen → Account
+
+  2. Schakel de IMAP/SMTP-service in
+
+  3. Genereer de autorisatiecode'
+login.qq.error_hint: 'Zorg ervoor dat:
+
+  • U een autorisatiecode heeft gebruikt (niet uw QQ-wachtwoord)
+
+  • De IMAP/SMTP-service is ingeschakeld in QQ Mail-instellingen'
 login.hint_fields: Tab veld wisselen · Enter verzenden · Esc annuleren
 login.hint_exit: Druk op Enter om af te sluiten.
 provider.select_title: E-mailprovider selecteren
@@ -155,6 +170,8 @@ provider.yahoo: Yahoo Mail
 provider.yahoo_desc: Yahoo Mail
 provider.imap: IMAP
 provider.imap_desc: Aangepaste IMAP-server
+provider.qq: QQ Mail
+provider.qq_desc: Tencent QQ Mail
 config.title: Maily Instellingen
 config.section.general: Algemeen
 config.section.ai_providers: AI-providers

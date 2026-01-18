@@ -237,7 +237,10 @@ type serverRefreshCompleteMsg struct {
 	err          error
 }
 
-const autoRefreshInterval = 5 * time.Minute
+const (
+	autoRefreshInterval  = 5 * time.Minute
+	cacheFreshnessWindow = 10 * time.Minute
+)
 
 func scheduleAutoRefresh() tea.Cmd {
 	return tea.Tick(autoRefreshInterval, func(t time.Time) tea.Msg {
@@ -1029,7 +1032,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.labelPicker.SetLabels(msg.labels)
 		// Skip server fetch if we have cached emails and cache is fresh (synced within 5 minutes)
 		if len(a.mailList.Emails()) > 0 && a.diskCache != nil {
-			if a.diskCache.IsFresh(currentEmail, a.currentLabel, 5*time.Minute) {
+			if a.diskCache.IsFresh(currentEmail, a.currentLabel, cacheFreshnessWindow) {
 				// Cache is fresh, no need to fetch from server
 				a.state = stateReady
 				labelName := components.GetLabelDisplayName(a.currentLabel)
@@ -1061,7 +1064,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			a.mailList.SetEmails(msg.emails)
 			labelName := components.GetLabelDisplayName(a.currentLabel)
 			// Check if cache is fresh - if so, we're done (no need to fetch from server)
-			if a.diskCache != nil && a.diskCache.IsFresh(currentEmail, a.currentLabel, 5*time.Minute) {
+			if a.diskCache != nil && a.diskCache.IsFresh(currentEmail, a.currentLabel, cacheFreshnessWindow) {
 				a.state = stateReady
 				a.statusMsg = fmt.Sprintf("%s: %d emails", labelName, len(msg.emails))
 			} else {

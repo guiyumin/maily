@@ -137,8 +137,8 @@ func (s *Server) Run() error {
 	s.wg.Add(1)
 	go s.acceptLoop()
 
-	// Initial sync
-	s.syncAllAccounts()
+	// Initial sync (skip if cache is fresh)
+	s.syncAllAccountsIfStale(syncInterval)
 
 	// Wait for shutdown signal
 	<-sigChan
@@ -463,6 +463,26 @@ func (s *Server) processPendingOps() {
 func (s *Server) syncAllAccounts() {
 	accounts := s.state.GetAccounts()
 	for _, acc := range accounts {
+		s.broadcastEvent(Event{Type: EventSyncStarted, Account: acc.Email})
+		err := s.state.Sync(acc.Email, "INBOX")
+		if err != nil {
+			fmt.Printf("Sync error for %s: %v\n", acc.Email, err)
+			s.broadcastEvent(Event{Type: EventSyncError, Account: acc.Email, Error: err.Error()})
+		} else {
+			fmt.Printf("Synced %s\n", acc.Email)
+			s.broadcastEvent(Event{Type: EventSyncCompleted, Account: acc.Email})
+		}
+	}
+}
+
+// syncAllAccountsIfStale syncs INBOX for accounts without a recent cache.
+func (s *Server) syncAllAccountsIfStale(maxAge time.Duration) {
+	accounts := s.state.GetAccounts()
+	for _, acc := range accounts {
+		if s.state.IsCacheFresh(acc.Email, "INBOX", maxAge) {
+			fmt.Printf("Skipping initial sync for %s (cache fresh)\n", acc.Email)
+			continue
+		}
 		s.broadcastEvent(Event{Type: EventSyncStarted, Account: acc.Email})
 		err := s.state.Sync(acc.Email, "INBOX")
 		if err != nil {

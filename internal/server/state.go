@@ -128,6 +128,14 @@ func (sm *StateManager) CloseIMAPClients() {
 	}
 }
 
+// IsCacheFresh reports whether the disk cache was synced recently.
+func (sm *StateManager) IsCacheFresh(email, mailbox string, maxAge time.Duration) bool {
+	if sm.cache == nil {
+		return false
+	}
+	return sm.cache.IsFresh(email, mailbox, maxAge)
+}
+
 // GetAccounts returns info about all accounts
 func (sm *StateManager) GetAccounts() []AccountInfo {
 	sm.mu.RLock()

@@ -2,7 +2,6 @@ package ui
 
 import (
 	"fmt"
-	"sort"
 	"strings"
 	"time"
 
@@ -15,13 +14,6 @@ import (
 	"maily/internal/mail"
 )
 
-const (
-	// SyncDays matches the sync window in internal/sync
-	SyncDays = 14
-	// MinSyncEmails matches the minimum sync size in the server
-	MinSyncEmails = 100
-)
-
 type bulkActionCompleteMsg struct {
 	action string
 	count  int
@@ -31,24 +23,6 @@ type draftSavedMsg struct{}
 
 type draftSaveErrorMsg struct {
 	err error
-}
-
-func (a App) initClient() tea.Cmd {
-	account := a.currentAccount()
-	if account == nil {
-		return func() tea.Msg {
-			return errorMsg{err: fmt.Errorf("no account configured")}
-		}
-	}
-	creds := &account.Credentials
-	accountEmail := creds.Email // capture for closure
-	return func() tea.Msg {
-		client, err := mail.NewIMAPClient(creds)
-		if err != nil {
-			return errorMsg{err: err, accountEmail: accountEmail}
-		}
-		return clientReadyMsg{imap: client, accountEmail: accountEmail}
-	}
 }
 
 func (a *App) loadEmails() tea.Cmd {
@@ -329,13 +303,17 @@ func (a *App) saveDraft() tea.Cmd {
 	to := a.compose.GetTo()
 	subject := a.compose.GetSubject()
 	body := a.compose.GetBody()
-	imapClient := a.imap // capture for nil check in closure
+	account := a.currentAccount()
+	serverClient := a.serverClient
 
 	return func() tea.Msg {
-		if imapClient == nil {
-			return draftSaveErrorMsg{err: fmt.Errorf("connecting to server")}
+		if serverClient == nil {
+			return draftSaveErrorMsg{err: fmt.Errorf("server unavailable")}
 		}
-		if err := imapClient.SaveDraft(to, subject, body); err != nil {
+		if account == nil {
+			return draftSaveErrorMsg{err: fmt.Errorf("no account configured")}
+		}
+		if err := serverClient.SaveDraft(account.Credentials.Email, to, subject, body); err != nil {
 			return draftSaveErrorMsg{err: err}
 		}
 		return draftSavedMsg{}
@@ -718,8 +696,7 @@ func (a App) reloadFromCache() tea.Cmd {
 	}
 }
 
-// refreshFromIMAP performs a manual metadata-only refresh (max 14 days or 100 emails).
-// It inserts missing UIDs into the sqlite cache without updating existing rows.
+// refreshFromIMAP performs a manual metadata-only refresh via the server.
 func (a *App) refreshFromIMAP() tea.Cmd {
 	account := a.currentAccount()
 	if account == nil {
@@ -731,90 +708,22 @@ func (a *App) refreshFromIMAP() tea.Cmd {
 	accountEmail := account.Credentials.Email
 	mailbox := a.currentLabel
 	limit := int(a.emailLimit)
-	diskCache := a.diskCache
+	serverClient := a.serverClient
 
 	return func() tea.Msg {
-		client, err := mail.NewIMAPClient(&account.Credentials)
-		if err != nil {
-			return serverRefreshCompleteMsg{accountEmail: accountEmail, mailbox: mailbox, err: err}
-		}
-		defer client.Close()
-
-		var uidValidity uint32
-		if info, err := client.SelectMailboxWithInfo(mailbox); err == nil {
-			uidValidity = info.UIDValidity
+		if serverClient == nil {
+			return serverRefreshCompleteMsg{accountEmail: accountEmail, mailbox: mailbox, err: fmt.Errorf("server unavailable")}
 		}
 
-		// Step 1: Fetch last 100 emails by sequence number (metadata only).
-		emails, err := client.FetchMessagesMetadata(mailbox, MinSyncEmails)
+		cached, err := serverClient.QuickRefresh(accountEmail, mailbox, limit)
 		if err != nil {
 			return serverRefreshCompleteMsg{accountEmail: accountEmail, mailbox: mailbox, err: err}
 		}
 
-		// Build map of fetched UIDs.
-		fetchedUIDs := make(map[imap.UID]bool)
-		for _, e := range emails {
-			fetchedUIDs[e.UID] = true
-		}
-
-		// Step 2: Get UIDs from last 14 days.
-		since := time.Now().AddDate(0, 0, -SyncDays)
-		recentUIDs, err := client.FetchUIDsAndFlags(mailbox, since)
-		if err != nil {
-			recentUIDs = nil
-		}
-
-		// Step 3: Find missing UIDs in the 14-day window.
-		var missingUIDs []imap.UID
-		for uid := range recentUIDs {
-			if !fetchedUIDs[uid] {
-				missingUIDs = append(missingUIDs, uid)
-			}
-		}
-
-		// Step 4: Fetch missing metadata.
-		if len(missingUIDs) > 0 {
-			additional, err := client.FetchMessagesByUIDsMetadata(mailbox, missingUIDs)
-			if err == nil {
-				emails = append(emails, additional...)
-			}
-		}
-
-		if diskCache != nil {
-			for _, e := range emails {
-				cached := emailToCached(e)
-				_, _ = diskCache.InsertEmailMetadataIfMissing(accountEmail, mailbox, cached)
-			}
-
-			if uidValidity == 0 {
-				if meta, err := diskCache.LoadMetadata(accountEmail, mailbox); err == nil && meta != nil {
-					uidValidity = meta.UIDValidity
-				}
-			}
-			_ = diskCache.SaveMetadata(accountEmail, mailbox, &cache.Metadata{
-				UIDValidity: uidValidity,
-				LastSync:    time.Now(),
-			})
-
-			cachedEmails, err := diskCache.LoadEmailsLimit(accountEmail, mailbox, limit)
-			if err == nil {
-				result := make([]mail.Email, len(cachedEmails))
-				for i, c := range cachedEmails {
-					result[i] = cachedToGmail(c)
-				}
-				return serverRefreshCompleteMsg{
-					emails:       result,
-					accountEmail: accountEmail,
-					mailbox:      mailbox,
-				}
-			}
-		}
-
-		sort.Slice(emails, func(i, j int) bool {
-			return emails[i].InternalDate.After(emails[j].InternalDate)
-		})
-		if limit > 0 && len(emails) > limit {
-			emails = emails[:limit]
+		// Convert to mail.Email format
+		emails := make([]mail.Email, len(cached))
+		for i, c := range cached {
+			emails[i] = cachedToGmail(c)
 		}
 
 		return serverRefreshCompleteMsg{
@@ -822,36 +731,6 @@ func (a *App) refreshFromIMAP() tea.Cmd {
 			accountEmail: accountEmail,
 			mailbox:      mailbox,
 		}
-	}
-}
-
-// emailToCached converts mail.Email to cache.CachedEmail.
-func emailToCached(e mail.Email) cache.CachedEmail {
-	attachments := make([]cache.Attachment, len(e.Attachments))
-	for i, a := range e.Attachments {
-		attachments[i] = cache.Attachment{
-			PartID:      a.PartID,
-			Filename:    a.Filename,
-			ContentType: a.ContentType,
-			Size:        a.Size,
-			Encoding:    a.Encoding,
-		}
-	}
-
-	return cache.CachedEmail{
-		UID:          e.UID,
-		MessageID:    e.MessageID,
-		InternalDate: e.InternalDate,
-		From:         e.From,
-		ReplyTo:      e.ReplyTo,
-		To:           e.To,
-		Subject:      e.Subject,
-		Date:         e.Date,
-		Snippet:      e.Snippet,
-		BodyHTML:     e.BodyHTML,
-		Unread:       e.Unread,
-		References:   e.References,
-		Attachments:  attachments,
 	}
 }
 

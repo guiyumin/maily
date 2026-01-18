@@ -412,3 +412,46 @@ func (c *Client) Shutdown() error {
 	_, err := c.request(server.Request{Type: server.ReqShutdown}, 5*time.Second)
 	return err
 }
+
+// QuickRefresh performs a synchronous metadata-only refresh
+func (c *Client) QuickRefresh(account, mailbox string, limit int) ([]cache.CachedEmail, error) {
+	resp, err := c.request(server.Request{
+		Type:    server.ReqQuickRefresh,
+		Account: account,
+		Mailbox: mailbox,
+		Limit:   limit,
+	}, 60*time.Second)
+	if err != nil {
+		return nil, err
+	}
+	return resp.Emails, nil
+}
+
+// SaveDraft saves an email to the Drafts folder
+func (c *Client) SaveDraft(account, to, subject, body string) error {
+	_, err := c.request(server.Request{
+		Type:    server.ReqSaveDraft,
+		Account: account,
+		To:      to,
+		Subject: subject,
+		Body:    body,
+	}, 30*time.Second)
+	return err
+}
+
+// DownloadAttachment downloads an attachment and returns the file path
+func (c *Client) DownloadAttachment(account, mailbox string, uid imap.UID, partID, filename, encoding string) (string, error) {
+	resp, err := c.request(server.Request{
+		Type:     server.ReqDownloadAttachment,
+		Account:  account,
+		Mailbox:  mailbox,
+		UID:      uint32(uid),
+		PartID:   partID,
+		Filename: filename,
+		Encoding: encoding,
+	}, 60*time.Second)
+	if err != nil {
+		return "", err
+	}
+	return resp.FilePath, nil
+}

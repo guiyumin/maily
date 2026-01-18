@@ -342,6 +342,15 @@ func (s *Server) handleRequest(_ *Client, req *Request) Response {
 	case ReqSearch:
 		return s.searchEmails(req.Account, req.Mailbox, req.Query)
 
+	case ReqQuickRefresh:
+		return s.quickRefresh(req.Account, req.Mailbox, req.Limit)
+
+	case ReqSaveDraft:
+		return s.saveDraft(req.Account, req.To, req.Subject, req.Body)
+
+	case ReqDownloadAttachment:
+		return s.downloadAttachment(req.Account, req.Mailbox, imap.UID(req.UID), req.PartID, req.Filename, req.Encoding)
+
 	case ReqShutdown:
 		go func() {
 			time.Sleep(100 * time.Millisecond)
@@ -639,6 +648,152 @@ func (s *Server) searchEmails(account, mailbox, query string) Response {
 	}
 
 	return Response{Type: RespEmails, Emails: cached}
+}
+
+// quickRefresh performs a synchronous metadata-only refresh
+func (s *Server) quickRefresh(account, mailbox string, limit int) Response {
+	var emails []mail.Email
+
+	err := s.state.withIMAPClient(account, func(client *mail.IMAPClient) error {
+		var uidValidity uint32
+		if info, err := client.SelectMailboxWithInfo(mailbox); err == nil {
+			uidValidity = info.UIDValidity
+		}
+
+		// Step 1: Fetch last 100 emails by sequence number (metadata only)
+		fetched, err := client.FetchMessagesMetadata(mailbox, MinSyncEmails)
+		if err != nil {
+			return err
+		}
+
+		// Build map of fetched UIDs
+		fetchedUIDs := make(map[imap.UID]bool)
+		for _, e := range fetched {
+			fetchedUIDs[e.UID] = true
+		}
+
+		// Step 2: Get UIDs from last 14 days
+		since := time.Now().AddDate(0, 0, -SyncDays)
+		recentUIDs, err := client.FetchUIDsAndFlags(mailbox, since)
+		if err != nil {
+			recentUIDs = nil
+		}
+
+		// Step 3: Find UIDs in 14-day window not already fetched
+		var missingUIDs []imap.UID
+		for uid := range recentUIDs {
+			if !fetchedUIDs[uid] {
+				missingUIDs = append(missingUIDs, uid)
+			}
+		}
+
+		// Step 4: Fetch any missing recent emails (metadata only)
+		if len(missingUIDs) > 0 {
+			additional, err := client.FetchMessagesByUIDsMetadata(mailbox, missingUIDs)
+			if err == nil {
+				fetched = append(fetched, additional...)
+			}
+		}
+
+		emails = fetched
+
+		// Persist to disk cache
+		if s.state.cache != nil {
+			for _, e := range emails {
+				cached := emailToCached(e)
+				_, _ = s.state.cache.InsertEmailMetadataIfMissing(account, mailbox, cached)
+			}
+
+			if uidValidity == 0 {
+				if meta, err := s.state.cache.LoadMetadata(account, mailbox); err == nil && meta != nil {
+					uidValidity = meta.UIDValidity
+				}
+			}
+			_ = s.state.cache.SaveMetadata(account, mailbox, &cache.Metadata{
+				UIDValidity: uidValidity,
+				LastSync:    time.Now(),
+			})
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return Response{Type: RespError, Error: err.Error()}
+	}
+
+	// Convert to cached format
+	cached := make([]cache.CachedEmail, len(emails))
+	for i, e := range emails {
+		cached[i] = emailToCached(e)
+	}
+
+	// Update memory cache
+	s.state.SetEmails(account, mailbox, cached)
+
+	// Apply limit if specified
+	if limit > 0 && len(cached) > limit {
+		cached = cached[:limit]
+	}
+
+	return Response{Type: RespEmails, Emails: cached}
+}
+
+// saveDraft saves an email to the Drafts folder
+func (s *Server) saveDraft(account, to, subject, body string) Response {
+	err := s.state.withIMAPClient(account, func(client *mail.IMAPClient) error {
+		return client.SaveDraft(to, subject, body)
+	})
+	if err != nil {
+		return Response{Type: RespError, Error: err.Error()}
+	}
+	return Response{Type: RespOK}
+}
+
+// downloadAttachment downloads an attachment and saves it to disk
+func (s *Server) downloadAttachment(account, mailbox string, uid imap.UID, partID, filename, encoding string) Response {
+	var content []byte
+
+	err := s.state.withIMAPClient(account, func(client *mail.IMAPClient) error {
+		var err error
+		content, err = client.FetchAttachment(mailbox, uid, partID, encoding)
+		return err
+	})
+	if err != nil {
+		return Response{Type: RespError, Error: err.Error()}
+	}
+
+	// Get downloads directory
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return Response{Type: RespError, Error: fmt.Sprintf("cannot find home directory: %v", err)}
+	}
+	downloadsDir := filepath.Join(homeDir, "Downloads", "maily")
+
+	// Ensure downloads directory exists
+	if err := os.MkdirAll(downloadsDir, 0755); err != nil {
+		return Response{Type: RespError, Error: fmt.Sprintf("cannot create downloads directory: %v", err)}
+	}
+
+	// Generate unique filename if file exists
+	destPath := filepath.Join(downloadsDir, filename)
+	if _, err := os.Stat(destPath); err == nil {
+		ext := filepath.Ext(filename)
+		base := filename[:len(filename)-len(ext)]
+		for i := 1; ; i++ {
+			destPath = filepath.Join(downloadsDir, fmt.Sprintf("%s (%d)%s", base, i, ext))
+			if _, err := os.Stat(destPath); os.IsNotExist(err) {
+				break
+			}
+		}
+	}
+
+	// Write file
+	if err := os.WriteFile(destPath, content, 0644); err != nil {
+		return Response{Type: RespError, Error: fmt.Sprintf("failed to save file: %v", err)}
+	}
+
+	return Response{Type: RespOK, FilePath: destPath}
 }
 
 // versionsCompatible checks if client and server versions match

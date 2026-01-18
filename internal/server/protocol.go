@@ -31,6 +31,9 @@ const (
 	ReqGetAccounts     = "get_accounts"
 	ReqPing            = "ping"
 	ReqShutdown        = "shutdown"
+	// Synchronous operations (real-time, no queuing)
+	ReqSaveDraft           = "save_draft"
+	ReqDownloadAttachment  = "download_attachment"
 )
 
 // Request is the message sent from client to server
@@ -45,6 +48,14 @@ type Request struct {
 	Query   string   `json:"query,omitempty"`  // for search
 	Target  string   `json:"target,omitempty"` // for move operations
 	Limit   int      `json:"limit,omitempty"`
+	// For save_draft
+	To      string `json:"to,omitempty"`
+	Subject string `json:"subject,omitempty"`
+	Body    string `json:"body,omitempty"`
+	// For download_attachment
+	PartID   string `json:"part_id,omitempty"`
+	Filename string `json:"filename,omitempty"`
+	Encoding string `json:"encoding,omitempty"`
 }
 
 // Response types
@@ -71,6 +82,8 @@ type Response struct {
 	Labels   []string       `json:"labels,omitempty"`
 	Accounts []AccountInfo  `json:"accounts,omitempty"`
 	Status   *SyncStatus    `json:"status,omitempty"`
+	// For download_attachment
+	FilePath string `json:"file_path,omitempty"`
 }
 
 // AccountInfo is a summary of account state

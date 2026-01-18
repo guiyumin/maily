@@ -2,8 +2,6 @@ package ui
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/charmbracelet/bubbles/spinner"
@@ -44,8 +42,6 @@ type App struct {
 	cfg             *config.Config
 	accountIdx      int
 	serverClient    *client.Client                // connection to maily server
-	imap            *mail.IMAPClient              // for operations not yet delegated (compose, drafts)
-	imapCache       map[int]*mail.IMAPClient      // main clients per account index
 	emailCache      map[string][]mail.Email       // key: "accountIdx:label"
 	diskCache       *cache.Cache                  // persistent disk cache (fallback only)
 	mailList        components.MailList
@@ -134,7 +130,6 @@ type emailsLoadedMsg struct {
 	emails       []mail.Email
 	accountEmail string // which account this belongs to
 	uidValidity  uint32 // for cache consistency with daemon
-	imap         *mail.IMAPClient // new client if reconnection was needed
 }
 
 type errorMsg struct {
@@ -142,22 +137,15 @@ type errorMsg struct {
 	accountEmail string // which account this error belongs to
 }
 
-type clientReadyMsg struct {
-	imap         *mail.IMAPClient
-	accountEmail string // which account this belongs to
-}
-
 type appSearchResultsMsg struct {
 	emails       []mail.Email
 	query        string
-	accountEmail string           // which account this belongs to
-	imap         *mail.IMAPClient // new client if reconnection was needed
+	accountEmail string // which account this belongs to
 }
 
 type labelsLoadedMsg struct {
 	labels       []string
-	accountEmail string           // which account this belongs to
-	imap         *mail.IMAPClient // new client if reconnection was needed
+	accountEmail string // which account this belongs to
 }
 
 type replySentMsg struct{}
@@ -275,7 +263,6 @@ func NewApp(store *auth.AccountStore, cfg *config.Config) App {
 		cfg:            cfg,
 		accountIdx:     0,
 		serverClient:   serverClient,
-		imapCache:      make(map[int]*mail.IMAPClient),
 		emailCache:     make(map[string][]mail.Email),
 		diskCache:      diskCache,
 		mailList:       components.NewMailList(),
@@ -565,15 +552,6 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// Close server client
 			if a.serverClient != nil {
 				a.serverClient.Close()
-			}
-			// Close all cached IMAP connections (fallback)
-			for _, imapClient := range a.imapCache {
-				if imapClient != nil {
-					imapClient.Close()
-				}
-			}
-			if a.imap != nil {
-				a.imap.Close()
 			}
 			return a, tea.Quit
 		case "f":
@@ -893,10 +871,6 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 						cacheKey := fmt.Sprintf("%d:%s", a.accountIdx, a.currentLabel)
 						a.emailCache[cacheKey] = emails
 					}
-					// Save current IMAP connection to cache
-					if a.imap != nil {
-						a.imapCache[a.accountIdx] = a.imap
-					}
 				}
 
 				// Switch to next account
@@ -910,7 +884,6 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				// Check if we have in-memory cached data for this account's inbox
 				cacheKey := fmt.Sprintf("%d:%s", a.accountIdx, a.currentLabel)
 				if cached, ok := a.emailCache[cacheKey]; ok && len(cached) > 0 {
-					a.imap = a.imapCache[a.accountIdx]
 					a.mailList.SetEmails(cached)
 					a.state = stateReady
 					labelName := components.GetLabelDisplayName(a.currentLabel)
@@ -918,8 +891,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					return a, nil
 				}
 
-				// Try disk cache first, then init IMAP after cache load
-				a.imap = a.imapCache[a.accountIdx]
+				// Load from server/disk cache
 				a.state = stateLoading
 				a.emailLimit = uint32(a.cfg.MaxEmails)
 				a.mailList.SetEmails(nil)
@@ -1000,20 +972,6 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.spinner, cmd = a.spinner.Update(msg)
 		cmds = append(cmds, cmd)
 
-	case clientReadyMsg:
-		// Ignore messages from other accounts (stale messages after switching)
-		currentAccount := a.currentAccount()
-		currentEmail := ""
-		if currentAccount != nil {
-			currentEmail = currentAccount.Credentials.Email
-		}
-		if msg.accountEmail != "" && msg.accountEmail != currentEmail {
-			return a, nil
-		}
-		a.imap = msg.imap
-		a.imapCache[a.accountIdx] = msg.imap
-		return a, nil
-
 	case labelsLoadedMsg:
 		// Ignore messages from other accounts (stale messages after switching)
 		currentAccount := a.currentAccount()
@@ -1023,11 +981,6 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		if msg.accountEmail != "" && msg.accountEmail != currentEmail {
 			return a, nil
-		}
-		// Update imap client if reconnection happened
-		if msg.imap != nil {
-			a.imap = msg.imap
-			a.imapCache[a.accountIdx] = msg.imap
 		}
 		a.labelPicker.SetLabels(msg.labels)
 		// Skip server fetch if we have cached emails and cache is fresh (synced within 5 minutes)
@@ -1073,7 +1026,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				a.statusMsg = fmt.Sprintf("%s: %d emails", labelName, len(msg.emails))
 			}
 		}
-		return a, tea.Batch(a.initClient(), a.loadLabels())
+		return a, a.loadLabels()
 
 	case emailsLoadedMsg:
 		// Ignore messages from other accounts (stale messages after switching)
@@ -1084,11 +1037,6 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		if msg.accountEmail != "" && msg.accountEmail != currentEmail {
 			return a, nil
-		}
-		// Update imap client if reconnection happened
-		if msg.imap != nil {
-			a.imap = msg.imap
-			a.imapCache[a.accountIdx] = msg.imap
 		}
 		a.mailList.SetEmails(msg.emails)
 		cacheKey := fmt.Sprintf("%d:%s", a.accountIdx, a.currentLabel)
@@ -1168,11 +1116,6 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		if msg.accountEmail != "" && msg.accountEmail != currentEmail {
 			return a, nil
-		}
-		// Update imap client if reconnection happened
-		if msg.imap != nil {
-			a.imap = msg.imap
-			a.imapCache[a.accountIdx] = msg.imap
 		}
 		a.mailList.SetEmails(msg.emails)
 		a.mailList.SetSelectionMode(true)
@@ -1602,116 +1545,88 @@ func (a App) selectedCount() int {
 }
 
 func (a App) downloadAttachment(email *mail.Email, attachmentIdx int) tea.Cmd {
+	account := a.currentAccount()
+	serverClient := a.serverClient
+	mailbox := a.currentLabel
+
 	return func() tea.Msg {
 		if attachmentIdx < 0 || attachmentIdx >= len(email.Attachments) {
 			return attachmentDownloadErrorMsg{err: fmt.Errorf("invalid attachment index")}
 		}
 
-		att := email.Attachments[attachmentIdx]
-
-		// Get downloads directory
-		homeDir, err := os.UserHomeDir()
-		if err != nil {
-			return attachmentDownloadErrorMsg{err: fmt.Errorf("cannot find home directory: %w", err)}
-		}
-		downloadsDir := filepath.Join(homeDir, "Downloads", "maily")
-
-		// Ensure downloads directory exists
-		if err := os.MkdirAll(downloadsDir, 0755); err != nil {
-			return attachmentDownloadErrorMsg{err: fmt.Errorf("cannot create downloads directory: %w", err)}
+		if serverClient == nil {
+			return attachmentDownloadErrorMsg{err: fmt.Errorf("server unavailable")}
 		}
 
-		// Create IMAP client
-		account := a.currentAccount()
 		if account == nil {
 			return attachmentDownloadErrorMsg{err: fmt.Errorf("no account selected")}
 		}
 
-		imapClient, err := mail.NewIMAPClient(&account.Credentials)
+		att := email.Attachments[attachmentIdx]
+
+		// Server downloads and saves the file, returns the path
+		filePath, err := serverClient.DownloadAttachment(
+			account.Credentials.Email,
+			mailbox,
+			email.UID,
+			att.PartID,
+			att.Filename,
+			att.Encoding,
+		)
 		if err != nil {
-			return attachmentDownloadErrorMsg{err: fmt.Errorf("failed to connect: %w", err)}
-		}
-		defer imapClient.Close()
-
-		// Fetch attachment content
-		content, err := imapClient.FetchAttachment(a.currentLabel, email.UID, att.PartID, att.Encoding)
-		if err != nil {
-			return attachmentDownloadErrorMsg{err: fmt.Errorf("failed to fetch attachment: %w", err)}
+			return attachmentDownloadErrorMsg{err: err}
 		}
 
-		// Generate unique filename if file exists
-		destPath := filepath.Join(downloadsDir, att.Filename)
-		if _, err := os.Stat(destPath); err == nil {
-			// File exists, add number suffix
-			ext := filepath.Ext(att.Filename)
-			base := att.Filename[:len(att.Filename)-len(ext)]
-			for i := 1; ; i++ {
-				destPath = filepath.Join(downloadsDir, fmt.Sprintf("%s (%d)%s", base, i, ext))
-				if _, err := os.Stat(destPath); os.IsNotExist(err) {
-					break
-				}
-			}
-		}
-
-		// Write file
-		if err := os.WriteFile(destPath, content, 0644); err != nil {
-			return attachmentDownloadErrorMsg{err: fmt.Errorf("failed to save file: %w", err)}
-		}
-
-		return attachmentDownloadedMsg{filename: att.Filename, path: destPath}
+		return attachmentDownloadedMsg{filename: att.Filename, path: filePath}
 	}
 }
 
 func (a App) downloadAllAttachments(email *mail.Email) tea.Cmd {
+	account := a.currentAccount()
+	serverClient := a.serverClient
+	mailbox := a.currentLabel
+
 	return func() tea.Msg {
 		if len(email.Attachments) == 0 {
 			return attachmentDownloadErrorMsg{err: fmt.Errorf("no attachments")}
 		}
 
-		homeDir, err := os.UserHomeDir()
-		if err != nil {
-			return attachmentDownloadErrorMsg{err: fmt.Errorf("cannot find home directory: %w", err)}
-		}
-		downloadsDir := filepath.Join(homeDir, "Downloads", "maily")
-
-		if err := os.MkdirAll(downloadsDir, 0755); err != nil {
-			return attachmentDownloadErrorMsg{err: fmt.Errorf("cannot create downloads directory: %w", err)}
+		if serverClient == nil {
+			return attachmentDownloadErrorMsg{err: fmt.Errorf("server unavailable")}
 		}
 
-		account := a.currentAccount()
 		if account == nil {
 			return attachmentDownloadErrorMsg{err: fmt.Errorf("no account selected")}
 		}
 
-		imapClient, err := mail.NewIMAPClient(&account.Credentials)
-		if err != nil {
-			return attachmentDownloadErrorMsg{err: fmt.Errorf("failed to connect: %w", err)}
-		}
-		defer imapClient.Close()
-
 		var downloaded []string
+		var lastPath string
 		for _, att := range email.Attachments {
-			content, err := imapClient.FetchAttachment(a.currentLabel, email.UID, att.PartID, att.Encoding)
+			filePath, err := serverClient.DownloadAttachment(
+				account.Credentials.Email,
+				mailbox,
+				email.UID,
+				att.PartID,
+				att.Filename,
+				att.Encoding,
+			)
 			if err != nil {
-				return attachmentDownloadErrorMsg{err: fmt.Errorf("failed to fetch %s: %w", att.Filename, err)}
-			}
-
-			destPath := filepath.Join(downloadsDir, att.Filename)
-			if _, err := os.Stat(destPath); err == nil {
-				ext := filepath.Ext(att.Filename)
-				base := att.Filename[:len(att.Filename)-len(ext)]
-				for i := 1; ; i++ {
-					destPath = filepath.Join(downloadsDir, fmt.Sprintf("%s (%d)%s", base, i, ext))
-					if _, err := os.Stat(destPath); os.IsNotExist(err) {
-						break
-					}
-				}
-			}
-
-			if err := os.WriteFile(destPath, content, 0644); err != nil {
-				return attachmentDownloadErrorMsg{err: fmt.Errorf("failed to save %s: %w", att.Filename, err)}
+				return attachmentDownloadErrorMsg{err: fmt.Errorf("failed to download %s: %w", att.Filename, err)}
 			}
 			downloaded = append(downloaded, att.Filename)
+			lastPath = filePath
+		}
+
+		// Get the downloads directory from the last file path
+		downloadsDir := lastPath
+		if len(downloaded) > 0 {
+			// Extract directory from path
+			for i := len(lastPath) - 1; i >= 0; i-- {
+				if lastPath[i] == '/' {
+					downloadsDir = lastPath[:i]
+					break
+				}
+			}
 		}
 
 		return attachmentDownloadedMsg{

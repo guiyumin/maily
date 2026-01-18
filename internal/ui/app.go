@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/charmbracelet/bubbles/spinner"
@@ -1325,6 +1326,13 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Skip error display if account/mailbox changed since fetch started
 		currentAccount := a.currentAccount()
 		if currentAccount == nil || msg.accountEmail != currentAccount.Credentials.Email || msg.mailbox != a.currentLabel {
+			return a, nil
+		}
+		// Handle email deleted on another device - remove from list and go back
+		if strings.Contains(msg.err.Error(), "deleted on another device") {
+			a.mailList.RemoveByUID(msg.uid)
+			a.view = listView
+			a.statusMsg = "Email was deleted on another device"
 			return a, nil
 		}
 		// Only show error if still viewing the same email

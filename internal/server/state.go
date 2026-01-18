@@ -1,6 +1,7 @@
 package server
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"sync"
@@ -312,6 +313,15 @@ func (sm *StateManager) GetEmailWithBody(email, mailbox string, uid imap.UID) (*
 		return nil
 	})
 	if err != nil {
+		// If email was deleted on server (e.g., from another device),
+		// remove it from our cache to keep things in sync
+		if errors.Is(err, mail.ErrEmailNotFound) {
+			sm.memory.Delete(email, mailbox, uid)
+			if sm.cache != nil {
+				_ = sm.cache.DeleteEmail(email, mailbox, uid)
+			}
+			return nil, fmt.Errorf("email was deleted on another device")
+		}
 		return cached, err
 	}
 

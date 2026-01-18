@@ -2,6 +2,7 @@ package mail
 
 import (
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io"
 	"mime/quotedprintable"
@@ -15,6 +16,10 @@ import (
 
 	"maily/internal/auth"
 )
+
+// ErrEmailNotFound is returned when an email no longer exists on the server
+// (e.g., deleted from another device)
+var ErrEmailNotFound = errors.New("email not found on server")
 
 type IMAPClient struct {
 	client *imapclient.Client
@@ -181,7 +186,7 @@ func (c *IMAPClient) FetchEmailBody(mailbox string, uid imap.UID) (bodyHTML stri
 	}
 
 	if len(messages) == 0 {
-		return "", "", fmt.Errorf("email not found")
+		return "", "", ErrEmailNotFound
 	}
 
 	msg := messages[0]

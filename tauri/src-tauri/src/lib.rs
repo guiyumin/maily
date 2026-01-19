@@ -18,6 +18,7 @@ use config::{get_config as load_config, save_config as store_config, send_telegr
 use imap_queue::{init as init_imap_queue, queue_mark_read, queue_move_to_trash, queue_sync};
 use mail::{
     delete_email_from_cache, get_accounts, get_email as fetch_email, get_emails,
+    get_email_with_body as fetch_email_with_body,
     list_emails_paginated, get_emails_count_since_days, init_db, get_initial_state,
     sync_emails as do_sync_emails, update_email_read_status, update_email_cache_only,
     get_all_unread_counts as fetch_all_unread_counts,
@@ -104,6 +105,13 @@ fn get_email_count_days(account: String, mailbox: String, days: i64) -> Result<u
 #[tauri::command]
 fn get_email(account: String, mailbox: String, uid: u32) -> Result<Email, String> {
     fetch_email(&account, &mailbox, uid).map_err(|e| e.to_string())
+}
+
+/// Get email with lazy-loaded body - fetches from IMAP if body not cached
+/// Use this when opening an email to read its full content
+#[tauri::command]
+fn get_email_with_body(account: String, mailbox: String, uid: u32) -> Result<Email, String> {
+    fetch_email_with_body(&account, &mailbox, uid).map_err(|e| e.to_string())
 }
 
 /// Delete email - optimistic: deletes from cache immediately, queues IMAP for background
@@ -647,6 +655,7 @@ pub fn run() {
             list_emails_page,
             get_email_count_days,
             get_email,
+            get_email_with_body,
             delete_email,
             permanent_delete_email,
             mark_email_read,

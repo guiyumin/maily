@@ -782,11 +782,11 @@ export function EmailReader({
       return;
     }
 
-    // Not in cache, fetch from backend
+    // Not in cache, fetch from backend (will lazy-load body from IMAP if needed)
     setLoading(true);
     setError(null);
 
-    invoke<EmailFull>("get_email", {
+    invoke<EmailFull>("get_email_with_body", {
       account,
       mailbox,
       uid: emailSummary.uid,

@@ -2,6 +2,151 @@
 
 This document describes how the Tauri desktop app synchronizes emails between IMAP servers and the local SQLite cache.
 
+## Quick Overview
+
+**Sync is triggered by:**
+- **Background timer**: Every 10 minutes (starts 1 minute after app launch)
+- **Manual refresh**: User clicks refresh button or presses R
+- **App startup**: If cache is empty
+
+**Two-phase approach:**
+1. **Metadata sync** - Download ENVELOPE only (~100 bytes per email)
+2. **Body prefetch** - Download body for 10 most recent emails
+3. **Lazy load** - Other bodies fetched when user opens email
+
+---
+
+## Step-by-Step Sync Algorithm
+
+### Step 1: Fetch last 100 emails by sequence
+```
+IMAP: FETCH 1:* (UID FLAGS INTERNALDATE)
+```
+Gets UIDs, read/unread flags, and dates for the most recent 100 emails. No body downloaded.
+
+### Step 2: Search for emails from last 14 days
+```
+IMAP: UID SEARCH SINCE 04-Jan-2026
+```
+Returns UIDs of all emails in the 14-day window.
+
+### Step 3: Find missing emails
+Compares Step 1 and Step 2 results. If any emails from the 14-day window weren't in the last 100, fetch their UIDs and flags too.
+
+### Step 4: Download ENVELOPE metadata (FAST)
+```
+IMAP: UID FETCH 123,456,789 (UID FLAGS INTERNALDATE ENVELOPE)
+```
+For **new** emails only (not in cache), downloads:
+- From, To, CC, Reply-To
+- Subject, Date, Message-ID
+- **No body** (~100 bytes per email vs ~50KB for full email)
+
+Saves to SQLite with empty `body_html`.
+
+### Step 5: Update flags for existing emails
+For emails already in cache, checks if read/unread status changed on server and updates cache.
+
+### Step 6: Remove stale emails
+Deletes emails from cache that no longer exist on server (user deleted them from phone/web).
+
+### Step 7: Prefetch body for 10 most recent
+```
+IMAP: UID FETCH 123,124,125... (UID RFC822)
+```
+Downloads full body for the 10 most recent emails without body in cache. This ensures recent emails are immediately readable.
+
+### Step 8: Save mailbox metadata
+Stores UIDVALIDITY and LastSync timestamp.
+
+---
+
+## When User Opens an Email
+
+```
+Frontend: invoke("get_email_with_body", { account, mailbox, uid })
+```
+
+**Backend logic:**
+1. Load email from SQLite cache
+2. If `body_html` is empty:
+   - Connect to IMAP
+   - Fetch RFC822 body
+   - Parse HTML body and snippet
+   - Update cache
+3. Return complete email
+
+---
+
+## Visual Flow
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         SYNC PHASE                              │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  Step 1-3: Determine which emails to sync                       │
+│            (UIDs + FLAGS only, very fast)                       │
+│                        │                                        │
+│                        ▼                                        │
+│  Step 4: Fetch ENVELOPE for new emails                          │
+│          ┌────────────────────────────────┐                     │
+│          │ From: alice@example.com        │  ~100 bytes         │
+│          │ Subject: Hello                 │  per email          │
+│          │ Date: Jan 18, 2026             │                     │
+│          │ Body: (empty)                  │                     │
+│          └────────────────────────────────┘                     │
+│                        │                                        │
+│                        ▼                                        │
+│  Step 5-6: Update flags, remove deleted emails                  │
+│                        │                                        │
+│                        ▼                                        │
+│  Step 7: Prefetch body for 10 most recent                       │
+│          ┌────────────────────────────────┐                     │
+│          │ Body: <html>Full content...</  │  ~50KB              │
+│          │       </html>                  │  per email          │
+│          └────────────────────────────────┘                     │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│                      USER OPENS EMAIL                           │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  User clicks email #50 (not in top 10)                          │
+│                        │                                        │
+│                        ▼                                        │
+│  get_email_with_body(account, mailbox, uid=50)                  │
+│                        │                                        │
+│                        ▼                                        │
+│  ┌─────────────────────────────────────┐                        │
+│  │ Body in cache?                      │                        │
+│  └─────────────────────────────────────┘                        │
+│         │                    │                                  │
+│        YES                  NO                                  │
+│         │                    │                                  │
+│         ▼                    ▼                                  │
+│    Return email       Fetch RFC822 from IMAP                    │
+│                              │                                  │
+│                              ▼                                  │
+│                        Update cache                             │
+│                              │                                  │
+│                              ▼                                  │
+│                        Return email                             │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+## Performance Benefit
+
+| Scenario | Old (RFC822) | New (ENVELOPE + Lazy) |
+|----------|--------------|----------------------|
+| Sync 100 new emails | ~5MB download | ~10KB metadata + 500KB for 10 bodies |
+| Time to see email list | Wait for all bodies | Immediate (metadata only) |
+| Open old email | Already cached | ~50KB on-demand fetch |
+
+---
+
 ## Architecture Overview
 
 ```
@@ -47,7 +192,6 @@ Each email account maintains **one pooled IMAP connection** that is reused acros
 struct PooledConnection {
     session: Option<Session<TlsStream<TcpStream>>>,
     last_used: Instant,
-    account_name: String,
 }
 
 static CONNECTION_POOL: Lazy<Mutex<HashMap<String, Arc<Mutex<PooledConnection>>>>>
@@ -80,46 +224,12 @@ Benefits:
 - Error-based invalidation
 - Mutex-guarded thread safety
 
-## Sync Strategy
-
-Matches the Go TUI implementation: **max(100 emails, 14 days)**.
-
-### Constants
+## Sync Constants
 
 ```rust
-const MIN_SYNC_EMAILS: usize = 100;  // Minimum emails to sync
-const SYNC_DAYS: i64 = 14;           // Days to look back
-const PREFETCH_BODY_COUNT: usize = 10; // Bodies to prefetch
-```
-
-### Sync Algorithm
-
-Located in `src-tauri/src/mail.rs` → `sync_emails_with_session()`.
-
-```
-Step 1: Fetch last 100 emails by sequence number
-        └─► UIDs + FLAGS + INTERNALDATE (fast, no body)
-
-Step 2: Search for emails from last 14 days
-        └─► IMAP SINCE search for UIDs
-
-Step 3: Find missing emails (in 14-day window but not in step 1)
-        └─► Fetch UIDs + FLAGS for those
-
-Step 4: Download full emails for new UIDs
-        └─► RFC822 in batches of 50
-
-Step 5: Update flags for existing emails
-        └─► Compare server flags with cached flags
-
-Step 6: Remove stale emails from cache
-        └─► Delete emails not on server (deleted on other devices)
-
-Step 7: Prefetch body for 10 most recent
-        └─► Ensures recent emails are immediately readable
-
-Step 8: Save mailbox metadata
-        └─► UIDVALIDITY + LastSync timestamp
+const MIN_SYNC_EMAILS: usize = 100;     // Minimum emails to sync
+const SYNC_DAYS: i64 = 14;              // Days to look back
+const PREFETCH_BODY_COUNT: usize = 10;  // Bodies to prefetch
 ```
 
 ### Sync Goal
@@ -238,9 +348,10 @@ CREATE TABLE emails (
     internal_date INTEGER,
     from_addr TEXT,
     to_addr TEXT,
+    cc TEXT,
     subject TEXT,
     snippet TEXT,
-    body_html TEXT,
+    body_html TEXT,        -- Empty until body is fetched
     unread INTEGER,
     PRIMARY KEY (account, mailbox, uid)
 );
@@ -267,10 +378,13 @@ CREATE TABLE attachments (
 
 | Operation | Function | Behavior |
 |-----------|----------|----------|
-| Insert if missing | `save_email_metadata_to_db()` | Won't overwrite existing |
+| Insert metadata | `save_email_metadata_to_db()` | Inserts ENVELOPE data, empty body |
+| Insert full email | `save_email_to_db()` | Inserts full email with body |
 | Update body | `update_email_body_in_db()` | Updates body_html + snippet |
+| Get with lazy load | `get_email_with_body()` | Fetches body from IMAP if missing |
 | Delete stale | `delete_stale_emails()` | Removes UIDs not on server |
 | Get cached UIDs | `get_cached_uids()` | Returns all UIDs in cache |
+| Get UIDs without body | `get_uids_without_body()` | For prefetch targeting |
 
 ## Stale Email Removal
 
@@ -295,18 +409,35 @@ fn delete_stale_emails(conn, account, mailbox, server_uids) -> usize {
 10 most recent emails have body fetched during sync:
 
 ```rust
-let prefetch_uids = get_uids_without_body(conn, account, mailbox, 10);
+let prefetch_uids = get_uids_without_body(conn, account, mailbox, PREFETCH_BODY_COUNT);
 for uid in prefetch_uids {
-    // Fetch RFC822 and update body in cache
+    // Fetch RFC822 and update body_html + snippet in cache
+    session.uid_fetch(&uid_set, "(UID RFC822)")
 }
 ```
 
 ### Lazy Load (On Demand)
 
-Other emails fetch body when user opens them:
+Other emails fetch body when user opens them via `get_email_with_body()`:
 
+```rust
+pub fn get_email_with_body(account, mailbox, uid) -> Email {
+    let email = get_email(account, mailbox, uid)?;  // From cache
+
+    if email.body_html.is_empty() {
+        // Connect to IMAP, fetch RFC822, parse body
+        // Update cache with body_html and snippet
+    }
+
+    return email;
+}
 ```
-User opens email → get_email() → body empty? → fetch from IMAP → cache
+
+Frontend calls this when opening an email:
+
+```typescript
+// EmailReader.tsx
+invoke<EmailFull>("get_email_with_body", { account, mailbox, uid })
 ```
 
 ## Event Flow
@@ -318,8 +449,11 @@ Frontend                    Backend                     IMAP Server
    │                           │─── queue_sync() ──────────►│
    │◄── sync-started ─────────│                            │
    │                           │                            │
-   │                           │◄── fetch emails ──────────│
-   │                           │─── update cache ──────────►│
+   │                           │◄── fetch ENVELOPE ────────│
+   │                           │─── save metadata ─────────►│
+   │                           │                            │
+   │                           │◄── fetch RFC822 (10) ─────│
+   │                           │─── update body ───────────►│
    │                           │                            │
    │◄── sync-complete ────────│                            │
    │    {new, updated,         │                            │
@@ -334,6 +468,7 @@ Frontend                    Backend                     IMAP Server
 | `src-tauri/src/mail.rs` | Sync algorithm, cache operations, IMAP helpers |
 | `src-tauri/src/lib.rs` | Background sync timer, Tauri command handlers |
 | `src/components/home/Home.tsx` | Frontend sync event listeners |
+| `src/components/home/EmailReader.tsx` | Lazy body loading via `get_email_with_body` |
 
 ## Comparison with Go TUI
 
@@ -342,6 +477,16 @@ Frontend                    Backend                     IMAP Server
 | Process model | Separate server + client | Single process |
 | Connection pool | Server-side, Unix socket | In-process, direct |
 | Sync algorithm | Same | Same (100 + 14 days) |
+| Metadata fetch | ENVELOPE (metadata only) | ENVELOPE (metadata only) |
+| Body strategy | Lazy load on open | Prefetch 10 + lazy load |
 | Background sync | 10-min poller in server | 10-min tokio timer |
 | Operation queue | Server-side pending_ops | Per-account mpsc channels |
 | Cache | Memory + Disk | Disk (SQLite) |
+
+## Dependencies
+
+The sync implementation uses:
+- `imap` crate (v2) - IMAP protocol
+- `imap-proto` crate (v0.10) - For `Envelope` and `Address` types used in metadata parsing
+- `mailparse` - RFC822 body parsing
+- `rusqlite` - SQLite cache

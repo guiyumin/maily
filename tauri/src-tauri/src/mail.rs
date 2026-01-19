@@ -636,6 +636,58 @@ pub fn get_email(account: &str, mailbox: &str, uid: u32) -> Result<Email, Box<dy
     Ok(email)
 }
 
+/// Get email with lazy-load body from IMAP if not cached
+pub fn get_email_with_body(account: &str, mailbox: &str, uid: u32) -> Result<Email, Box<dyn std::error::Error>> {
+    // First try to get from cache
+    let mut email = get_email(account, mailbox, uid)?;
+
+    // If body is empty, fetch from IMAP
+    if email.body_html.is_empty() {
+        eprintln!("[lazy-load] Fetching body for {} / {} / {}", account, mailbox, uid);
+
+        // Get account credentials
+        let accounts = get_accounts()?;
+        let account_info = accounts
+            .iter()
+            .find(|a| a.name == account)
+            .ok_or_else(|| format!("Account '{}' not found", account))?;
+
+        // Connect to IMAP and fetch body
+        let addr = format!("{}:{}", account_info.credentials.imap_host, account_info.credentials.imap_port);
+        let tls = native_tls::TlsConnector::builder().build()?;
+        let client = imap::connect((&*addr, account_info.credentials.imap_port), &account_info.credentials.imap_host, &tls)?;
+        let mut session = client
+            .login(&account_info.credentials.email, &account_info.credentials.password)
+            .map_err(|e| e.0.to_string())?;
+
+        session.select(mailbox)?;
+
+        let uid_str = uid.to_string();
+        let fetched = session.uid_fetch(&uid_str, "(UID RFC822)")?;
+
+        for msg in fetched.iter() {
+            if msg.uid == Some(uid) {
+                if let Some(body_bytes) = msg.body() {
+                    if let Ok(parsed) = parse_mail(body_bytes) {
+                        let (body_html, snippet) = extract_body(&parsed);
+
+                        // Update cache
+                        let conn = DB.lock().unwrap();
+                        let _ = update_email_body_in_db(&conn, account, mailbox, uid, &body_html, &snippet);
+
+                        email.body_html = body_html;
+                        email.snippet = snippet;
+                    }
+                }
+            }
+        }
+
+        let _ = session.logout();
+    }
+
+    Ok(email)
+}
+
 pub fn delete_email_from_cache(account: &str, mailbox: &str, uid: u32) -> Result<(), Box<dyn std::error::Error>> {
     let conn = DB.lock().unwrap();
     conn.execute(
@@ -788,8 +840,23 @@ fn save_email_to_db(conn: &Connection, account: &str, mailbox: &str, email: &Ema
     Ok(())
 }
 
+/// Update email body in DB (for lazy loading)
+fn update_email_body_in_db(
+    conn: &Connection,
+    account: &str,
+    mailbox: &str,
+    uid: u32,
+    body_html: &str,
+    snippet: &str,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    conn.execute(
+        "UPDATE emails SET body_html = ?1, snippet = ?2 WHERE account = ?3 AND mailbox = ?4 AND uid = ?5",
+        params![body_html, snippet, account, mailbox, uid]
+    ).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 /// Save email metadata to DB without body (for fast metadata-only sync)
-#[allow(dead_code)]
 fn save_email_metadata_to_db(
     conn: &Connection,
     account: &str,
@@ -800,7 +867,7 @@ fn save_email_metadata_to_db(
         .map(|dt| dt.timestamp())
         .unwrap_or(0);
 
-    // Parse RFC2822 date string to Unix timestamp (matching Go's storage format)
+    // Parse RFC2822 date string to Unix timestamp
     let date_ts = mailparse::dateparse(&email.date).unwrap_or(internal_date_ts);
 
     let unread_val = if email.unread { 1 } else { 0 };
@@ -823,57 +890,76 @@ fn save_email_metadata_to_db(
         params![
             account, mailbox, email.uid, email.message_id, internal_date_ts,
             email.from, email.reply_to, email.to, email.cc, email.subject,
-            date_ts, email.snippet, unread_val, ""
+            date_ts, "", unread_val, ""
         ]
     ).map_err(|e| e.to_string())?;
-
-    // Save attachments
-    for att in &email.attachments {
-        conn.execute(
-            "INSERT INTO attachments (account, mailbox, email_uid, part_id, filename, content_type, size, encoding)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-            params![
-                account, mailbox, email.uid, att.part_id, att.filename,
-                att.content_type, att.size, att.encoding
-            ]
-        ).map_err(|e| e.to_string())?;
-    }
 
     Ok(true)
 }
 
-/// Update email body in DB (for prefetching)
-fn update_email_body_in_db(
-    conn: &Connection,
-    account: &str,
-    mailbox: &str,
+/// Parse IMAP ENVELOPE into Email struct (metadata only, no body)
+fn parse_envelope_to_email(
     uid: u32,
-    body_html: &str,
-    snippet: &str,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    conn.execute(
-        "UPDATE emails SET body_html = ?1, snippet = ?2 WHERE account = ?3 AND mailbox = ?4 AND uid = ?5",
-        params![body_html, snippet, account, mailbox, uid]
-    ).map_err(|e| e.to_string())?;
-    Ok(())
-}
+    envelope: &imap_proto::types::Envelope,
+    is_unread: bool,
+    internal_date: &str,
+) -> Email {
+    // Helper to format address
+    fn format_address(addr: &imap_proto::types::Address) -> String {
+        let mailbox = addr.mailbox.as_ref().map(|s| String::from_utf8_lossy(s).to_string()).unwrap_or_default();
+        let host = addr.host.as_ref().map(|s| String::from_utf8_lossy(s).to_string()).unwrap_or_default();
+        let name = addr.name.as_ref().map(|s| String::from_utf8_lossy(s).to_string());
 
-/// Get all cached UIDs for a mailbox
-fn get_cached_uids(conn: &Connection, account: &str, mailbox: &str) -> HashSet<u32> {
-    let mut stmt = match conn.prepare(
-        "SELECT uid FROM emails WHERE account = ?1 AND mailbox = ?2"
-    ) {
-        Ok(s) => s,
-        Err(_) => return HashSet::new(),
-    };
+        if let Some(name) = name {
+            if !name.is_empty() {
+                return format!("{} <{}@{}>", name, mailbox, host);
+            }
+        }
+        format!("{}@{}", mailbox, host)
+    }
 
-    let uids = stmt.query_map(params![account, mailbox], |row| {
-        row.get::<_, u32>(0)
-    });
+    // Helper to format multiple addresses
+    fn format_addresses(addrs: &Option<Vec<imap_proto::types::Address>>) -> String {
+        match addrs {
+            Some(list) => list.iter().map(format_address).collect::<Vec<_>>().join(", "),
+            None => String::new(),
+        }
+    }
 
-    match uids {
-        Ok(iter) => iter.filter_map(|r| r.ok()).collect(),
-        Err(_) => HashSet::new(),
+    let message_id = envelope.message_id
+        .as_ref()
+        .map(|s| String::from_utf8_lossy(s).to_string())
+        .unwrap_or_default();
+
+    let subject = envelope.subject
+        .as_ref()
+        .map(|s| String::from_utf8_lossy(s).to_string())
+        .unwrap_or_default();
+
+    let date = envelope.date
+        .as_ref()
+        .map(|s| String::from_utf8_lossy(s).to_string())
+        .unwrap_or_default();
+
+    let from = format_addresses(&envelope.from);
+    let to = format_addresses(&envelope.to);
+    let cc = format_addresses(&envelope.cc);
+    let reply_to = format_addresses(&envelope.reply_to);
+
+    Email {
+        uid,
+        message_id,
+        internal_date: internal_date.to_string(),
+        from,
+        reply_to,
+        to,
+        cc,
+        subject,
+        date,
+        snippet: String::new(), // Will be populated when body is fetched
+        body_html: String::new(), // Will be populated when body is fetched
+        unread: is_unread,
+        attachments: vec![],
     }
 }
 
@@ -897,6 +983,26 @@ fn get_uids_without_body(conn: &Connection, account: &str, mailbox: &str, limit:
     }
 }
 
+/// Get all cached UIDs for a mailbox
+fn get_cached_uids(conn: &Connection, account: &str, mailbox: &str) -> HashSet<u32> {
+    let mut stmt = match conn.prepare(
+        "SELECT uid FROM emails WHERE account = ?1 AND mailbox = ?2"
+    ) {
+        Ok(s) => s,
+        Err(_) => return HashSet::new(),
+    };
+
+    let uids = stmt.query_map(params![account, mailbox], |row| {
+        row.get::<_, u32>(0)
+    });
+
+    match uids {
+        Ok(iter) => iter.filter_map(|r| r.ok()).collect(),
+        Err(_) => HashSet::new(),
+    }
+}
+
+/// Get UIDs of emails without body (for prefetching)
 /// Delete emails from cache that are not in the server UID set
 fn delete_stale_emails(conn: &Connection, account: &str, mailbox: &str, server_uids: &HashSet<u32>) -> usize {
     let cached_uids = get_cached_uids(conn, account, mailbox);
@@ -1355,11 +1461,11 @@ pub fn sync_emails_improved(
     let mut new_count = 0;
     let mut updated_count = 0;
 
-    // Step 4: Fetch full email (RFC822) for new UIDs in batches
+    // Step 4: Fetch ENVELOPE metadata for new UIDs (fast, no body)
     if !new_uids.is_empty() {
         let total_batches = (new_uids.len() + 49) / 50;
         for (batch_idx, chunk) in new_uids.chunks(50).enumerate() {
-            eprintln!("[sync-improved] Downloading batch {}/{} ({} emails)...", batch_idx + 1, total_batches, chunk.len());
+            eprintln!("[sync-improved] Downloading metadata batch {}/{} ({} emails)...", batch_idx + 1, total_batches, chunk.len());
             let batch_uid_set: String = chunk
                 .iter()
                 .map(|u| u.to_string())
@@ -1367,7 +1473,7 @@ pub fn sync_emails_improved(
                 .join(",");
 
             let fetched = session
-                .uid_fetch(&batch_uid_set, "(UID FLAGS INTERNALDATE RFC822)")
+                .uid_fetch(&batch_uid_set, "(UID FLAGS INTERNALDATE ENVELOPE)")
                 .map_err(|e| e.to_string())?;
 
             let conn = DB.lock().unwrap();
@@ -1380,11 +1486,10 @@ pub fn sync_emails_improved(
                         .map(|d| d.to_rfc3339())
                         .unwrap_or_default();
 
-                    if let Some(body) = msg.body() {
-                        if let Ok(email) = parse_email_body(uid, body, is_unread, &internal_date) {
-                            if save_email_to_db(&conn, account_name, mailbox, &email).is_ok() {
-                                new_count += 1;
-                            }
+                    if let Some(envelope) = msg.envelope() {
+                        let email = parse_envelope_to_email(uid, envelope, is_unread, &internal_date);
+                        if save_email_metadata_to_db(&conn, account_name, mailbox, &email).is_ok() {
+                            new_count += 1;
                         }
                     }
                 }
@@ -1426,7 +1531,7 @@ pub fn sync_emails_improved(
         eprintln!("[sync-improved] Removed {} stale emails from cache", deleted_count);
     }
 
-    // Step 6: Prefetch body for PREFETCH_BODY_COUNT most recent emails without body
+    // Step 6: Prefetch body for most recent emails without body
     let prefetch_uids: Vec<u32> = {
         let conn = DB.lock().unwrap();
         get_uids_without_body(&conn, account_name, mailbox, PREFETCH_BODY_COUNT)
@@ -1578,7 +1683,7 @@ pub fn sync_emails_with_session(
     let mut new_count = 0;
     let mut updated_count = 0;
 
-    // Step 4: Fetch full email for new UIDs
+    // Step 4: Fetch ENVELOPE metadata for new UIDs (fast, no body)
     if !new_uids.is_empty() {
         for chunk in new_uids.chunks(50) {
             let batch_uid_set: String = chunk
@@ -1588,7 +1693,7 @@ pub fn sync_emails_with_session(
                 .join(",");
 
             let fetched = session
-                .uid_fetch(&batch_uid_set, "(UID FLAGS INTERNALDATE RFC822)")
+                .uid_fetch(&batch_uid_set, "(UID FLAGS INTERNALDATE ENVELOPE)")
                 .map_err(|e| e.to_string())?;
 
             let conn = DB.lock().unwrap();
@@ -1601,11 +1706,10 @@ pub fn sync_emails_with_session(
                         .map(|d| d.to_rfc3339())
                         .unwrap_or_default();
 
-                    if let Some(body) = msg.body() {
-                        if let Ok(email) = parse_email_body(uid, body, is_unread, &internal_date) {
-                            if save_email_to_db(&conn, account_name, mailbox, &email).is_ok() {
-                                new_count += 1;
-                            }
+                    if let Some(envelope) = msg.envelope() {
+                        let email = parse_envelope_to_email(uid, envelope, is_unread, &internal_date);
+                        if save_email_metadata_to_db(&conn, account_name, mailbox, &email).is_ok() {
+                            new_count += 1;
                         }
                     }
                 }
@@ -1644,13 +1748,14 @@ pub fn sync_emails_with_session(
         delete_stale_emails(&conn, account_name, mailbox, &server_uids)
     };
 
-    // Step 6: Prefetch body for most recent emails
+    // Step 6: Prefetch body for most recent emails without body
     let prefetch_uids: Vec<u32> = {
         let conn = DB.lock().unwrap();
         get_uids_without_body(&conn, account_name, mailbox, PREFETCH_BODY_COUNT)
     };
 
     if !prefetch_uids.is_empty() {
+        eprintln!("[sync-session] Prefetching body for {} most recent emails...", prefetch_uids.len());
         let uid_set: String = prefetch_uids.iter().map(|u| u.to_string()).collect::<Vec<_>>().join(",");
 
         if let Ok(fetched) = session.uid_fetch(&uid_set, "(UID RFC822)") {

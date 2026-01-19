@@ -1,13 +1,171 @@
 use std::collections::HashMap;
-use std::sync::Mutex;
-use std::time::Duration;
+use std::net::TcpStream;
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, Instant};
 
+use imap::Session;
+use native_tls::TlsStream;
 use once_cell::sync::Lazy;
 use serde::Serialize;
 use tauri::{AppHandle, Emitter};
 use tokio::sync::mpsc::{self, Sender};
 
-use crate::mail::{delete_email_from_cache, get_accounts, log_op, sync_emails_improved};
+use crate::mail::{delete_email_from_cache, get_accounts, log_op, sync_emails_with_session, Account};
+
+// ============ CONNECTION POOL ============
+
+/// Connection staleness timeout (5 minutes)
+const CONNECTION_TIMEOUT_SECS: u64 = 300;
+
+/// Pooled IMAP connection for an account
+struct PooledConnection {
+    session: Option<Session<TlsStream<TcpStream>>>,
+    last_used: Instant,
+    account_name: String,
+}
+
+/// Per-account connection pool
+static CONNECTION_POOL: Lazy<Mutex<HashMap<String, Arc<Mutex<PooledConnection>>>>> =
+    Lazy::new(|| Mutex::new(HashMap::new()));
+
+/// Get or create a pooled connection entry for an account
+fn get_connection_pool(account_name: &str) -> Arc<Mutex<PooledConnection>> {
+    let mut pool = CONNECTION_POOL.lock().unwrap();
+
+    if let Some(conn) = pool.get(account_name) {
+        return conn.clone();
+    }
+
+    let conn = Arc::new(Mutex::new(PooledConnection {
+        session: None,
+        last_used: Instant::now(),
+        account_name: account_name.to_string(),
+    }));
+
+    pool.insert(account_name.to_string(), conn.clone());
+    conn
+}
+
+/// Check if an error indicates a broken connection
+fn is_connection_error(err: &str) -> bool {
+    let err_lower = err.to_lowercase();
+    err_lower.contains("closed") ||
+    err_lower.contains("reset") ||
+    err_lower.contains("broken pipe") ||
+    err_lower.contains("eof") ||
+    err_lower.contains("connection") ||
+    err_lower.contains("timed out") ||
+    err_lower.contains("bye")
+}
+
+/// Create a new IMAP connection for an account
+fn connect_imap_for_account(account: &Account) -> Result<Session<TlsStream<TcpStream>>, Box<dyn std::error::Error + Send + Sync>> {
+    use std::net::ToSocketAddrs;
+
+    let creds = &account.credentials;
+
+    let addr = format!("{}:{}", creds.imap_host, creds.imap_port);
+    let socket_addr = addr
+        .to_socket_addrs()?
+        .next()
+        .ok_or("Failed to resolve IMAP host")?;
+
+    let tcp = TcpStream::connect_timeout(&socket_addr, Duration::from_secs(30))?;
+    tcp.set_read_timeout(Some(Duration::from_secs(60)))?;
+    tcp.set_write_timeout(Some(Duration::from_secs(30)))?;
+
+    let tls = native_tls::TlsConnector::builder().build()?;
+    let tls_stream = tls.connect(&creds.imap_host, tcp)?;
+
+    let client = imap::Client::new(tls_stream);
+    let session = client.login(&creds.email, &creds.password).map_err(|e| e.0.to_string())?;
+
+    eprintln!("[pool] Created new IMAP connection for {}", account.name);
+    Ok(session)
+}
+
+/// Execute an operation with a pooled IMAP connection.
+/// Handles reconnection on stale/failed connections.
+/// This is the Rust equivalent of Go's `withIMAPClient()`.
+fn with_imap_connection<F, R>(
+    account_name: &str,
+    mailbox: &str,
+    op: F,
+) -> Result<R, Box<dyn std::error::Error + Send + Sync>>
+where
+    F: FnOnce(&mut Session<TlsStream<TcpStream>>) -> Result<R, Box<dyn std::error::Error + Send + Sync>>,
+{
+    // Get account credentials
+    let accounts = get_accounts().map_err(|e| e.to_string())?;
+    let account = accounts
+        .into_iter()
+        .find(|a| a.name == account_name)
+        .ok_or_else(|| format!("Account '{}' not found", account_name))?;
+
+    let pool = get_connection_pool(account_name);
+    let mut conn = pool.lock().unwrap();
+
+    // Check if connection is stale or missing
+    let is_stale = conn.session.is_some() &&
+        conn.last_used.elapsed().as_secs() > CONNECTION_TIMEOUT_SECS;
+
+    if conn.session.is_none() || is_stale {
+        // Close stale connection
+        if let Some(mut session) = conn.session.take() {
+            eprintln!("[pool] Closing stale connection for {} (idle {}s)",
+                account_name, conn.last_used.elapsed().as_secs());
+            let _ = session.logout();
+        }
+
+        // Create new connection
+        conn.session = Some(connect_imap_for_account(&account)?);
+    } else {
+        eprintln!("[pool] Reusing connection for {} (idle {}s)",
+            account_name, conn.last_used.elapsed().as_secs());
+    }
+
+    let session = conn.session.as_mut().unwrap();
+
+    // Select mailbox
+    if let Err(e) = session.select(mailbox) {
+        // Selection failed, try to reconnect
+        eprintln!("[pool] Mailbox select failed, reconnecting: {}", e);
+        conn.session = None;
+        conn.session = Some(connect_imap_for_account(&account)?);
+        let session = conn.session.as_mut().unwrap();
+        session.select(mailbox)?;
+    }
+
+    // Execute operation
+    let result = op(conn.session.as_mut().unwrap());
+
+    // On connection error, invalidate pool entry
+    if let Err(ref e) = result {
+        if is_connection_error(&e.to_string()) {
+            eprintln!("[pool] Connection error detected, invalidating pool: {}", e);
+            if let Some(mut session) = conn.session.take() {
+                let _ = session.logout();
+            }
+        }
+    }
+
+    conn.last_used = Instant::now();
+    result
+}
+
+/// Close all pooled connections (for cleanup)
+#[allow(dead_code)]
+pub fn close_all_connections() {
+    let mut pool = CONNECTION_POOL.lock().unwrap();
+    for (name, conn) in pool.drain() {
+        if let Ok(mut guard) = conn.lock() {
+            if let Some(mut session) = guard.session.take() {
+                eprintln!("[pool] Closing connection for {}", name);
+                let _ = session.logout();
+            }
+        }
+    }
+}
 
 /// Operations that can be queued for an account
 #[derive(Debug, Clone)]
@@ -203,7 +361,55 @@ async fn process_pending_ops(
     }
 }
 
-/// Process sync operation
+/// Sync using pooled connection
+fn sync_with_pool(
+    account_name: &str,
+    mailbox: &str,
+) -> Result<crate::mail::SyncResult, Box<dyn std::error::Error + Send + Sync>> {
+    // Get account credentials
+    let accounts = get_accounts().map_err(|e| e.to_string())?;
+    let account = accounts
+        .into_iter()
+        .find(|a| a.name == account_name)
+        .ok_or_else(|| format!("Account '{}' not found", account_name))?;
+
+    let pool = get_connection_pool(account_name);
+    let mut conn = pool.lock().unwrap();
+
+    // Check if connection is stale or missing
+    let is_stale = conn.session.is_some() &&
+        conn.last_used.elapsed().as_secs() > CONNECTION_TIMEOUT_SECS;
+
+    if conn.session.is_none() || is_stale {
+        if let Some(mut session) = conn.session.take() {
+            eprintln!("[pool] Closing stale connection for sync {} (idle {}s)",
+                account_name, conn.last_used.elapsed().as_secs());
+            let _ = session.logout();
+        }
+        conn.session = Some(connect_imap_for_account(&account)?);
+    } else {
+        eprintln!("[pool] Reusing connection for sync {} (idle {}s)",
+            account_name, conn.last_used.elapsed().as_secs());
+    }
+
+    let session = conn.session.as_mut().unwrap();
+    let result = sync_emails_with_session(session, account_name, mailbox);
+
+    // On connection error, invalidate pool
+    if let Err(ref e) = result {
+        if is_connection_error(&e.to_string()) {
+            eprintln!("[pool] Connection error during sync, invalidating: {}", e);
+            if let Some(mut session) = conn.session.take() {
+                let _ = session.logout();
+            }
+        }
+    }
+
+    conn.last_used = Instant::now();
+    result
+}
+
+/// Process sync operation using pooled connection
 async fn process_sync(account_name: &str, mailbox: &str) {
     let app = APP_HANDLE.lock().unwrap().clone();
 
@@ -220,10 +426,9 @@ async fn process_sync(account_name: &str, mailbox: &str) {
     let account = account_name.to_string();
     let mbox = mailbox.to_string();
 
-    // Run blocking IMAP sync on thread pool using improved strategy
-    // (matches Go TUI: max(100 emails, 14 days) with stale removal and body prefetch)
+    // Run blocking IMAP sync on thread pool using pooled connection
     let result = tokio::task::spawn_blocking(move || {
-        sync_emails_improved(&account, &mbox)
+        sync_with_pool(&account, &mbox)
     })
     .await;
 
@@ -270,51 +475,22 @@ async fn process_sync(account_name: &str, mailbox: &str) {
     }
 }
 
-/// IMAP mark read/unread (runs on blocking thread pool)
+/// IMAP mark read/unread using pooled connection
 fn mark_read_imap(
     account_name: &str,
     mailbox: &str,
     uid: u32,
     unread: bool,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    use std::net::{TcpStream, ToSocketAddrs};
-
-    let accounts = get_accounts().map_err(|e| e.to_string())?;
-    let account = accounts
-        .into_iter()
-        .find(|a| a.name == account_name)
-        .ok_or_else(|| format!("Account '{}' not found", account_name))?;
-
-    let creds = &account.credentials;
-
-    // Resolve hostname and connect with timeout
-    let addr = format!("{}:{}", creds.imap_host, creds.imap_port);
-    let socket_addr = addr
-        .to_socket_addrs()?
-        .next()
-        .ok_or("Failed to resolve IMAP host")?;
-
-    let tcp = TcpStream::connect_timeout(&socket_addr, Duration::from_secs(30))?;
-    tcp.set_read_timeout(Some(Duration::from_secs(30)))?;
-    tcp.set_write_timeout(Some(Duration::from_secs(30)))?;
-
-    let tls = native_tls::TlsConnector::builder().build()?;
-    let tls_stream = tls.connect(&creds.imap_host, tcp)?;
-
-    let client = imap::Client::new(tls_stream);
-    let mut session = client.login(&creds.email, &creds.password).map_err(|e| e.0)?;
-
-    session.select(mailbox)?;
-
-    let uid_set = format!("{}", uid);
-    if unread {
-        session.uid_store(&uid_set, "-FLAGS (\\Seen)")?;
-    } else {
-        session.uid_store(&uid_set, "+FLAGS (\\Seen)")?;
-    }
-
-    session.logout()?;
-    Ok(())
+    with_imap_connection(account_name, mailbox, |session| {
+        let uid_set = format!("{}", uid);
+        if unread {
+            session.uid_store(&uid_set, "-FLAGS (\\Seen)")?;
+        } else {
+            session.uid_store(&uid_set, "+FLAGS (\\Seen)")?;
+        }
+        Ok(())
+    })
 }
 
 /// Queue mark read/unread - returns immediately
@@ -341,98 +517,49 @@ pub fn queue_sync(account: String, mailbox: String) {
     let _ = sender.try_send(ImapOperation::SyncMailbox { mailbox });
 }
 
-/// IMAP delete (runs on blocking thread pool)
+/// IMAP delete using pooled connection
 fn delete_imap(
     account_name: &str,
     mailbox: &str,
     uid: u32,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    use std::net::{TcpStream, ToSocketAddrs};
-
-    let accounts = get_accounts().map_err(|e| e.to_string())?;
-    let account = accounts
-        .into_iter()
-        .find(|a| a.name == account_name)
-        .ok_or_else(|| format!("Account '{}' not found", account_name))?;
-
-    let creds = &account.credentials;
-
-    let addr = format!("{}:{}", creds.imap_host, creds.imap_port);
-    let socket_addr = addr
-        .to_socket_addrs()?
-        .next()
-        .ok_or("Failed to resolve IMAP host")?;
-
-    let tcp = TcpStream::connect_timeout(&socket_addr, Duration::from_secs(30))?;
-    tcp.set_read_timeout(Some(Duration::from_secs(30)))?;
-    tcp.set_write_timeout(Some(Duration::from_secs(30)))?;
-
-    let tls = native_tls::TlsConnector::builder().build()?;
-    let tls_stream = tls.connect(&creds.imap_host, tcp)?;
-
-    let client = imap::Client::new(tls_stream);
-    let mut session = client.login(&creds.email, &creds.password).map_err(|e| e.0)?;
-
-    session.select(mailbox)?;
-
-    // Mark as deleted and expunge
-    let uid_set = format!("{}", uid);
-    session.uid_store(&uid_set, "+FLAGS (\\Deleted)")?;
-    session.expunge()?;
-
-    session.logout()?;
-    Ok(())
+    with_imap_connection(account_name, mailbox, |session| {
+        // Mark as deleted and expunge
+        let uid_set = format!("{}", uid);
+        session.uid_store(&uid_set, "+FLAGS (\\Deleted)")?;
+        session.expunge()?;
+        Ok(())
+    })
 }
 
-/// IMAP move to trash (runs on blocking thread pool)
+/// IMAP move to trash using pooled connection
 fn move_to_trash_imap(
     account_name: &str,
     mailbox: &str,
     uid: u32,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    use std::net::{TcpStream, ToSocketAddrs};
-
+    // Get account to determine provider
     let accounts = get_accounts().map_err(|e| e.to_string())?;
     let account = accounts
         .into_iter()
         .find(|a| a.name == account_name)
         .ok_or_else(|| format!("Account '{}' not found", account_name))?;
 
-    let creds = &account.credentials;
-
-    let addr = format!("{}:{}", creds.imap_host, creds.imap_port);
-    let socket_addr = addr
-        .to_socket_addrs()?
-        .next()
-        .ok_or("Failed to resolve IMAP host")?;
-
-    let tcp = TcpStream::connect_timeout(&socket_addr, Duration::from_secs(30))?;
-    tcp.set_read_timeout(Some(Duration::from_secs(30)))?;
-    tcp.set_write_timeout(Some(Duration::from_secs(30)))?;
-
-    let tls = native_tls::TlsConnector::builder().build()?;
-    let tls_stream = tls.connect(&creds.imap_host, tcp)?;
-
-    let client = imap::Client::new(tls_stream);
-    let mut session = client.login(&creds.email, &creds.password).map_err(|e| e.0)?;
-
-    session.select(mailbox)?;
-
     // Determine trash folder based on provider
-    let trash_folder = if creds.imap_host.contains("gmail") {
+    let trash_folder = if account.credentials.imap_host.contains("gmail") {
         "[Gmail]/Trash"
-    } else if creds.imap_host.contains("yahoo") {
+    } else if account.credentials.imap_host.contains("yahoo") {
         "Trash"
     } else {
         "Trash"
     };
 
-    // Move to trash using COPY + DELETE
-    let uid_set = format!("{}", uid);
-    session.uid_copy(&uid_set, trash_folder)?;
-    session.uid_store(&uid_set, "+FLAGS (\\Deleted)")?;
-    session.expunge()?;
-
-    session.logout()?;
-    Ok(())
+    with_imap_connection(account_name, mailbox, |session| {
+        // Move to trash using COPY + DELETE
+        let uid_set = format!("{}", uid);
+        session.uid_copy(&uid_set, trash_folder)?;
+        session.uid_store(&uid_set, "+FLAGS (\\Deleted)")?;
+        session.expunge()?;
+        Ok(())
+    })
 }

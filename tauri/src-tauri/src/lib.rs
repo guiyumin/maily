@@ -613,6 +613,25 @@ pub fn run() {
             // Initialize IMAP queue with app handle for events
             init_imap_queue(app.handle().clone());
 
+            // Start background sync timer (every 10 minutes)
+            tokio::spawn(async {
+                // Wait 1 minute before first sync (let app fully initialize)
+                tokio::time::sleep(std::time::Duration::from_secs(60)).await;
+
+                let mut interval = tokio::time::interval(std::time::Duration::from_secs(600)); // 10 minutes
+                loop {
+                    interval.tick().await;
+                    eprintln!("[sync-timer] Starting background sync for all accounts");
+
+                    if let Ok(accounts) = mail::get_accounts() {
+                        for account in accounts {
+                            eprintln!("[sync-timer] Queuing sync for {}", account.name);
+                            imap_queue::queue_sync(account.name.clone(), "INBOX".to_string());
+                        }
+                    }
+                }
+            });
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

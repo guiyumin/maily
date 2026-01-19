@@ -1420,6 +1420,221 @@ pub fn sync_emails_improved(
     })
 }
 
+/// Sync emails using an existing IMAP session (for connection pooling).
+/// This is called by imap_queue.rs to reuse pooled connections.
+pub fn sync_emails_with_session(
+    session: &mut Session<TlsStream<TcpStream>>,
+    account_name: &str,
+    mailbox: &str,
+) -> Result<SyncResult, Box<dyn std::error::Error + Send + Sync>> {
+    eprintln!("[sync-session] Starting sync for {} / {}", account_name, mailbox);
+
+    // Select mailbox and get UIDVALIDITY
+    let mailbox_info = session.select(mailbox).map_err(|e| e.to_string())?;
+    let uid_validity = mailbox_info.uid_validity.unwrap_or(0);
+    let total = mailbox_info.exists as usize;
+    eprintln!("[sync-session] Mailbox has {} messages, UIDVALIDITY={}", total, uid_validity);
+
+    if total == 0 {
+        let conn = DB.lock().unwrap();
+        save_mailbox_metadata(&conn, account_name, mailbox, uid_validity);
+        return Ok(SyncResult {
+            new_emails: 0,
+            updated_emails: 0,
+            total_emails: 0,
+            deleted_emails: 0,
+        });
+    }
+
+    // Step 1: Fetch last MIN_SYNC_EMAILS by sequence number
+    let start_seq = if total > MIN_SYNC_EMAILS {
+        total - MIN_SYNC_EMAILS + 1
+    } else {
+        1
+    };
+    let fetch_range = format!("{}:*", start_seq);
+    let messages = session.fetch(&fetch_range, "(UID FLAGS INTERNALDATE)").map_err(|e| e.to_string())?;
+
+    let mut fetched_uids: HashSet<u32> = HashSet::new();
+    let mut all_emails: Vec<(u32, bool, String)> = Vec::new();
+
+    for msg in messages.iter() {
+        if let Some(uid) = msg.uid {
+            let flags = msg.flags();
+            let is_unread = !flags.iter().any(|f| matches!(f, imap::types::Flag::Seen));
+            let internal_date = msg
+                .internal_date()
+                .map(|d| d.to_rfc3339())
+                .unwrap_or_default();
+            fetched_uids.insert(uid);
+            all_emails.push((uid, is_unread, internal_date));
+        }
+    }
+
+    // Step 2: Get UIDs from last SYNC_DAYS
+    let since_date = chrono::Utc::now() - chrono::Duration::days(SYNC_DAYS);
+    let since_str = since_date.format("%d-%b-%Y").to_string();
+    let search_query = format!("SINCE {}", since_str);
+
+    let recent_uids: HashSet<u32> = match session.uid_search(&search_query) {
+        Ok(uids) => uids.into_iter().collect(),
+        Err(_) => HashSet::new(),
+    };
+
+    // Step 3: Find UIDs in date window not already fetched
+    let missing_uids: Vec<u32> = recent_uids
+        .iter()
+        .filter(|uid| !fetched_uids.contains(uid))
+        .copied()
+        .collect();
+
+    if !missing_uids.is_empty() {
+        let uid_set: String = missing_uids.iter().map(|u| u.to_string()).collect::<Vec<_>>().join(",");
+        if let Ok(msgs) = session.uid_fetch(&uid_set, "(UID FLAGS INTERNALDATE)") {
+            for msg in msgs.iter() {
+                if let Some(uid) = msg.uid {
+                    let flags = msg.flags();
+                    let is_unread = !flags.iter().any(|f| matches!(f, imap::types::Flag::Seen));
+                    let internal_date = msg
+                        .internal_date()
+                        .map(|d| d.to_rfc3339())
+                        .unwrap_or_default();
+                    fetched_uids.insert(uid);
+                    all_emails.push((uid, is_unread, internal_date));
+                }
+            }
+        }
+    }
+
+    let server_uids: HashSet<u32> = fetched_uids.clone();
+
+    // Get cached UIDs
+    let cached_uids: HashSet<u32> = {
+        let conn = DB.lock().unwrap();
+        get_cached_uids(&conn, account_name, mailbox)
+    };
+
+    // Find new UIDs to fetch
+    let new_uids: Vec<u32> = all_emails
+        .iter()
+        .filter(|(uid, _, _)| !cached_uids.contains(uid))
+        .map(|(uid, _, _)| *uid)
+        .collect();
+
+    eprintln!("[sync-session] {} new emails to download, {} cached", new_uids.len(), cached_uids.len());
+
+    let mut new_count = 0;
+    let mut updated_count = 0;
+
+    // Step 4: Fetch full email for new UIDs
+    if !new_uids.is_empty() {
+        for chunk in new_uids.chunks(50) {
+            let batch_uid_set: String = chunk
+                .iter()
+                .map(|u| u.to_string())
+                .collect::<Vec<_>>()
+                .join(",");
+
+            let fetched = session
+                .uid_fetch(&batch_uid_set, "(UID FLAGS INTERNALDATE RFC822)")
+                .map_err(|e| e.to_string())?;
+
+            let conn = DB.lock().unwrap();
+            for msg in fetched.iter() {
+                if let Some(uid) = msg.uid {
+                    let flags = msg.flags();
+                    let is_unread = !flags.iter().any(|f| matches!(f, imap::types::Flag::Seen));
+                    let internal_date = msg
+                        .internal_date()
+                        .map(|d| d.to_rfc3339())
+                        .unwrap_or_default();
+
+                    if let Some(body) = msg.body() {
+                        if let Ok(email) = parse_email_body(uid, body, is_unread, &internal_date) {
+                            if save_email_to_db(&conn, account_name, mailbox, &email).is_ok() {
+                                new_count += 1;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Update flags for existing emails
+    {
+        let conn = DB.lock().unwrap();
+        for (uid, is_unread, _) in &all_emails {
+            if cached_uids.contains(uid) {
+                let current_unread: Option<i32> = conn.query_row(
+                    "SELECT unread FROM emails WHERE account = ?1 AND mailbox = ?2 AND uid = ?3",
+                    params![account_name, mailbox, uid],
+                    |row| row.get(0)
+                ).ok();
+
+                if let Some(current) = current_unread {
+                    let new_unread = if *is_unread { 1 } else { 0 };
+                    if current != new_unread {
+                        let _ = conn.execute(
+                            "UPDATE emails SET unread = ?1 WHERE account = ?2 AND mailbox = ?3 AND uid = ?4",
+                            params![new_unread, account_name, mailbox, uid]
+                        );
+                        updated_count += 1;
+                    }
+                }
+            }
+        }
+    }
+
+    // Step 5: Remove stale emails
+    let deleted_count = {
+        let conn = DB.lock().unwrap();
+        delete_stale_emails(&conn, account_name, mailbox, &server_uids)
+    };
+
+    // Step 6: Prefetch body for most recent emails
+    let prefetch_uids: Vec<u32> = {
+        let conn = DB.lock().unwrap();
+        get_uids_without_body(&conn, account_name, mailbox, PREFETCH_BODY_COUNT)
+    };
+
+    if !prefetch_uids.is_empty() {
+        let uid_set: String = prefetch_uids.iter().map(|u| u.to_string()).collect::<Vec<_>>().join(",");
+
+        if let Ok(fetched) = session.uid_fetch(&uid_set, "(UID RFC822)") {
+            let conn = DB.lock().unwrap();
+            for msg in fetched.iter() {
+                if let Some(uid) = msg.uid {
+                    if let Some(body_bytes) = msg.body() {
+                        if let Ok(parsed) = parse_mail(body_bytes) {
+                            let (body_html, snippet) = extract_body(&parsed);
+                            let _ = update_email_body_in_db(&conn, account_name, mailbox, uid, &body_html, &snippet);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Step 7: Save mailbox metadata
+    {
+        let conn = DB.lock().unwrap();
+        save_mailbox_metadata(&conn, account_name, mailbox, uid_validity);
+    }
+
+    eprintln!(
+        "[sync-session] Done! {} new, {} updated, {} deleted, {} total",
+        new_count, updated_count, deleted_count, server_uids.len()
+    );
+
+    Ok(SyncResult {
+        new_emails: new_count,
+        updated_emails: updated_count,
+        total_emails: server_uids.len(),
+        deleted_emails: deleted_count,
+    })
+}
+
 fn parse_email_body(uid: u32, body: &[u8], is_unread: bool, internal_date: &str) -> Result<Email, Box<dyn std::error::Error>> {
     let parsed = parse_mail(body)?;
 

@@ -582,6 +582,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			} else if a.view == readView {
 				// Go back to list view (preserves search mode if active)
 				a.view = listView
+				return a, tea.ClearScreen
 			} else if a.isSearchResult {
 				// Exit search results, refresh inbox to reflect any deletions
 				a.isSearchResult = false
@@ -1127,7 +1128,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			a.state = stateReady
 			a.view = listView
 			a.statusMsg = "Email was deleted on another device"
-			return a, nil
+			return a, tea.ClearScreen
 		}
 		a.state = stateError
 		a.err = msg.err
@@ -1177,11 +1178,13 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.view = listView
 		a.mailList.MarkAsUnread(msg.uid)
 		a.statusMsg = "Marked as unread"
+		return a, tea.ClearScreen
 
 	case replySentMsg:
 		a.state = stateReady
 		a.view = listView
 		a.statusMsg = "Reply sent!"
+		return a, tea.ClearScreen
 
 	case replySendErrorMsg:
 		a.state = stateReady
@@ -1206,12 +1209,13 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case draftSavedMsg:
 		a.state = stateReady
+		a.statusMsg = "Draft saved!"
 		if a.compose.isReply {
 			a.view = readView
 		} else {
 			a.view = listView
+			return a, tea.ClearScreen
 		}
-		a.statusMsg = "Draft saved!"
 
 	case draftSaveErrorMsg:
 		a.state = stateReady
@@ -1219,12 +1223,13 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case CancelMsg:
 		// Cancel button pressed in compose view
+		a.statusMsg = "Cancelled"
 		if a.compose.isReply {
 			a.view = readView
 		} else {
 			a.view = listView
+			return a, tea.ClearScreen
 		}
-		a.statusMsg = "Cancelled"
 
 	case OpenFilePickerMsg:
 		// Open file picker from compose view
@@ -1343,7 +1348,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			a.mailList.RemoveByUID(msg.uid)
 			a.view = listView
 			a.statusMsg = "Email was deleted on another device"
-			return a, nil
+			return a, tea.ClearScreen
 		}
 		// Only show error if still viewing the same email
 		if a.view == readView {

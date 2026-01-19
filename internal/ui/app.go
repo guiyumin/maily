@@ -1119,6 +1119,16 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.accountEmail != "" && msg.accountEmail != currentEmail {
 			return a, nil
 		}
+		// Handle email deleted on another device - remove from list and go back gracefully
+		if strings.Contains(msg.err.Error(), "deleted on another device") {
+			if email := a.mailList.SelectedEmail(); email != nil {
+				a.mailList.RemoveByUID(email.UID)
+			}
+			a.state = stateReady
+			a.view = listView
+			a.statusMsg = "Email was deleted on another device"
+			return a, nil
+		}
 		a.state = stateError
 		a.err = msg.err
 		a.errAccountEmail = msg.accountEmail

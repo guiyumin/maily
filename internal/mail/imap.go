@@ -820,6 +820,13 @@ func (c *IMAPClient) MarkAsRead(uid imap.UID) error {
 	uidSet := imap.UIDSet{}
 	uidSet.AddNum(uid)
 
+	// Verify email exists before modifying flags (STORE silently succeeds on missing UIDs)
+	if exists, err := c.uidExists(uidSet); err != nil {
+		return err
+	} else if !exists {
+		return ErrEmailNotFound
+	}
+
 	storeFlags := &imap.StoreFlags{
 		Op:    imap.StoreFlagsAdd,
 		Flags: []imap.Flag{imap.FlagSeen},
@@ -833,6 +840,13 @@ func (c *IMAPClient) MarkAsUnread(uid imap.UID) error {
 	uidSet := imap.UIDSet{}
 	uidSet.AddNum(uid)
 
+	// Verify email exists before modifying flags (STORE silently succeeds on missing UIDs)
+	if exists, err := c.uidExists(uidSet); err != nil {
+		return err
+	} else if !exists {
+		return ErrEmailNotFound
+	}
+
 	storeFlags := &imap.StoreFlags{
 		Op:    imap.StoreFlagsDel,
 		Flags: []imap.Flag{imap.FlagSeen},
@@ -840,6 +854,18 @@ func (c *IMAPClient) MarkAsUnread(uid imap.UID) error {
 
 	cmd := c.client.Store(uidSet, storeFlags, nil)
 	return cmd.Close()
+}
+
+// uidExists checks if a UID exists in the currently selected mailbox
+func (c *IMAPClient) uidExists(uidSet imap.UIDSet) (bool, error) {
+	fetchOptions := &imap.FetchOptions{
+		Flags: true, // Minimal fetch - just get flags
+	}
+	messages, err := c.client.Fetch(uidSet, fetchOptions).Collect()
+	if err != nil {
+		return false, err
+	}
+	return len(messages) > 0, nil
 }
 
 func (c *IMAPClient) DeleteMessage(uid imap.UID) error {

@@ -3,6 +3,7 @@ package server
 import (
 	"bufio"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -375,6 +376,12 @@ func (s *Server) markEmailRead(account, mailbox string, uid imap.UID, read bool)
 		return client.MarkAsUnread(uid)
 	})
 	if err != nil {
+		// If email was deleted on server (e.g., from another device),
+		// remove it from our cache to keep things in sync
+		if errors.Is(err, mail.ErrEmailNotFound) {
+			s.state.DeleteEmail(account, mailbox, uid)
+			return Response{Type: RespError, Error: "email was deleted on another device"}
+		}
 		return Response{Type: RespError, Error: err.Error()}
 	}
 

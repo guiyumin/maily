@@ -499,6 +499,43 @@ func (sm *StateManager) Sync(email, mailbox string) error {
 			for _, c := range cached {
 				_, _ = sm.cache.InsertEmailMetadataIfMissing(email, mailbox, c)
 			}
+
+			// Step 5: Remove stale emails from disk cache
+			// Build set of all server UIDs
+			serverUIDs := make(map[imap.UID]bool)
+			for _, e := range emails {
+				serverUIDs[e.UID] = true
+			}
+
+			// Delete cached UIDs that no longer exist on server
+			cachedUIDs, err := sm.cache.GetCachedUIDs(email, mailbox)
+			if err == nil {
+				for uid := range cachedUIDs {
+					if !serverUIDs[uid] {
+						_ = sm.cache.DeleteEmail(email, mailbox, uid)
+					}
+				}
+			}
+
+			// Step 6: Prefetch body for 10 most recent emails
+			// (cached is already sorted by InternalDate desc)
+			var prefetchUIDs []imap.UID
+			for i := 0; i < len(cached) && len(prefetchUIDs) < 10; i++ {
+				if cached[i].BodyHTML == "" {
+					prefetchUIDs = append(prefetchUIDs, cached[i].UID)
+				}
+			}
+
+			if len(prefetchUIDs) > 0 {
+				fullEmails, err := client.FetchMessagesByUIDs(mailbox, prefetchUIDs)
+				if err == nil {
+					for _, fe := range fullEmails {
+						_ = sm.cache.UpdateEmailBody(email, mailbox, fe.UID, fe.BodyHTML, fe.Snippet)
+						// Also update memory cache
+						sm.memory.Update(email, mailbox, emailToCached(fe))
+					}
+				}
+			}
 		}
 
 		if sm.cache != nil {

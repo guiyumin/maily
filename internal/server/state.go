@@ -31,12 +31,11 @@ type AccountState struct {
 	imapClient *mail.IMAPClient
 }
 
-// StateManager manages all account states and provides in-memory locking
+// StateManager manages all account states and IMAP connections
 type StateManager struct {
 	accounts map[string]*AccountState // keyed by email
 	store    *auth.AccountStore
-	cache    *cache.Cache
-	memory   *MemoryCache
+	cache    *cache.Cache // SQLite disk cache - single source of truth
 	mu       sync.RWMutex
 }
 
@@ -46,7 +45,6 @@ func NewStateManager(store *auth.AccountStore, diskCache *cache.Cache) *StateMan
 		accounts: make(map[string]*AccountState),
 		store:    store,
 		cache:    diskCache,
-		memory:   NewMemoryCache(),
 	}
 
 	// Initialize state for each account
@@ -145,12 +143,16 @@ func (sm *StateManager) GetAccounts() []AccountInfo {
 	var infos []AccountInfo
 	for email, state := range sm.accounts {
 		state.mu.Lock()
+		emailCount := 0
+		if sm.cache != nil {
+			emailCount, _ = sm.cache.CountEmails(email, "INBOX")
+		}
 		info := AccountInfo{
 			Email:      email,
 			Provider:   state.Account.Credentials.Provider,
 			Syncing:    state.Syncing,
 			LastSync:   state.LastSync,
-			EmailCount: sm.memory.Count(email, "INBOX"),
+			EmailCount: emailCount,
 		}
 		state.mu.Unlock()
 		infos = append(infos, info)
@@ -221,89 +223,50 @@ func (sm *StateManager) EndSync(email string, err error) {
 	state.LastError = err
 }
 
-// GetEmails returns emails from memory cache, falling back to disk
+// GetEmails returns emails from disk cache
 func (sm *StateManager) GetEmails(email, mailbox string, limit int) ([]cache.CachedEmail, error) {
-	// Prefer disk cache as the source of truth.
-	var diskErr error
-	if sm.cache != nil {
-		diskEmails, err := sm.cache.LoadEmails(email, mailbox)
-		if err != nil {
-			diskErr = err
-		} else if len(diskEmails) > 0 {
-			// Store in memory for next time
-			sm.memory.Set(email, mailbox, diskEmails)
-			if limit > 0 && len(diskEmails) > limit {
-				return diskEmails[:limit], nil
-			}
-			return diskEmails, nil
-		}
+	if sm.cache == nil {
+		return nil, nil
 	}
-
-	// Fall back to memory if disk is unavailable or empty.
-	emails := sm.memory.Get(email, mailbox)
-	if len(emails) > 0 {
-		if limit > 0 && len(emails) > limit {
-			return emails[:limit], nil
-		}
-		return emails, nil
+	emails, err := sm.cache.LoadEmails(email, mailbox)
+	if err != nil {
+		return nil, err
 	}
-
-	if diskErr != nil {
-		return nil, diskErr
+	if limit > 0 && len(emails) > limit {
+		return emails[:limit], nil
 	}
-
-	return nil, nil
+	return emails, nil
 }
 
-// GetEmail returns a single email by UID
+// GetEmail returns a single email by UID from disk cache
 func (sm *StateManager) GetEmail(email, mailbox string, uid imap.UID) (*cache.CachedEmail, error) {
-	// Try memory first
-	cached := sm.memory.GetByUID(email, mailbox, uid)
-	if cached != nil {
-		return cached, nil
+	if sm.cache == nil {
+		return nil, nil
 	}
-
-	// Fall back to disk
-	if sm.cache != nil {
-		return sm.cache.GetEmail(email, mailbox, uid)
-	}
-
-	return nil, nil
+	return sm.cache.GetEmail(email, mailbox, uid)
 }
 
-// GetEmailWithBody loads an email from cache, fetching body from IMAP if missing.
+// GetEmailWithBody loads an email from disk cache, fetching body from IMAP if missing.
 func (sm *StateManager) GetEmailWithBody(email, mailbox string, uid imap.UID) (*cache.CachedEmail, error) {
-	var cached *cache.CachedEmail
-	var diskErr error
-
-	// Prefer disk (sqlite) as the source of truth.
-	if sm.cache != nil {
-		diskEmail, err := sm.cache.GetEmail(email, mailbox, uid)
-		if err != nil {
-			diskErr = err
-		} else if diskEmail != nil {
-			cached = diskEmail
-			sm.memory.Update(email, mailbox, *diskEmail)
-		}
-	}
-
-	if cached == nil {
-		cached = sm.memory.GetByUID(email, mailbox, uid)
-	}
-
-	if cached == nil {
-		if diskErr != nil {
-			return nil, diskErr
-		}
+	if sm.cache == nil {
 		return nil, nil
 	}
 
+	cached, err := sm.cache.GetEmail(email, mailbox, uid)
+	if err != nil {
+		return nil, err
+	}
+	if cached == nil {
+		return nil, nil
+	}
+
+	// Return if body already cached
 	if cached.BodyHTML != "" || cached.Snippet != "" {
 		return cached, nil
 	}
 
-	// Fetch body from IMAP and persist.
-	err := sm.withIMAPClient(email, func(client *mail.IMAPClient) error {
+	// Fetch body from IMAP and persist
+	fetchErr := sm.withIMAPClient(email, func(client *mail.IMAPClient) error {
 		bodyHTML, snippet, err := client.FetchEmailBody(mailbox, uid)
 		if err != nil {
 			return err
@@ -312,55 +275,45 @@ func (sm *StateManager) GetEmailWithBody(email, mailbox string, uid imap.UID) (*
 		cached.Snippet = snippet
 		return nil
 	})
-	if err != nil {
-		// If email was deleted on server (e.g., from another device),
-		// remove it from our cache to keep things in sync
-		if errors.Is(err, mail.ErrEmailNotFound) {
-			sm.memory.Delete(email, mailbox, uid)
-			if sm.cache != nil {
-				_ = sm.cache.DeleteEmail(email, mailbox, uid)
-			}
+	if fetchErr != nil {
+		// If email was deleted on server, remove from cache
+		if errors.Is(fetchErr, mail.ErrEmailNotFound) {
+			_ = sm.cache.DeleteEmail(email, mailbox, uid)
 			return nil, fmt.Errorf("email was deleted on another device")
 		}
-		return cached, err
+		return cached, fetchErr
 	}
 
-	sm.memory.Update(email, mailbox, *cached)
-	if sm.cache != nil && (cached.BodyHTML != "" || cached.Snippet != "") {
+	// Save body to disk cache
+	if cached.BodyHTML != "" || cached.Snippet != "" {
 		_ = sm.cache.UpdateEmailBody(email, mailbox, uid, cached.BodyHTML, cached.Snippet)
 	}
 
 	return cached, nil
 }
 
-// UpdateEmail updates an email in both memory and disk cache
+// UpdateEmail updates an email in disk cache
 func (sm *StateManager) UpdateEmail(email, mailbox string, cached cache.CachedEmail) error {
-	sm.memory.Update(email, mailbox, cached)
-	if sm.cache != nil {
-		return sm.cache.SaveEmail(email, mailbox, cached)
+	if sm.cache == nil {
+		return nil
 	}
-	return nil
+	return sm.cache.SaveEmail(email, mailbox, cached)
 }
 
-// UpdateEmailFlags updates only the unread flag in memory and disk.
+// UpdateEmailFlags updates only the unread flag in disk cache
 func (sm *StateManager) UpdateEmailFlags(email, mailbox string, uid imap.UID, unread bool) error {
-	if cached := sm.memory.GetByUID(email, mailbox, uid); cached != nil {
-		cached.Unread = unread
-		sm.memory.Update(email, mailbox, *cached)
+	if sm.cache == nil {
+		return nil
 	}
-	if sm.cache != nil {
-		return sm.cache.UpdateEmailFlags(email, mailbox, uid, unread)
-	}
-	return nil
+	return sm.cache.UpdateEmailFlags(email, mailbox, uid, unread)
 }
 
-// DeleteEmail removes an email from both memory and disk cache
+// DeleteEmail removes an email from disk cache
 func (sm *StateManager) DeleteEmail(email, mailbox string, uid imap.UID) error {
-	sm.memory.Delete(email, mailbox, uid)
-	if sm.cache != nil {
-		return sm.cache.DeleteEmail(email, mailbox, uid)
+	if sm.cache == nil {
+		return nil
 	}
-	return nil
+	return sm.cache.DeleteEmail(email, mailbox, uid)
 }
 
 // QueueOp deletes an email from cache and enqueues a pending operation.
@@ -374,7 +327,6 @@ func (sm *StateManager) QueueOp(account, mailbox, operation string, uid imap.UID
 	if err := sm.cache.DeleteEmail(account, mailbox, uid); err != nil {
 		return err
 	}
-	sm.memory.Delete(account, mailbox, uid)
 	return sm.cache.AddPendingOp(account, mailbox, operation, uid)
 }
 
@@ -393,17 +345,11 @@ func (sm *StateManager) QueueOps(account, mailbox, operation string, uids []imap
 		if err := sm.cache.DeleteEmail(account, mailbox, uid); err != nil {
 			return err
 		}
-		sm.memory.Delete(account, mailbox, uid)
 		if err := sm.cache.AddPendingOp(account, mailbox, operation, uid); err != nil {
 			return err
 		}
 	}
 	return nil
-}
-
-// SetEmails stores emails in memory cache
-func (sm *StateManager) SetEmails(email, mailbox string, emails []cache.CachedEmail) {
-	sm.memory.Set(email, mailbox, emails)
 }
 
 // GetAccountCredentials returns credentials for an account
@@ -486,15 +432,13 @@ func (sm *StateManager) Sync(email, mailbox string) error {
 			}
 		}
 
-		// Convert to cached format and store
+		// Convert to cached format and persist to disk
 		cached := make([]cache.CachedEmail, len(emails))
 		for i, e := range emails {
 			cached[i] = emailToCached(e)
 		}
 
-		sm.SetEmails(email, mailbox, cached)
-
-		// Also persist to disk (insert metadata only if missing)
+		// Persist to disk (insert metadata only if missing)
 		if sm.cache != nil {
 			for _, c := range cached {
 				_, _ = sm.cache.InsertEmailMetadataIfMissing(email, mailbox, c)
@@ -531,8 +475,6 @@ func (sm *StateManager) Sync(email, mailbox string) error {
 				if err == nil {
 					for _, fe := range fullEmails {
 						_ = sm.cache.UpdateEmailBody(email, mailbox, fe.UID, fe.BodyHTML, fe.Snippet)
-						// Also update memory cache
-						sm.memory.Update(email, mailbox, emailToCached(fe))
 					}
 				}
 			}
@@ -664,7 +606,6 @@ func (sm *StateManager) ProcessPendingOps() (processed int, failed int) {
 			// Delete from cache again in case sync pulled email back
 			if op.Operation == cache.OpDelete || op.Operation == cache.OpMoveTrash {
 				sm.cache.DeleteEmail(op.Account, op.Mailbox, op.UID)
-				sm.memory.Delete(op.Account, op.Mailbox, op.UID)
 			}
 			processed++
 		}

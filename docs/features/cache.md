@@ -33,8 +33,8 @@
 - Starts automatically when you open maily
 - Runs in background, syncs every 30 minutes
 - Uses `max(14 days, 100 emails)` sync strategy
-- In-memory cache for instant TUI startup
-- Also persists to disk for cold starts
+- Caches IMAP connections for fast access
+- Reads/writes directly to SQLite disk cache
 - Check status: `maily server status`
 - Stop: `maily server stop`
 

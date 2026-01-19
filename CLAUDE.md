@@ -69,7 +69,6 @@ maily/
 │   ├── server/                # Long-running server process
 │   │   ├── server.go         # Unix socket server, background poller
 │   │   ├── state.go          # Account state, sync logic
-│   │   ├── memory.go         # In-memory email cache
 │   │   └── protocol.go       # Client-server protocol
 │   ├── client/                # TUI client for server
 │   │   └── client.go         # Unix socket client

@@ -41,10 +41,9 @@ const (
 type App struct {
 	store           *auth.AccountStore
 	cfg             *config.Config
-	accountIdx      int
-	serverClient    *client.Client                // connection to maily server
-	emailCache      map[string][]mail.Email       // key: "accountIdx:label"
-	diskCache       *cache.Cache                  // persistent disk cache (fallback only)
+	accountIdx   int
+	serverClient *client.Client // connection to maily server
+	diskCache    *cache.Cache   // persistent disk cache
 	mailList        components.MailList
 	viewport        viewport.Model
 	spinner         spinner.Model
@@ -266,10 +265,9 @@ func NewApp(store *auth.AccountStore, cfg *config.Config) App {
 	return App{
 		store:          store,
 		cfg:            cfg,
-		accountIdx:     0,
-		serverClient:   serverClient,
-		emailCache:     make(map[string][]mail.Email),
-		diskCache:      diskCache,
+		accountIdx:   0,
+		serverClient: serverClient,
+		diskCache:    diskCache,
 		mailList:       components.NewMailList(),
 		viewport:       vp,
 		spinner:        s,
@@ -882,14 +880,6 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// Block account switching when any dialog is open
 			if len(a.store.Accounts) > 1 && !a.confirmDelete && !a.isSearchResult && !a.showLabelPicker &&
 				!a.showExtractEdit && !a.showExtract && !a.showExtractInput && !a.showSummary && !a.showAISetup {
-				// Save current emails to cache (only if not in error state)
-				if a.state != stateError {
-					if emails := a.mailList.Emails(); len(emails) > 0 {
-						cacheKey := fmt.Sprintf("%d:%s", a.accountIdx, a.currentLabel)
-						a.emailCache[cacheKey] = emails
-					}
-				}
-
 				// Switch to next account
 				a.accountIdx = (a.accountIdx + 1) % len(a.store.Accounts)
 				a.view = listView
@@ -897,22 +887,12 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				a.showLabelPicker = false
 				// Clear error state from previous account
 				a.err = nil
-
-				// Check if we have in-memory cached data for this account's inbox
-				cacheKey := fmt.Sprintf("%d:%s", a.accountIdx, a.currentLabel)
-				if cached, ok := a.emailCache[cacheKey]; ok && len(cached) > 0 {
-					a.mailList.SetEmails(cached)
-					a.state = stateReady
-					labelName := components.GetLabelDisplayName(a.currentLabel)
-					a.statusMsg = fmt.Sprintf("%s: %d emails", labelName, len(cached))
-					return a, nil
-				}
-
-				// Load from server/disk cache
 				a.state = stateLoading
 				a.emailLimit = uint32(a.cfg.MaxEmails)
 				a.mailList.SetEmails(nil)
 				a.statusMsg = "Loading..."
+
+				// Load from disk cache
 				return a, tea.Batch(a.spinner.Tick, a.loadCachedEmails())
 			}
 		}
@@ -1029,21 +1009,12 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.accountEmail != "" && msg.accountEmail != currentEmail {
 			return a, nil
 		}
-		// Only use cached emails if we haven't loaded from server yet
-		if len(msg.emails) > 0 && len(a.mailList.Emails()) == 0 {
-			a.mailList.SetEmails(msg.emails)
-			labelName := components.GetLabelDisplayName(a.currentLabel)
-			// Check if cache is fresh - if so, we're done (no need to fetch from server)
-			if a.diskCache != nil && a.diskCache.IsFresh(currentEmail, a.currentLabel, cacheFreshnessWindow) {
-				a.state = stateReady
-				a.statusMsg = fmt.Sprintf("%s: %d emails", labelName, len(msg.emails))
-			} else {
-				// Cache is stale, show emails but keep loading state for background fetch
-				a.state = stateReady
-				a.statusMsg = fmt.Sprintf("%s: %d emails", labelName, len(msg.emails))
-			}
-		}
-		return a, a.loadLabels()
+		// Set emails from cache
+		a.mailList.SetEmails(msg.emails)
+		a.state = stateReady
+		labelName := components.GetLabelDisplayName(a.currentLabel)
+		a.statusMsg = fmt.Sprintf("%s: %d emails", labelName, len(msg.emails))
+		return a, nil
 
 	case emailsLoadedMsg:
 		// Ignore messages from other accounts (stale messages after switching)
@@ -1056,8 +1027,6 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return a, nil
 		}
 		a.mailList.SetEmails(msg.emails)
-		cacheKey := fmt.Sprintf("%d:%s", a.accountIdx, a.currentLabel)
-		a.emailCache[cacheKey] = msg.emails
 		a.state = stateReady
 		labelName := components.GetLabelDisplayName(a.currentLabel)
 		a.statusMsg = fmt.Sprintf("%s: %d emails", labelName, len(msg.emails))
@@ -1093,8 +1062,6 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return a, nil
 		}
 		a.mailList.SetEmails(msg.emails)
-		cacheKey := fmt.Sprintf("%d:%s", a.accountIdx, a.currentLabel)
-		a.emailCache[cacheKey] = msg.emails
 		a.state = stateReady
 		labelName := components.GetLabelDisplayName(a.currentLabel)
 		a.statusMsg = fmt.Sprintf("%s: %d emails (refreshed)", labelName, len(msg.emails))

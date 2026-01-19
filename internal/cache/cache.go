@@ -779,6 +779,13 @@ func (c *Cache) GetPendingOpsCount() (int, error) {
 	return count, err
 }
 
+// CountEmails returns the count of emails for an account/mailbox
+func (c *Cache) CountEmails(account, mailbox string) (int, error) {
+	var count int
+	err := c.db.QueryRow("SELECT COUNT(*) FROM emails WHERE account = ? AND mailbox = ?", account, mailbox).Scan(&count)
+	return count, err
+}
+
 // LogOp inserts a completed operation into op_logs
 func (c *Cache) LogOp(op PendingOp, status string, errMsg string) error {
 	_, err := c.db.Exec(`

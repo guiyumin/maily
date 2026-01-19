@@ -60,7 +60,7 @@ $ maily
 # Next launch - just attaches to existing server
 $ maily
 # Detects server already running, connects to it
-# Instant startup (cache already in memory)
+# Instant startup (IMAP connections already established)
 
 # Explicit server control
 $ maily server status    # Check if running
@@ -90,11 +90,6 @@ $ maily server start     # Start without attaching TUI
 │  └───────────────────────────────────────────┘ │
 │                                                 │
 │  ┌───────────────────────────────────────────┐ │
-│  │     In-memory email cache                 │ │
-│  │     (loaded from disk on server start)    │ │
-│  └───────────────────────────────────────────┘ │
-│                                                 │
-│  ┌───────────────────────────────────────────┐ │
 │  │     Unix socket: /tmp/maily.sock          │ │
 │  │     (or ~/.config/maily/maily.sock)       │ │
 │  └───────────────────────────────────────────┘ │
@@ -112,7 +107,7 @@ $ maily server start     # Start without attaching TUI
 | Aspect | Current (Two Process) | Proposed (Single Process) |
 |--------|----------------------|---------------------------|
 | Locking | File-based (.sync.lock) | In-memory (sync.RWMutex) |
-| TUI startup | Load cache from disk | Already in memory |
+| TUI startup | Load cache from disk | Cached IMAP connections |
 | State sharing | None | Multiple TUIs see same state |
 | Coordination | PID checking | Direct mutex |
 | Debugging | Check two processes | One process to inspect |
@@ -125,24 +120,26 @@ $ maily server start     # Start without attaching TUI
 // internal/server/server.go
 
 type Server struct {
-    accounts  *AccountManager
-    cache     *MemoryCache
+    state     *StateManager
     poller    *Poller
     listener  net.Listener
     clients   map[*Client]bool
     mu        sync.RWMutex
 }
 
-type AccountManager struct {
-    states map[string]*AccountState
-    mu     sync.RWMutex  // Per-operation lock, not per-account file lock
+type StateManager struct {
+    accounts map[string]*AccountState
+    store    *auth.AccountStore
+    cache    *cache.Cache  // SQLite disk cache
+    mu       sync.RWMutex
 }
 
 type AccountState struct {
-    Email      string
-    Mailboxes  map[string]*MailboxState
-    Syncing    bool  // In-memory flag, no file lock needed
+    Account    *auth.Account
+    Syncing    bool
     LastSync   time.Time
+    LastError  error
+    imapClient *mail.IMAPClient  // pooled IMAP connection
 }
 
 func NewServer(sockPath string) (*Server, error) {
@@ -152,17 +149,13 @@ func NewServer(sockPath string) (*Server, error) {
     }
 
     s := &Server{
-        accounts: NewAccountManager(),
-        cache:    NewMemoryCache(),
+        state:    NewStateManager(store, diskCache),
         listener: listener,
         clients:  make(map[*Client]bool),
     }
 
-    // Load cache from disk into memory
-    s.cache.LoadFromDisk()
-
     // Start background poller
-    s.poller = NewPoller(s.accounts, s.cache)
+    s.poller = NewPoller(s.state)
     go s.poller.Run()
 
     return s, nil
@@ -399,16 +392,15 @@ Wasteful of disk and bandwidth, but zero coordination needed.
 internal/
 ├── server/
 │   ├── server.go      # Main server loop
-│   ├── client.go      # Client connection handler
-│   ├── protocol.go    # Message types
-│   └── memory.go      # In-memory cache
+│   ├── state.go       # Account state management
+│   └── protocol.go    # Message types
 ├── client/
-│   └── tui.go         # TUI that connects to server
+│   └── client.go      # TUI client that connects to server
 ├── cli/
 │   ├── root.go        # Updated to connect or start server
-│   └── server.go      # New: server subcommand
+│   └── server_cmd.go  # Server subcommand
 └── cache/
-    └── cache.go       # Add LoadToMemory/SyncToDisk methods
+    └── cache.go       # SQLite disk cache
 ```
 
 ## Open Questions
@@ -424,7 +416,3 @@ internal/
 3. **Auto-start on login**: Should server start automatically?
    - launchd plist (macOS)
    - systemd unit (Linux)
-
-4. **Resource limits**: Memory cap for in-memory cache?
-   - LRU eviction?
-   - Spill to disk after N emails?

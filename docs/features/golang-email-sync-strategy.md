@@ -6,19 +6,13 @@ This document describes how Maily synchronizes emails between the IMAP server an
 
 ```
 ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│   IMAP Server   │────▶│  Memory Cache   │────▶│   Disk Cache    │
-│  (Gmail, etc.)  │     │  (in-memory)    │     │   (SQLite)      │
+│   IMAP Server   │────▶│   Disk Cache    │────▶│    TUI Client   │
+│  (Gmail, etc.)  │     │   (SQLite)      │     │                 │
 └─────────────────┘     └─────────────────┘     └─────────────────┘
-         │                      │                       │
-         │                      ▼                       │
-         │              ┌─────────────────┐             │
-         └─────────────▶│    TUI Client   │◀────────────┘
-                        └─────────────────┘
 ```
 
 - **IMAP Server**: Source of truth for email data
-- **Memory Cache**: Fast in-memory storage for active session
-- **Disk Cache**: SQLite database for persistence across sessions
+- **Disk Cache**: SQLite database - single source of truth for cached emails
 
 ## Sync Triggers
 
@@ -100,15 +94,7 @@ additional, err := client.FetchMessagesByUIDsMetadata(mailbox, missingUIDs)
 
 Fetches metadata for any emails in the 14-day window not already in the first 100. This completes the union.
 
-### Step 4: Update Memory Cache
-
-```go
-sm.SetEmails(email, mailbox, cached)
-```
-
-Replaces the entire memory cache for this mailbox. This automatically removes stale emails from memory.
-
-### Step 5: Persist to Disk Cache
+### Step 4: Persist to Disk Cache
 
 ```go
 for _, c := range cached {
@@ -118,7 +104,7 @@ for _, c := range cached {
 
 Inserts new emails to disk cache. Existing emails are not overwritten (preserves body content).
 
-### Step 6: Remove Stale Emails from Disk
+### Step 5: Remove Stale Emails from Disk
 
 ```go
 cachedUIDs, _ := sm.cache.GetCachedUIDs(email, mailbox)
@@ -131,7 +117,7 @@ for uid := range cachedUIDs {
 
 Compares cached UIDs against server UIDs. Any email in the cache but not on the server is deleted. This handles emails deleted on other devices (iPhone, web, etc.).
 
-### Step 7: Prefetch Body for 10 Most Recent
+### Step 6: Prefetch Body for 10 Most Recent
 
 ```go
 for i := 0; i < len(cached) && len(prefetchUIDs) < 10; i++ {
@@ -185,7 +171,6 @@ When UIDVALIDITY changes, the entire mailbox cache is cleared and rebuilt.
 ## Concurrency
 
 - **Per-account locking**: `TryStartSync()` prevents concurrent syncs for the same account
-- **Memory cache**: Uses `sync.RWMutex` for thread-safe access
 - **Disk cache**: SQLite handles concurrent writes
 
 ## Quick Refresh vs Full Sync
@@ -229,7 +214,6 @@ User opens Maily
 | File | Purpose |
 |------|---------|
 | `internal/server/state.go` | `Sync()` function, state management |
-| `internal/server/memory.go` | In-memory cache implementation |
 | `internal/cache/cache.go` | SQLite disk cache |
 | `internal/mail/imap.go` | IMAP client, fetch methods |
 | `internal/sync/sync.go` | Legacy sync (used by CLI) |

@@ -64,28 +64,6 @@ func (a *App) fetchEmailBody(uid imap.UID) tea.Cmd {
 	}
 }
 
-func (a *App) loadLabels() tea.Cmd {
-	account := a.currentAccount()
-	if account == nil {
-		return func() tea.Msg {
-			return errorMsg{err: fmt.Errorf("no account configured")}
-		}
-	}
-	accountEmail := account.Credentials.Email
-	serverClient := a.serverClient
-
-	return func() tea.Msg {
-		if serverClient == nil {
-			return errorMsg{err: fmt.Errorf("server unavailable"), accountEmail: accountEmail}
-		}
-		labels, err := serverClient.GetLabels(accountEmail)
-		if err != nil {
-			return errorMsg{err: err, accountEmail: accountEmail}
-		}
-		return labelsLoadedMsg{labels: labels, accountEmail: accountEmail}
-	}
-}
-
 func (a *App) executeSearch(query string) tea.Cmd {
 	label := a.currentLabel
 	account := a.currentAccount()

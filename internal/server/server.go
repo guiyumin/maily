@@ -735,9 +735,6 @@ func (s *Server) quickRefresh(account, mailbox string, limit int) Response {
 		cached[i] = emailToCached(e)
 	}
 
-	// Update memory cache
-	s.state.SetEmails(account, mailbox, cached)
-
 	// Apply limit if specified
 	if limit > 0 && len(cached) > limit {
 		cached = cached[:limit]

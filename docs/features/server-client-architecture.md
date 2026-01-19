@@ -72,7 +72,6 @@ type StateManager struct {
     accounts map[string]*AccountState  // keyed by email
     store    *auth.AccountStore
     cache    *cache.Cache              // disk cache (SQLite)
-    memory   *MemoryCache              // in-memory cache
 }
 
 type AccountState struct {
@@ -86,7 +85,7 @@ type AccountState struct {
 
 **Key functions:**
 - `withIMAPClient()` - Execute operation with pooled IMAP connection
-- `GetEmails()` - Load from disk cache, fallback to memory
+- `GetEmails()` - Load from disk cache (SQLite)
 - `GetEmailWithBody()` - Load email, fetch body from IMAP if missing
 - `Sync()` - Full sync: last 100 emails + 14-day window
 - `QueueOp()` / `QueueOps()` - Queue operations for background processing
@@ -141,10 +140,6 @@ JSON-based request/response protocol over Unix socket.
 | `sync_error` | Sync failed |
 | `new_emails` | New emails arrived |
 | `email_updated` | Email flags changed |
-
-#### `memory.go` - In-Memory Cache
-
-Fast in-memory email cache for quick access. Used as secondary cache after disk.
 
 ### Client (`internal/client/`)
 

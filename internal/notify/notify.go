@@ -21,7 +21,7 @@ func Send(title, message string) error {
 }
 
 func sendMacOS(title, message string) error {
-	script := fmt.Sprintf(`display notification %q with title %q`, message, title)
+	script := fmt.Sprintf(`display notification %q with title %q sound name "Glass"`, message, title)
 	cmd := exec.Command("osascript", "-e", script)
 	return cmd.Run()
 }

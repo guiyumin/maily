@@ -588,7 +588,7 @@ pub fn get_email(account: &str, mailbox: &str, uid: u32) -> Result<Email, Box<dy
          FROM emails WHERE account = ?1 AND mailbox = ?2 AND uid = ?3"
     )?;
 
-    let email = stmt.query_row(params![account, mailbox, uid], |row| {
+    let email = match stmt.query_row(params![account, mailbox, uid], |row| {
         let internal_date_ts: i64 = row.get(2)?;
         let unread: i32 = row.get(11)?;
 
@@ -621,7 +621,13 @@ pub fn get_email(account: &str, mailbox: &str, uid: u32) -> Result<Email, Box<dy
             unread: unread == 1,
             attachments: vec![],
         })
-    })?;
+    }) {
+        Ok(email) => email,
+        Err(rusqlite::Error::QueryReturnedNoRows) => {
+            return Err("Email not in cache. Click refresh to sync.".into());
+        }
+        Err(e) => return Err(e.into()),
+    };
 
     // Load attachments
     let mut email = email;

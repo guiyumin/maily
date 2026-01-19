@@ -440,6 +440,18 @@ pub fn get_emails(account: &str, mailbox: &str) -> Result<Vec<Email>, Box<dyn st
         let internal_date_ts: i64 = row.get(2)?;
         let unread: i32 = row.get(11)?;
 
+        // Handle date field that can be either string or integer timestamp
+        let date_value = row.get_ref(8)?;
+        let date = match date_value.data_type() {
+            rusqlite::types::Type::Integer => {
+                let ts: i64 = row.get(8)?;
+                chrono::DateTime::from_timestamp(ts, 0)
+                    .map(|dt| dt.format("%a, %d %b %Y %H:%M:%S %z").to_string())
+                    .unwrap_or_default()
+            }
+            _ => row.get::<_, String>(8).unwrap_or_default(),
+        };
+
         Ok(Email {
             uid,
             message_id: row.get(1)?,
@@ -451,7 +463,7 @@ pub fn get_emails(account: &str, mailbox: &str) -> Result<Vec<Email>, Box<dyn st
             to: row.get(5)?,
             cc: row.get(6)?,
             subject: row.get(7)?,
-            date: row.get(8)?,
+            date,
             snippet: row.get(9)?,
             body_html: row.get(10)?,
             unread: unread == 1,
@@ -512,6 +524,19 @@ pub fn list_emails_paginated(
             let unread: i32 = row.get(8)?;
             let has_attachments: i32 = row.get(9)?;
 
+            // Handle date field that can be either string or integer timestamp
+            let date_value = row.get_ref(6)?;
+            let date = match date_value.data_type() {
+                rusqlite::types::Type::Integer => {
+                    // Convert timestamp to RFC2822 date string
+                    let ts: i64 = row.get(6)?;
+                    chrono::DateTime::from_timestamp(ts, 0)
+                        .map(|dt| dt.format("%a, %d %b %Y %H:%M:%S %z").to_string())
+                        .unwrap_or_default()
+                }
+                _ => row.get::<_, String>(6).unwrap_or_default(),
+            };
+
             Ok(EmailSummary {
                 uid: row.get(0)?,
                 message_id: row.get(1)?,
@@ -521,7 +546,7 @@ pub fn list_emails_paginated(
                 from: row.get(3)?,
                 to: row.get(4)?,
                 subject: row.get(5)?,
-                date: row.get(6)?,
+                date,
                 snippet: row.get(7)?,
                 unread: unread == 1,
                 has_attachments: has_attachments == 1,
@@ -567,6 +592,18 @@ pub fn get_email(account: &str, mailbox: &str, uid: u32) -> Result<Email, Box<dy
         let internal_date_ts: i64 = row.get(2)?;
         let unread: i32 = row.get(11)?;
 
+        // Handle date field that can be either string or integer timestamp
+        let date_value = row.get_ref(8)?;
+        let date = match date_value.data_type() {
+            rusqlite::types::Type::Integer => {
+                let ts: i64 = row.get(8)?;
+                chrono::DateTime::from_timestamp(ts, 0)
+                    .map(|dt| dt.format("%a, %d %b %Y %H:%M:%S %z").to_string())
+                    .unwrap_or_default()
+            }
+            _ => row.get::<_, String>(8).unwrap_or_default(),
+        };
+
         Ok(Email {
             uid: row.get(0)?,
             message_id: row.get(1)?,
@@ -578,7 +615,7 @@ pub fn get_email(account: &str, mailbox: &str, uid: u32) -> Result<Email, Box<dy
             to: row.get(5)?,
             cc: row.get(6)?,
             subject: row.get(7)?,
-            date: row.get(8)?,
+            date,
             snippet: row.get(9)?,
             body_html: row.get(10)?,
             unread: unread == 1,
@@ -743,6 +780,7 @@ fn save_email_to_db(conn: &Connection, account: &str, mailbox: &str, email: &Ema
 }
 
 /// Save email metadata to DB without body (for fast metadata-only sync)
+#[allow(dead_code)]
 fn save_email_metadata_to_db(
     conn: &Connection,
     account: &str,
@@ -1028,6 +1066,7 @@ pub fn sync_emails(account_name: &str, mailbox: &str) -> Result<SyncResult, Box<
 }
 
 /// Sync emails from the last N days only (uses IMAP SINCE search)
+#[allow(dead_code)]
 pub fn sync_emails_since(
     account_name: &str,
     mailbox: &str,
@@ -1181,6 +1220,7 @@ pub fn sync_emails_since(
 
 /// Sync emails using the Go strategy: max(100 emails, 14 days) with stale removal and body prefetch
 /// This is the recommended sync function that matches the Go TUI behavior.
+#[allow(dead_code)]
 pub fn sync_emails_improved(
     account_name: &str,
     mailbox: &str,

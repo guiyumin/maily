@@ -21,7 +21,6 @@ const CONNECTION_TIMEOUT_SECS: u64 = 300;
 struct PooledConnection {
     session: Option<Session<TlsStream<TcpStream>>>,
     last_used: Instant,
-    account_name: String,
 }
 
 /// Per-account connection pool
@@ -39,7 +38,6 @@ fn get_connection_pool(account_name: &str) -> Arc<Mutex<PooledConnection>> {
     let conn = Arc::new(Mutex::new(PooledConnection {
         session: None,
         last_used: Instant::now(),
-        account_name: account_name.to_string(),
     }));
 
     pool.insert(account_name.to_string(), conn.clone());

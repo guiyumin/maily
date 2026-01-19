@@ -42,6 +42,7 @@ type Email struct {
 	From         string
 	ReplyTo      string       // Reply-To address (if different from From)
 	To           string
+	Cc           string       // CC recipients
 	Subject      string
 	Date         time.Time
 	Snippet      string
@@ -403,6 +404,19 @@ func (c *IMAPClient) parseMessageMetadata(msg *imapclient.FetchMessageBuffer) Em
 				email.To = fmt.Sprintf("%s@%s", to.Mailbox, to.Host)
 			}
 		}
+
+		// Extract CC recipients
+		if len(env.Cc) > 0 {
+			var ccAddrs []string
+			for _, cc := range env.Cc {
+				if cc.Name != "" {
+					ccAddrs = append(ccAddrs, fmt.Sprintf("%s <%s@%s>", cc.Name, cc.Mailbox, cc.Host))
+				} else {
+					ccAddrs = append(ccAddrs, fmt.Sprintf("%s@%s", cc.Mailbox, cc.Host))
+				}
+			}
+			email.Cc = strings.Join(ccAddrs, ", ")
+		}
 	}
 
 	email.Unread = true
@@ -507,6 +521,19 @@ func (c *IMAPClient) parseMessage(msg *imapclient.FetchMessageBuffer) Email {
 			} else {
 				email.To = fmt.Sprintf("%s@%s", to.Mailbox, to.Host)
 			}
+		}
+
+		// Extract CC recipients
+		if len(env.Cc) > 0 {
+			var ccAddrs []string
+			for _, cc := range env.Cc {
+				if cc.Name != "" {
+					ccAddrs = append(ccAddrs, fmt.Sprintf("%s <%s@%s>", cc.Name, cc.Mailbox, cc.Host))
+				} else {
+					ccAddrs = append(ccAddrs, fmt.Sprintf("%s@%s", cc.Mailbox, cc.Host))
+				}
+			}
+			email.Cc = strings.Join(ccAddrs, ", ")
 		}
 	}
 
@@ -1261,6 +1288,19 @@ func (c *IMAPClient) parseMessageHeader(msg *imapclient.FetchMessageBuffer) Emai
 			} else {
 				email.To = fmt.Sprintf("%s@%s", to.Mailbox, to.Host)
 			}
+		}
+
+		// Extract CC recipients
+		if len(env.Cc) > 0 {
+			var ccAddrs []string
+			for _, cc := range env.Cc {
+				if cc.Name != "" {
+					ccAddrs = append(ccAddrs, fmt.Sprintf("%s <%s@%s>", cc.Name, cc.Mailbox, cc.Host))
+				} else {
+					ccAddrs = append(ccAddrs, fmt.Sprintf("%s@%s", cc.Mailbox, cc.Host))
+				}
+			}
+			email.Cc = strings.Join(ccAddrs, ", ")
 		}
 	}
 

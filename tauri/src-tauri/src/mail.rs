@@ -144,7 +144,7 @@ CREATE TABLE IF NOT EXISTS emails (
     to_addr TEXT NOT NULL DEFAULT '',
     cc TEXT NOT NULL DEFAULT '',
     subject TEXT NOT NULL DEFAULT '',
-    date TEXT NOT NULL DEFAULT '',
+    date INTEGER NOT NULL DEFAULT 0,
     snippet TEXT NOT NULL DEFAULT '',
     body_html TEXT NOT NULL DEFAULT '',
     unread INTEGER NOT NULL DEFAULT 1,
@@ -747,6 +747,9 @@ fn save_email_to_db(conn: &Connection, account: &str, mailbox: &str, email: &Ema
         .map(|dt| dt.timestamp())
         .unwrap_or(0);
 
+    // Parse RFC2822 date string to Unix timestamp (matching Go's storage format)
+    let date_ts = mailparse::dateparse(&email.date).unwrap_or(internal_date_ts);
+
     let unread_val = if email.unread { 1 } else { 0 };
 
     conn.execute(
@@ -755,7 +758,7 @@ fn save_email_to_db(conn: &Connection, account: &str, mailbox: &str, email: &Ema
         params![
             account, mailbox, email.uid, email.message_id, internal_date_ts,
             email.from, email.reply_to, email.to, email.cc, email.subject,
-            email.date, email.snippet, email.body_html, unread_val, ""
+            date_ts, email.snippet, email.body_html, unread_val, ""
         ]
     ).map_err(|e| e.to_string())?;
 
@@ -791,6 +794,9 @@ fn save_email_metadata_to_db(
         .map(|dt| dt.timestamp())
         .unwrap_or(0);
 
+    // Parse RFC2822 date string to Unix timestamp (matching Go's storage format)
+    let date_ts = mailparse::dateparse(&email.date).unwrap_or(internal_date_ts);
+
     let unread_val = if email.unread { 1 } else { 0 };
 
     // Check if email already exists
@@ -811,7 +817,7 @@ fn save_email_metadata_to_db(
         params![
             account, mailbox, email.uid, email.message_id, internal_date_ts,
             email.from, email.reply_to, email.to, email.cc, email.subject,
-            email.date, email.snippet, unread_val, ""
+            date_ts, email.snippet, unread_val, ""
         ]
     ).map_err(|e| e.to_string())?;
 

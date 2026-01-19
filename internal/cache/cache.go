@@ -31,6 +31,7 @@ type CachedEmail struct {
 	From         string       `json:"from"`
 	ReplyTo      string       `json:"reply_to,omitempty"`
 	To           string       `json:"to"`
+	Cc           string       `json:"cc,omitempty"`
 	Subject      string       `json:"subject"`
 	Date         time.Time    `json:"date"`
 	Snippet      string       `json:"snippet"`
@@ -108,6 +109,7 @@ CREATE TABLE IF NOT EXISTS emails (
     from_addr TEXT NOT NULL DEFAULT '',
     reply_to TEXT NOT NULL DEFAULT '',
     to_addr TEXT NOT NULL DEFAULT '',
+    cc TEXT NOT NULL DEFAULT '',
     subject TEXT NOT NULL DEFAULT '',
     date INTEGER NOT NULL DEFAULT 0,
     snippet TEXT NOT NULL DEFAULT '',
@@ -360,7 +362,7 @@ func (c *Cache) SaveMetadata(account, mailbox string, meta *Metadata) error {
 // LoadEmails loads all cached emails for a mailbox, sorted by InternalDate descending
 func (c *Cache) LoadEmails(account, mailbox string) ([]CachedEmail, error) {
 	rows, err := c.db.Query(`
-		SELECT uid, message_id, internal_date, from_addr, reply_to, to_addr,
+		SELECT uid, message_id, internal_date, from_addr, reply_to, to_addr, cc,
 		       subject, date, snippet, body_html, unread, references_hdr
 		FROM emails
 		WHERE account = ? AND mailbox = ?
@@ -380,7 +382,7 @@ func (c *Cache) LoadEmails(account, mailbox string) ([]CachedEmail, error) {
 
 		err := rows.Scan(
 			&uid, &email.MessageID, &internalDate, &email.From, &email.ReplyTo,
-			&email.To, &email.Subject, &date, &email.Snippet, &email.BodyHTML,
+			&email.To, &email.Cc, &email.Subject, &date, &email.Snippet, &email.BodyHTML,
 			&unread, &email.References,
 		)
 		if err != nil {
@@ -427,7 +429,7 @@ func (c *Cache) loadAttachments(account, mailbox string, uid uint32) ([]Attachme
 // LoadEmailsLimit loads up to limit emails, sorted by InternalDate descending
 func (c *Cache) LoadEmailsLimit(account, mailbox string, limit int) ([]CachedEmail, error) {
 	rows, err := c.db.Query(`
-		SELECT uid, message_id, internal_date, from_addr, reply_to, to_addr,
+		SELECT uid, message_id, internal_date, from_addr, reply_to, to_addr, cc,
 		       subject, date, snippet, body_html, unread, references_hdr
 		FROM emails
 		WHERE account = ? AND mailbox = ?
@@ -448,7 +450,7 @@ func (c *Cache) LoadEmailsLimit(account, mailbox string, limit int) ([]CachedEma
 
 		err := rows.Scan(
 			&uid, &email.MessageID, &internalDate, &email.From, &email.ReplyTo,
-			&email.To, &email.Subject, &date, &email.Snippet, &email.BodyHTML,
+			&email.To, &email.Cc, &email.Subject, &date, &email.Snippet, &email.BodyHTML,
 			&unread, &email.References,
 		)
 		if err != nil {
@@ -485,11 +487,11 @@ func (c *Cache) SaveEmail(account, mailbox string, email CachedEmail) error {
 	_, err = tx.Exec(`
 		INSERT OR REPLACE INTO emails
 		(account, mailbox, uid, message_id, internal_date, from_addr, reply_to,
-		 to_addr, subject, date, snippet, body_html, unread, references_hdr)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		 to_addr, cc, subject, date, snippet, body_html, unread, references_hdr)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`,
 		account, mailbox, uint32(email.UID), email.MessageID,
-		email.InternalDate.Unix(), email.From, email.ReplyTo, email.To,
+		email.InternalDate.Unix(), email.From, email.ReplyTo, email.To, email.Cc,
 		email.Subject, email.Date.Unix(), email.Snippet, email.BodyHTML,
 		unread, email.References,
 	)
@@ -535,11 +537,11 @@ func (c *Cache) InsertEmailMetadataIfMissing(account, mailbox string, email Cach
 	result, err := tx.Exec(`
 		INSERT OR IGNORE INTO emails
 		(account, mailbox, uid, message_id, internal_date, from_addr, reply_to,
-		 to_addr, subject, date, snippet, body_html, unread, references_hdr)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		 to_addr, cc, subject, date, snippet, body_html, unread, references_hdr)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`,
 		account, mailbox, uint32(email.UID), email.MessageID,
-		email.InternalDate.Unix(), email.From, email.ReplyTo, email.To,
+		email.InternalDate.Unix(), email.From, email.ReplyTo, email.To, email.Cc,
 		email.Subject, email.Date.Unix(), email.Snippet, email.BodyHTML,
 		unread, email.References,
 	)
@@ -638,13 +640,13 @@ func (c *Cache) GetEmail(account, mailbox string, uid imap.UID) (*CachedEmail, e
 	var unread int
 
 	err := c.db.QueryRow(`
-		SELECT uid, message_id, internal_date, from_addr, reply_to, to_addr,
+		SELECT uid, message_id, internal_date, from_addr, reply_to, to_addr, cc,
 		       subject, date, snippet, body_html, unread, references_hdr
 		FROM emails
 		WHERE account = ? AND mailbox = ? AND uid = ?
 	`, account, mailbox, uint32(uid)).Scan(
 		&uidVal, &email.MessageID, &internalDate, &email.From, &email.ReplyTo,
-		&email.To, &email.Subject, &date, &email.Snippet, &email.BodyHTML,
+		&email.To, &email.Cc, &email.Subject, &date, &email.Snippet, &email.BodyHTML,
 		&unread, &email.References,
 	)
 

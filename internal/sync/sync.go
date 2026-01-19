@@ -230,6 +230,7 @@ func emailToCached(e mail.Email) cache.CachedEmail {
 		From:         e.From,
 		ReplyTo:      e.ReplyTo,
 		To:           e.To,
+		Cc:           e.Cc,
 		Subject:      e.Subject,
 		Date:         e.Date,
 		Snippet:      e.Snippet,

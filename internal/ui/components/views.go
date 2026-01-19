@@ -129,6 +129,7 @@ func RenderStatusBar(data StatusBarData) string {
 		// Read view
 		help = tabHint +
 			HelpKeyStyle.Render("r") + HelpDescStyle.Render(" reply  ") +
+			HelpKeyStyle.Render("u") + HelpDescStyle.Render(" unread  ") +
 			HelpKeyStyle.Render("d") + HelpDescStyle.Render(" delete  ") +
 			HelpKeyStyle.Render("a") + HelpDescStyle.Render(" attachments  ") +
 			HelpKeyStyle.Render("s") + HelpDescStyle.Render(" summarize  ") +

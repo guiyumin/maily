@@ -897,6 +897,21 @@ fn save_email_metadata_to_db(
     Ok(true)
 }
 
+/// Decode RFC 2047 MIME encoded-word strings (e.g., =?UTF-8?B?...?=)
+/// Returns the original string if decoding fails
+fn decode_mime_header(s: &str) -> String {
+    if s.is_empty() {
+        return s.to_string();
+    }
+    // mailparse::parse_header can decode MIME encoded words
+    // We wrap it in a fake header format to use the parser
+    let fake_header = format!("Subject: {}\r\n", s);
+    match mailparse::parse_header(fake_header.as_bytes()) {
+        Ok((header, _)) => header.get_value(),
+        Err(_) => s.to_string(),
+    }
+}
+
 /// Parse IMAP ENVELOPE into Email struct (metadata only, no body)
 fn parse_envelope_to_email(
     uid: u32,
@@ -904,11 +919,14 @@ fn parse_envelope_to_email(
     is_unread: bool,
     internal_date: &str,
 ) -> Email {
-    // Helper to format address
+    // Helper to format address with MIME decoding for name
     fn format_address(addr: &imap_proto::types::Address) -> String {
         let mailbox = addr.mailbox.as_ref().map(|s| String::from_utf8_lossy(s).to_string()).unwrap_or_default();
         let host = addr.host.as_ref().map(|s| String::from_utf8_lossy(s).to_string()).unwrap_or_default();
-        let name = addr.name.as_ref().map(|s| String::from_utf8_lossy(s).to_string());
+        let name = addr.name.as_ref().map(|s| {
+            let raw = String::from_utf8_lossy(s).to_string();
+            decode_mime_header(&raw)
+        });
 
         if let Some(name) = name {
             if !name.is_empty() {
@@ -933,7 +951,10 @@ fn parse_envelope_to_email(
 
     let subject = envelope.subject
         .as_ref()
-        .map(|s| String::from_utf8_lossy(s).to_string())
+        .map(|s| {
+            let raw = String::from_utf8_lossy(s).to_string();
+            decode_mime_header(&raw)
+        })
         .unwrap_or_default();
 
     let date = envelope.date

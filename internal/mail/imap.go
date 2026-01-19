@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mime"
 	"mime/quotedprintable"
 	"strings"
 	"time"
@@ -16,6 +17,22 @@ import (
 
 	"maily/internal/auth"
 )
+
+// mimeDecoder decodes RFC 2047 encoded-word strings in email headers
+var mimeDecoder = &mime.WordDecoder{}
+
+// decodeHeader decodes RFC 2047 encoded-word strings (e.g., =?UTF-8?B?...?=)
+// Returns the original string if decoding fails
+func decodeHeader(s string) string {
+	if s == "" {
+		return s
+	}
+	decoded, err := mimeDecoder.DecodeHeader(s)
+	if err != nil {
+		return s
+	}
+	return decoded
+}
 
 // ErrEmailNotFound is returned when an email no longer exists on the server
 // (e.g., deleted from another device)
@@ -375,7 +392,7 @@ func (c *IMAPClient) parseMessageMetadata(msg *imapclient.FetchMessageBuffer) Em
 	}
 
 	if env := msg.Envelope; env != nil {
-		email.Subject = env.Subject
+		email.Subject = decodeHeader(env.Subject)
 		email.Date = env.Date
 		email.MessageID = env.MessageID
 		if len(env.InReplyTo) > 0 {
@@ -384,8 +401,9 @@ func (c *IMAPClient) parseMessageMetadata(msg *imapclient.FetchMessageBuffer) Em
 
 		if len(env.From) > 0 {
 			from := env.From[0]
-			if from.Name != "" {
-				email.From = fmt.Sprintf("%s <%s@%s>", from.Name, from.Mailbox, from.Host)
+			name := decodeHeader(from.Name)
+			if name != "" {
+				email.From = fmt.Sprintf("%s <%s@%s>", name, from.Mailbox, from.Host)
 			} else {
 				email.From = fmt.Sprintf("%s@%s", from.Mailbox, from.Host)
 			}
@@ -398,8 +416,9 @@ func (c *IMAPClient) parseMessageMetadata(msg *imapclient.FetchMessageBuffer) Em
 
 		if len(env.To) > 0 {
 			to := env.To[0]
-			if to.Name != "" {
-				email.To = fmt.Sprintf("%s <%s@%s>", to.Name, to.Mailbox, to.Host)
+			name := decodeHeader(to.Name)
+			if name != "" {
+				email.To = fmt.Sprintf("%s <%s@%s>", name, to.Mailbox, to.Host)
 			} else {
 				email.To = fmt.Sprintf("%s@%s", to.Mailbox, to.Host)
 			}
@@ -409,8 +428,9 @@ func (c *IMAPClient) parseMessageMetadata(msg *imapclient.FetchMessageBuffer) Em
 		if len(env.Cc) > 0 {
 			var ccAddrs []string
 			for _, cc := range env.Cc {
-				if cc.Name != "" {
-					ccAddrs = append(ccAddrs, fmt.Sprintf("%s <%s@%s>", cc.Name, cc.Mailbox, cc.Host))
+				name := decodeHeader(cc.Name)
+				if name != "" {
+					ccAddrs = append(ccAddrs, fmt.Sprintf("%s <%s@%s>", name, cc.Mailbox, cc.Host))
 				} else {
 					ccAddrs = append(ccAddrs, fmt.Sprintf("%s@%s", cc.Mailbox, cc.Host))
 				}
@@ -492,7 +512,7 @@ func (c *IMAPClient) parseMessage(msg *imapclient.FetchMessageBuffer) Email {
 	}
 
 	if env := msg.Envelope; env != nil {
-		email.Subject = env.Subject
+		email.Subject = decodeHeader(env.Subject)
 		email.Date = env.Date
 		email.MessageID = env.MessageID
 		if len(env.InReplyTo) > 0 {
@@ -501,8 +521,9 @@ func (c *IMAPClient) parseMessage(msg *imapclient.FetchMessageBuffer) Email {
 
 		if len(env.From) > 0 {
 			from := env.From[0]
-			if from.Name != "" {
-				email.From = fmt.Sprintf("%s <%s@%s>", from.Name, from.Mailbox, from.Host)
+			name := decodeHeader(from.Name)
+			if name != "" {
+				email.From = fmt.Sprintf("%s <%s@%s>", name, from.Mailbox, from.Host)
 			} else {
 				email.From = fmt.Sprintf("%s@%s", from.Mailbox, from.Host)
 			}
@@ -516,8 +537,9 @@ func (c *IMAPClient) parseMessage(msg *imapclient.FetchMessageBuffer) Email {
 
 		if len(env.To) > 0 {
 			to := env.To[0]
-			if to.Name != "" {
-				email.To = fmt.Sprintf("%s <%s@%s>", to.Name, to.Mailbox, to.Host)
+			name := decodeHeader(to.Name)
+			if name != "" {
+				email.To = fmt.Sprintf("%s <%s@%s>", name, to.Mailbox, to.Host)
 			} else {
 				email.To = fmt.Sprintf("%s@%s", to.Mailbox, to.Host)
 			}
@@ -527,8 +549,9 @@ func (c *IMAPClient) parseMessage(msg *imapclient.FetchMessageBuffer) Email {
 		if len(env.Cc) > 0 {
 			var ccAddrs []string
 			for _, cc := range env.Cc {
-				if cc.Name != "" {
-					ccAddrs = append(ccAddrs, fmt.Sprintf("%s <%s@%s>", cc.Name, cc.Mailbox, cc.Host))
+				name := decodeHeader(cc.Name)
+				if name != "" {
+					ccAddrs = append(ccAddrs, fmt.Sprintf("%s <%s@%s>", name, cc.Mailbox, cc.Host))
 				} else {
 					ccAddrs = append(ccAddrs, fmt.Sprintf("%s@%s", cc.Mailbox, cc.Host))
 				}
@@ -1260,7 +1283,7 @@ func (c *IMAPClient) parseMessageHeader(msg *imapclient.FetchMessageBuffer) Emai
 	}
 
 	if env := msg.Envelope; env != nil {
-		email.Subject = env.Subject
+		email.Subject = decodeHeader(env.Subject)
 		email.Date = env.Date
 		email.MessageID = env.MessageID
 		if len(env.InReplyTo) > 0 {
@@ -1269,8 +1292,9 @@ func (c *IMAPClient) parseMessageHeader(msg *imapclient.FetchMessageBuffer) Emai
 
 		if len(env.From) > 0 {
 			from := env.From[0]
-			if from.Name != "" {
-				email.From = fmt.Sprintf("%s <%s@%s>", from.Name, from.Mailbox, from.Host)
+			name := decodeHeader(from.Name)
+			if name != "" {
+				email.From = fmt.Sprintf("%s <%s@%s>", name, from.Mailbox, from.Host)
 			} else {
 				email.From = fmt.Sprintf("%s@%s", from.Mailbox, from.Host)
 			}
@@ -1283,8 +1307,9 @@ func (c *IMAPClient) parseMessageHeader(msg *imapclient.FetchMessageBuffer) Emai
 
 		if len(env.To) > 0 {
 			to := env.To[0]
-			if to.Name != "" {
-				email.To = fmt.Sprintf("%s <%s@%s>", to.Name, to.Mailbox, to.Host)
+			name := decodeHeader(to.Name)
+			if name != "" {
+				email.To = fmt.Sprintf("%s <%s@%s>", name, to.Mailbox, to.Host)
 			} else {
 				email.To = fmt.Sprintf("%s@%s", to.Mailbox, to.Host)
 			}
@@ -1294,8 +1319,9 @@ func (c *IMAPClient) parseMessageHeader(msg *imapclient.FetchMessageBuffer) Emai
 		if len(env.Cc) > 0 {
 			var ccAddrs []string
 			for _, cc := range env.Cc {
-				if cc.Name != "" {
-					ccAddrs = append(ccAddrs, fmt.Sprintf("%s <%s@%s>", cc.Name, cc.Mailbox, cc.Host))
+				name := decodeHeader(cc.Name)
+				if name != "" {
+					ccAddrs = append(ccAddrs, fmt.Sprintf("%s <%s@%s>", name, cc.Mailbox, cc.Host))
 				} else {
 					ccAddrs = append(ccAddrs, fmt.Sprintf("%s@%s", cc.Mailbox, cc.Host))
 				}

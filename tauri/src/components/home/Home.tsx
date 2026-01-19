@@ -52,6 +52,7 @@ interface SyncCompleteEvent {
   new_emails: number;
   updated_emails: number;
   total_emails: number;
+  deleted_emails?: number;
 }
 
 interface SyncErrorEvent {

@@ -7,7 +7,7 @@ use serde::Serialize;
 use tauri::{AppHandle, Emitter};
 use tokio::sync::mpsc::{self, Sender};
 
-use crate::mail::{delete_email_from_cache, get_accounts, log_op, sync_emails_since};
+use crate::mail::{delete_email_from_cache, get_accounts, log_op, sync_emails_improved};
 
 /// Operations that can be queued for an account
 #[derive(Debug, Clone)]
@@ -44,6 +44,8 @@ pub struct SyncCompleteEvent {
     pub new_emails: usize,
     pub updated_emails: usize,
     pub total_emails: usize,
+    #[serde(default)]
+    pub deleted_emails: usize,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -218,17 +220,18 @@ async fn process_sync(account_name: &str, mailbox: &str) {
     let account = account_name.to_string();
     let mbox = mailbox.to_string();
 
-    // Run blocking IMAP sync on thread pool
+    // Run blocking IMAP sync on thread pool using improved strategy
+    // (matches Go TUI: max(100 emails, 14 days) with stale removal and body prefetch)
     let result = tokio::task::spawn_blocking(move || {
-        sync_emails_since(&account, &mbox, 90)
+        sync_emails_improved(&account, &mbox)
     })
     .await;
 
     match result {
         Ok(Ok(sync_result)) => {
             eprintln!(
-                "[sync] Done! {} new, {} updated, {} total",
-                sync_result.new_emails, sync_result.updated_emails, sync_result.total_emails
+                "[sync] Done! {} new, {} updated, {} deleted, {} total",
+                sync_result.new_emails, sync_result.updated_emails, sync_result.deleted_emails, sync_result.total_emails
             );
 
             if let Some(ref app) = app {
@@ -238,6 +241,7 @@ async fn process_sync(account_name: &str, mailbox: &str) {
                     new_emails: sync_result.new_emails,
                     updated_emails: sync_result.updated_emails,
                     total_emails: sync_result.total_emails,
+                    deleted_emails: sync_result.deleted_emails,
                 });
             }
         }

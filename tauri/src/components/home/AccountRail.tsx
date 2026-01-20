@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from "react";
-import { Plus, Settings, MoreHorizontal, GripVertical } from "lucide-react";
+import { Plus, Settings, MoreHorizontal, GripVertical, Calendar } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -327,7 +327,17 @@ export function AccountRail({
         </Tooltip>
       </div>
 
-      <div className="mt-auto">
+      <div className="mt-auto flex flex-col gap-1">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="ghost" size="icon" className="size-8 rounded-full" asChild>
+              <Link to="/calendar">
+                <Calendar className="h-3.5 w-3.5" />
+              </Link>
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="right">Calendar</TooltipContent>
+        </Tooltip>
         <Tooltip>
           <TooltipTrigger asChild>
             <Button variant="ghost" size="icon" className="size-8 rounded-full" asChild>

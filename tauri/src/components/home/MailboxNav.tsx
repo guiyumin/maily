@@ -8,6 +8,7 @@ interface MailboxNavProps {
   onSelectMailbox: (mailbox: string) => void;
   unreadCount: number;
   provider?: string; // "gmail", "yahoo", or "imap"
+  selectedAccount?: string;
 }
 
 // Get provider-specific mailbox names
@@ -45,14 +46,17 @@ export function MailboxNav({
   onSelectMailbox,
   unreadCount,
   provider,
+  selectedAccount,
 }: MailboxNavProps) {
   const mailboxes = getMailboxes(provider);
 
   return (
     <nav className="flex w-50 shrink-0 flex-col border-r bg-background">
-      <div className="flex h-14 items-center gap-2 px-4">
-        <Mail className="h-5 w-5" />
-        <span className="text-lg font-semibold tracking-tight">Mail</span>
+      <div className="flex h-14 items-center gap-2 px-4 overflow-hidden">
+        <Mail className="h-5 w-5 shrink-0" />
+        <span className="text-sm font-medium truncate" title={selectedAccount}>
+          {selectedAccount || "Mail"}
+        </span>
       </div>
 
       <Separator />

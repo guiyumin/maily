@@ -22,6 +22,12 @@ var todayCmd = &cobra.Command{
 }
 
 func runTodayTUI() {
+	// Auto-start server if not running
+	if err := startServerBackground(); err != nil {
+		// Non-fatal: TUI can still work without server
+		fmt.Printf("Warning: failed to start server: %v\n", err)
+	}
+
 	// Load email accounts
 	store, err := auth.LoadAccountStore()
 	if err != nil {

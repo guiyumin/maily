@@ -103,6 +103,12 @@ func filterAccounts(accounts []auth.Account, providers []string) []auth.Account 
 }
 
 func runSync() {
+	// Auto-start server if not running
+	if err := startServerBackground(); err != nil {
+		// Non-fatal: sync has direct IMAP fallback
+		fmt.Printf("Warning: failed to start server: %v\n", err)
+	}
+
 	// Load accounts
 	store, err := auth.LoadAccountStore()
 	if err != nil {

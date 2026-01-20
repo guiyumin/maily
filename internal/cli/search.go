@@ -78,6 +78,12 @@ func init() {
 }
 
 func handleSearch(cmd *cobra.Command) {
+	// Auto-start server if not running
+	if err := startServerBackground(); err != nil {
+		// Non-fatal for TUI mode, but non-interactive mode requires server
+		fmt.Printf("Warning: failed to start server: %v\n", err)
+	}
+
 	store, err := auth.LoadAccountStore()
 	if err != nil {
 		fmt.Printf("Error loading accounts: %v\n", err)

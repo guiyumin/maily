@@ -641,48 +641,22 @@ pub fn get_email_with_body(account: &str, mailbox: &str, uid: u32) -> Result<Ema
     // First try to get from cache
     let mut email = get_email(account, mailbox, uid)?;
 
-    // If body is empty, fetch from IMAP
+    // If body is empty, fetch from IMAP via connection pool
     if email.body_html.is_empty() {
-        eprintln!("[lazy-load] Fetching body for {} / {} / {}", account, mailbox, uid);
+        match crate::imap_queue::fetch_body_via_pool(account, mailbox, uid) {
+            Ok(Some((body_html, snippet))) => {
+                // Update cache
+                let conn = DB.lock().unwrap();
+                let _ = update_email_body_in_db(&conn, account, mailbox, uid, &body_html, &snippet);
 
-        // Get account credentials
-        let accounts = get_accounts()?;
-        let account_info = accounts
-            .iter()
-            .find(|a| a.name == account)
-            .ok_or_else(|| format!("Account '{}' not found", account))?;
-
-        // Connect to IMAP and fetch body
-        let addr = format!("{}:{}", account_info.credentials.imap_host, account_info.credentials.imap_port);
-        let tls = native_tls::TlsConnector::builder().build()?;
-        let client = imap::connect((&*addr, account_info.credentials.imap_port), &account_info.credentials.imap_host, &tls)?;
-        let mut session = client
-            .login(&account_info.credentials.email, &account_info.credentials.password)
-            .map_err(|e| e.0.to_string())?;
-
-        session.select(mailbox)?;
-
-        let uid_str = uid.to_string();
-        let fetched = session.uid_fetch(&uid_str, "(UID RFC822)")?;
-
-        for msg in fetched.iter() {
-            if msg.uid == Some(uid) {
-                if let Some(body_bytes) = msg.body() {
-                    if let Ok(parsed) = parse_mail(body_bytes) {
-                        let (body_html, snippet) = extract_body(&parsed);
-
-                        // Update cache
-                        let conn = DB.lock().unwrap();
-                        let _ = update_email_body_in_db(&conn, account, mailbox, uid, &body_html, &snippet);
-
-                        email.body_html = body_html;
-                        email.snippet = snippet;
-                    }
-                }
+                email.body_html = body_html;
+                email.snippet = snippet;
+            }
+            Ok(None) => {}
+            Err(e) => {
+                return Err(e.to_string().into());
             }
         }
-
-        let _ = session.logout();
     }
 
     Ok(email)
@@ -838,6 +812,19 @@ fn save_email_to_db(conn: &Connection, account: &str, mailbox: &str, email: &Ema
     }
 
     Ok(())
+}
+
+/// Public wrapper to update email body in cache
+pub fn update_email_body(
+    account: &str,
+    mailbox: &str,
+    uid: u32,
+    body_html: &str,
+    snippet: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let conn = DB.lock().unwrap();
+    update_email_body_in_db(&conn, account, mailbox, uid, body_html, snippet)
+        .map_err(|e| e.to_string().into())
 }
 
 /// Update email body in DB (for lazy loading)
@@ -1863,7 +1850,7 @@ fn parse_email_body(uid: u32, body: &[u8], is_unread: bool, internal_date: &str)
     })
 }
 
-fn extract_body(parsed: &mailparse::ParsedMail) -> (String, String) {
+pub fn extract_body(parsed: &mailparse::ParsedMail) -> (String, String) {
     let mut html_body = String::new();
     let mut text_body = String::new();
 

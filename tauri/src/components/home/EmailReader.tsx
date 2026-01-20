@@ -90,6 +90,7 @@ interface EmailReaderProps {
   mailbox: string;
   onEmailDeleted: (uid: number) => void;
   onEmailReadChange: (uid: number, unread: boolean) => void;
+  onSnippetUpdate: (uid: number, snippet: string) => void;
   onNavigate: (direction: "prev" | "next") => void;
   canNavigatePrev: boolean;
   canNavigateNext: boolean;
@@ -719,6 +720,7 @@ export function EmailReader({
   mailbox,
   onEmailDeleted,
   onEmailReadChange,
+  onSnippetUpdate,
   onNavigate,
   canNavigatePrev,
   canNavigateNext,
@@ -751,70 +753,126 @@ export function EmailReader({
 
   const cache = useEmailCache();
 
+  // Fetch email - shows metadata immediately, loads body in background if needed
+  const fetchEmailBody = useCallback(async (uid: number, skipCache = false) => {
+    if (!account) return;
+
+    // Check frontend cache first (unless skipping)
+    if (!skipCache) {
+      const cached = cache.get(account, mailbox, uid);
+      if (cached) {
+        setEmailFull(cached);
+        setLoading(false);
+        setError(null);
+
+        // Still mark as read if unread
+        if (cached.unread) {
+          const updated = { ...cached, unread: false };
+          setEmailFull(updated);
+          cache.set(account, mailbox, updated);
+          onEmailReadChange(uid, false);
+
+          invoke("mark_email_read_async", {
+            account,
+            mailbox,
+            uid,
+            unread: false,
+          }).catch(console.error);
+        }
+        return;
+      }
+    }
+
+    // Step 1: Get email metadata from cache immediately (non-blocking)
+    setError(null);
+
+    try {
+      const metadata = await invoke<EmailFull>("get_email", {
+        account,
+        mailbox,
+        uid,
+      });
+
+      // Show metadata immediately
+      setEmailFull(metadata);
+
+      // Mark as read
+      if (metadata.unread) {
+        const updated = { ...metadata, unread: false };
+        setEmailFull(updated);
+        onEmailReadChange(uid, false);
+        invoke("mark_email_read_async", {
+          account,
+          mailbox,
+          uid,
+          unread: false,
+        }).catch(console.error);
+      }
+
+      // Step 2: If body is empty, fetch it in background
+      if (!metadata.body_html) {
+        setLoading(true); // Show loading spinner in body area only
+
+        try {
+          const result = await invoke<[string, string] | null>("fetch_email_body_async", {
+            account,
+            mailbox,
+            uid,
+          });
+
+          if (result) {
+            const [body_html, snippet] = result;
+
+            // Update the email state with body
+            setEmailFull((prev) => {
+              if (!prev || prev.uid !== uid) return prev;
+              const updated = { ...prev, body_html, snippet };
+              cache.set(account, mailbox, updated);
+              return updated;
+            });
+
+            // Update snippet in email list
+            onSnippetUpdate(uid, snippet);
+
+            // Update backend cache
+            invoke("update_email_body_cache", {
+              account,
+              mailbox,
+              uid,
+              bodyHtml: body_html,
+              snippet,
+            }).catch(console.error);
+          } else {
+            setError("Email body not found on server");
+          }
+        } catch (bodyErr) {
+          setError(bodyErr?.toString() || "Failed to load email body");
+        } finally {
+          setLoading(false);
+        }
+      } else {
+        // Body already cached
+        cache.set(account, mailbox, metadata);
+      }
+    } catch (err) {
+      setError(err?.toString() || "Failed to load email");
+    }
+  }, [account, mailbox, cache, onEmailReadChange, onSnippetUpdate]);
+
+  // Retry loading email body (skips cache, forces fresh IMAP fetch)
+  const handleRetryLoad = useCallback(() => {
+    if (!emailSummary) return;
+    // Invalidate frontend cache and fetch fresh
+    cache.invalidate(account, mailbox, emailSummary.uid);
+    fetchEmailBody(emailSummary.uid, true);
+  }, [emailSummary, account, mailbox, cache, fetchEmailBody]);
+
   useEffect(() => {
     if (!emailSummary || !account) {
       setEmailFull(null);
       return;
     }
-
-    // Check frontend cache first
-    const cached = cache.get(account, mailbox, emailSummary.uid);
-    if (cached) {
-      setEmailFull(cached);
-      setLoading(false);
-      setError(null);
-
-      // Still mark as read if unread
-      if (cached.unread) {
-        const updated = { ...cached, unread: false };
-        setEmailFull(updated);
-        cache.set(account, mailbox, updated);
-        onEmailReadChange(emailSummary.uid, false);
-
-        // Queue IMAP update in background - returns immediately
-        invoke("mark_email_read_async", {
-          account,
-          mailbox,
-          uid: emailSummary.uid,
-          unread: false,
-        }).catch(console.error);
-      }
-      return;
-    }
-
-    // Not in cache, fetch from backend (will lazy-load body from IMAP if needed)
-    setLoading(true);
-    setError(null);
-
-    invoke<EmailFull>("get_email_with_body", {
-      account,
-      mailbox,
-      uid: emailSummary.uid,
-    })
-      .then((data) => {
-        // Mark as read optimistically - update UI immediately
-        if (data.unread) {
-          const updated = { ...data, unread: false };
-          setEmailFull(updated);
-          cache.set(account, mailbox, updated);
-          onEmailReadChange(emailSummary.uid, false);
-
-          // Queue IMAP update in background - returns immediately
-          invoke("mark_email_read_async", {
-            account,
-            mailbox,
-            uid: emailSummary.uid,
-            unread: false,
-          }).catch(console.error);
-        } else {
-          setEmailFull(data);
-          cache.set(account, mailbox, data);
-        }
-      })
-      .catch((err) => {
-        setError(err.toString());
-      })
-      .finally(() => setLoading(false));
+    fetchEmailBody(emailSummary.uid);
   }, [emailSummary?.uid, account, mailbox]);
 
   const handleDelete = async (permanent = false) => {
@@ -1264,9 +1322,20 @@ export function EmailReader({
                 <span>Loading...</span>
               </div>
             ) : error ? (
-              <div className="flex items-center gap-2 text-destructive">
-                <AlertCircle className="h-4 w-4" />
-                <span>{error}</span>
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center gap-2 text-destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <span>{error}</span>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRetryLoad}
+                  className="w-fit"
+                >
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Retry
+                </Button>
               </div>
             ) : displayEmail.body_html ? (
               <IsolatedHtml

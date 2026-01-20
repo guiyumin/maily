@@ -67,6 +67,16 @@ const BATCH_SIZE = 50;
 // Get initial state BEFORE component renders (synchronous)
 const PRELOADED_STATE = getInitialState();
 
+// Deduplicate emails by UID, keeping the first occurrence
+function deduplicateEmails(emails: Email[]): Email[] {
+  const seen = new Set<number>();
+  return emails.filter((email) => {
+    if (seen.has(email.uid)) return false;
+    seen.add(email.uid);
+    return true;
+  });
+}
+
 export function Home() {
   // Initialize with preloaded data if available - INSTANT first render
   const [accounts, setAccounts] = useState<Account[]>(
@@ -140,7 +150,7 @@ export function Home() {
         setAccounts(state.accounts);
         if (state.selected_account) {
           setSelectedAccount(state.selected_account);
-          setEmails(state.emails.emails);
+          setEmails(deduplicateEmails(state.emails.emails));
           setTotal(state.emails.total);
           setHasMore(state.emails.has_more);
           initialLoadDoneRef.current = true;
@@ -196,7 +206,7 @@ export function Home() {
       limit: INITIAL_LOAD,
     })
       .then(async (result) => {
-        setEmails(result.emails);
+        setEmails(deduplicateEmails(result.emails));
         setTotal(result.total);
         setHasMore(result.has_more);
         setLoading(false);
@@ -257,7 +267,7 @@ export function Home() {
         // Check if account/mailbox changed while loading
         if (!backgroundLoadingRef.current) break;
 
-        setEmails((prev) => [...prev, ...result.emails]);
+        setEmails((prev) => deduplicateEmails([...prev, ...result.emails]));
         setHasMore(result.has_more);
         offset += result.emails.length;
 
@@ -285,7 +295,7 @@ export function Home() {
         limit: BATCH_SIZE,
       });
 
-      setEmails((prev) => [...prev, ...result.emails]);
+      setEmails((prev) => deduplicateEmails([...prev, ...result.emails]));
       setHasMore(result.has_more);
     } catch (err) {
       console.error("Load more error:", err);
@@ -317,6 +327,9 @@ export function Home() {
 
           // Only reload if this is for the currently selected account/mailbox
           if (account === selectedAccount && mailbox === selectedMailbox) {
+            // Stop background loading to prevent race conditions
+            backgroundLoadingRef.current = false;
+
             // Reload from the beginning
             const result = await invoke<ListEmailsResult>("list_emails_page", {
               account,
@@ -324,7 +337,7 @@ export function Home() {
               offset: 0,
               limit: Math.max(emails.length, INITIAL_LOAD),
             });
-            setEmails(result.emails);
+            setEmails(deduplicateEmails(result.emails));
             setTotal(result.total);
             setHasMore(result.has_more);
             setRefreshing(false);
@@ -371,6 +384,14 @@ export function Home() {
       setRefreshing(false);
       syncingRef.current = null;
     });
+
+    // Safety timeout - reset refreshing after 60s if sync doesn't complete
+    setTimeout(() => {
+      if (syncingRef.current?.account === selectedAccount && syncingRef.current?.mailbox === selectedMailbox) {
+        setRefreshing(false);
+        syncingRef.current = null;
+      }
+    }, 60000);
   }, [selectedAccount, selectedMailbox, refreshing]);
 
   const handleEmailDeleted = useCallback((uid: number) => {
@@ -405,6 +426,12 @@ export function Home() {
       prev?.uid === uid ? { ...prev, unread } : prev
     );
   }, [emails, selectedAccount, selectedMailbox]);
+
+  const handleSnippetUpdate = useCallback((uid: number, snippet: string) => {
+    setEmails((prev) =>
+      prev.map((e) => (e.uid === uid ? { ...e, snippet } : e))
+    );
+  }, []);
 
   const handleNavigate = useCallback(
     (direction: "prev" | "next") => {
@@ -507,6 +534,7 @@ export function Home() {
           mailbox={selectedMailbox}
           onEmailDeleted={handleEmailDeleted}
           onEmailReadChange={handleEmailReadChange}
+          onSnippetUpdate={handleSnippetUpdate}
           onNavigate={handleNavigate}
           canNavigatePrev={canNavigatePrev}
           canNavigateNext={canNavigateNext}

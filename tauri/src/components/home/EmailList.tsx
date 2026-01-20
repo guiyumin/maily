@@ -30,7 +30,6 @@ interface EmailListProps {
 }
 
 function formatDate(dateString: string): string {
-  console.log("DEBUG date string:", JSON.stringify(dateString));
   const date = new Date(dateString);
   const now = new Date();
   const diff = now.getTime() - date.getTime();
@@ -163,12 +162,12 @@ export function EmailList({
           </div>
         ) : (
           <div className="EmailList flex min-w-0 flex-col">
-            {emails.map((email, index) => {
+            {emails.map((email) => {
               const isSelected = selectedEmail?.uid === email.uid;
 
               return (
                 <button
-                  key={`${email.uid}-${index}`}
+                  key={email.uid}
                   onClick={() => onSelectEmail(email)}
                   className={cn(
                     "flex w-full flex-col gap-1 border-b border-l-4 p-3 text-left transition-colors",

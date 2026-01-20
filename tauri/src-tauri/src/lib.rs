@@ -114,6 +114,35 @@ fn get_email_with_body(account: String, mailbox: String, uid: u32) -> Result<Ema
     fetch_email_with_body(&account, &mailbox, uid).map_err(|e| e.to_string())
 }
 
+/// Fetch email body asynchronously via connection pool (non-blocking)
+/// Returns the body HTML and snippet, or None if not found
+#[tauri::command]
+async fn fetch_email_body_async(
+    account: String,
+    mailbox: String,
+    uid: u32,
+) -> Result<Option<(String, String)>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        imap_queue::fetch_body_via_pool(&account, &mailbox, uid)
+            .map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+/// Update email body in cache (after async fetch)
+#[tauri::command]
+fn update_email_body_cache(
+    account: String,
+    mailbox: String,
+    uid: u32,
+    body_html: String,
+    snippet: String,
+) -> Result<(), String> {
+    mail::update_email_body(&account, &mailbox, uid, &body_html, &snippet)
+        .map_err(|e| e.to_string())
+}
+
 /// Delete email - optimistic: deletes from cache immediately, queues IMAP for background
 #[tauri::command]
 fn delete_email(account: String, mailbox: String, uid: u32) -> Result<(), String> {
@@ -656,6 +685,8 @@ pub fn run() {
             get_email_count_days,
             get_email,
             get_email_with_body,
+            fetch_email_body_async,
+            update_email_body_cache,
             delete_email,
             permanent_delete_email,
             mark_email_read,

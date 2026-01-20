@@ -515,6 +515,31 @@ pub fn queue_sync(account: String, mailbox: String) {
     let _ = sender.try_send(ImapOperation::SyncMailbox { mailbox });
 }
 
+/// Fetch email body via pooled connection (for lazy-load)
+pub fn fetch_body_via_pool(
+    account_name: &str,
+    mailbox: &str,
+    uid: u32,
+) -> Result<Option<(String, String)>, Box<dyn std::error::Error + Send + Sync>> {
+    with_imap_connection(account_name, mailbox, |session| {
+        let uid_str = uid.to_string();
+        let fetched = session.uid_fetch(&uid_str, "(UID RFC822)")?;
+
+        for msg in fetched.iter() {
+            if msg.uid == Some(uid) {
+                if let Some(body_bytes) = msg.body() {
+                    if let Ok(parsed) = mailparse::parse_mail(body_bytes) {
+                        let (body_html, snippet) = crate::mail::extract_body(&parsed);
+                        return Ok(Some((body_html, snippet)));
+                    }
+                }
+            }
+        }
+
+        Ok(None)
+    })
+}
+
 /// IMAP delete using pooled connection
 fn delete_imap(
     account_name: &str,

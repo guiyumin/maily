@@ -1,0 +1,275 @@
+import React, { useState, useCallback, useRef, useEffect } from 'react';
+import { CalendarType } from '../../../types';
+
+interface CalendarListProps {
+  calendars: CalendarType[];
+  onToggleVisibility: (id: string, visible: boolean) => void;
+  onReorder: (fromIndex: number, toIndex: number) => void;
+  onRename: (id: string, newName: string) => void;
+  onContextMenu: (e: React.MouseEvent, id: string) => void;
+  editingId: string | null;
+  setEditingId: (id: string | null) => void;
+  activeContextMenuCalendarId?: string | null;
+}
+
+const getCalendarInitials = (calendar: CalendarType): string => {
+  if (calendar.icon) {
+    return calendar.icon;
+  }
+  const name = calendar.name || calendar.id;
+  return name.charAt(0).toUpperCase();
+};
+
+export const CalendarList: React.FC<CalendarListProps> = ({
+  calendars,
+  onToggleVisibility,
+  onReorder,
+  onRename,
+  onContextMenu,
+  editingId,
+  setEditingId,
+  activeContextMenuCalendarId,
+}) => {
+  const [editingName, setEditingName] = useState('');
+  const editInputRef = useRef<HTMLInputElement>(null);
+
+  // Drag state
+  const [isDragging, setIsDragging] = useState(false);
+  const [draggedCalendarId, setDraggedCalendarId] = useState<string | null>(null);
+  const [dropTarget, setDropTarget] = useState<{ id: string; position: 'top' | 'bottom' } | null>(null);
+
+  const handleDragStart = useCallback((calendar: CalendarType, e: React.DragEvent) => {
+    // Prevent dragging when editing
+    if (editingId) {
+      e.preventDefault();
+      return;
+    }
+    setIsDragging(true);
+    setDraggedCalendarId(calendar.id);
+
+    // Store calendar data for drop handling
+    const dragData = {
+      calendarId: calendar.id,
+      calendarName: calendar.name,
+      calendarColors: calendar.colors,
+      calendarIcon: calendar.icon,
+    };
+    e.dataTransfer.setData('application/x-dayflow-calendar', JSON.stringify(dragData));
+    e.dataTransfer.effectAllowed = 'copy';
+  }, [editingId]);
+
+  const handleDragEnd = useCallback(() => {
+    setIsDragging(false);
+    setDraggedCalendarId(null);
+    setDropTarget(null);
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent, targetId: string) => {
+    e.preventDefault();
+    if (draggedCalendarId === targetId) {
+      setDropTarget(null);
+      return;
+    }
+
+    const targetIndex = calendars.findIndex(c => c.id === targetId);
+    const isLast = targetIndex === calendars.length - 1;
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const isTopHalf = e.clientY < rect.top + rect.height / 2;
+
+    if (isLast) {
+      setDropTarget({
+        id: targetId,
+        position: isTopHalf ? 'top' : 'bottom',
+      });
+    } else {
+      setDropTarget({
+        id: targetId,
+        position: 'top',
+      });
+    }
+  }, [draggedCalendarId, calendars]);
+
+  const handleDragLeave = useCallback(() => {
+    setDropTarget(null);
+  }, []);
+
+  const handleDrop = useCallback((targetCalendar: CalendarType) => {
+    if (!draggedCalendarId || !dropTarget) return;
+    if (draggedCalendarId === targetCalendar.id) return;
+
+    const fromIndex = calendars.findIndex(c => c.id === draggedCalendarId);
+    let toIndex = calendars.findIndex(c => c.id === targetCalendar.id);
+
+    // Adjust target index based on position
+    if (dropTarget.position === 'bottom') {
+      toIndex += 1;
+    }
+
+    // Adjust for removal of the item
+    if (toIndex > fromIndex) {
+      toIndex -= 1;
+    }
+
+    if (fromIndex !== -1 && toIndex !== -1) {
+      onReorder(fromIndex, toIndex);
+    }
+    setDropTarget(null);
+  }, [draggedCalendarId, dropTarget, calendars, onReorder]);
+
+  const handleRenameStart = useCallback((calendar: CalendarType) => {
+    setEditingId(calendar.id);
+    setEditingName(calendar.name);
+  }, [setEditingId]);
+
+  const handleRenameChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setEditingName(e.target.value);
+  }, []);
+
+  const handleRenameSave = useCallback(() => {
+    if (editingId && editingName.trim()) {
+      const calendar = calendars.find(c => c.id === editingId);
+      if (calendar && calendar.name !== editingName.trim()) {
+        onRename(editingId, editingName.trim());
+      }
+    }
+    setEditingId(null);
+    setEditingName('');
+  }, [editingId, editingName, calendars, onRename, setEditingId]);
+
+  const handleRenameCancel = useCallback(() => {
+    setEditingId(null);
+    setEditingName('');
+  }, [setEditingId]);
+
+  const handleRenameKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleRenameSave();
+    } else if (e.key === 'Escape') {
+      handleRenameCancel();
+    }
+  }, [handleRenameSave, handleRenameCancel]);
+
+  useEffect(() => {
+    if (editingId && editInputRef.current) {
+      editInputRef.current.focus();
+      editInputRef.current.select();
+    }
+  }, [editingId]);
+
+  // If a new calendar is created (editingId is set externally but we don't have editingName set yet),
+  // we might want to sync. But usually the parent sets editingId after creation.
+  // We need to ensure when editingId changes from null to something, we initialize editingName.
+  // Actually, parent might pass a new ID.
+
+  // Let's use an effect to sync editingName when editingId changes?
+  // Or just rely on handleRenameStart.
+  // But for "Create Calendar", the parent sets editingId directly.
+  // The parent also needs to tell us the initial name if it's new.
+  // But in the original code:
+  // app.createCalendar(newCalendar);
+  // setEditingCalendarId(newId);
+  // setEditingName('Untitled');
+
+  // So the parent should probably control the editing state entirely or we provide a way to start editing a specific ID.
+  // I added `editingId` and `setEditingId` to props.
+  // But `editingName` is local. This might be an issue if the parent wants to set the initial name.
+  // In the original code, `setEditingName` was also in the main component.
+
+  // To support the "Create Calendar" flow correctly where it auto-focuses 'Untitled':
+  // We can add a useEffect to check if editingId changed and matches a calendar, then set name?
+  // But if it's a new calendar, we might want to set 'Untitled' or whatever the calendar has.
+
+  useEffect(() => {
+    if (editingId) {
+      const calendar = calendars.find(c => c.id === editingId);
+      if (calendar) {
+        setEditingName(calendar.name);
+      }
+    }
+  }, [editingId, calendars]);
+
+
+  return (
+    <div className="flex-1 overflow-y-auto px-2 pb-3">
+      <ul className="space-y-1 relative">
+        {calendars.map(calendar => {
+          const isVisible = calendar.isVisible !== false;
+          const calendarColor = calendar.colors?.lineColor || '#3b82f6';
+          const showIcon = Boolean(calendar.icon);
+          const isDropTarget = dropTarget?.id === calendar.id;
+          const isActive = activeContextMenuCalendarId === calendar.id || editingId === calendar.id;
+
+          return (
+            <li
+              key={calendar.id}
+              className="relative"
+              onDragOver={(e) => handleDragOver(e, calendar.id)}
+              onDragLeave={handleDragLeave}
+              onDrop={() => handleDrop(calendar)}
+              onContextMenu={(e) => onContextMenu(e, calendar.id)}
+            >
+              {isDropTarget && dropTarget.position === 'top' && (
+                <div className="absolute top-0 left-0 right-0 h-0.5 bg-primary z-10 pointer-events-none" />
+              )}
+              <div
+                draggable
+                onDragStart={(e) => handleDragStart(calendar, e)}
+                onDragEnd={handleDragEnd}
+                className={`rounded transition ${draggedCalendarId === calendar.id ? 'opacity-50' : ''
+                  }`}
+              >
+                <div
+                  className={`group flex items-center rounded px-2 py-2 transition hover:bg-gray-100 dark:hover:bg-slate-800 ${isActive ? 'bg-gray-100 dark:bg-slate-800' : ''}`}
+                  title={calendar.name}
+                >
+                  <input
+                    type="checkbox"
+                    className="calendar-checkbox cursor-pointer shrink-0"
+                    style={{
+                      '--checkbox-color': calendarColor,
+                    } as React.CSSProperties}
+                    checked={isVisible}
+                    onChange={event =>
+                      onToggleVisibility(calendar.id, event.target.checked)
+                    }
+                  />
+                  {showIcon && (
+                    <span
+                      className="ml-2 flex h-5 w-5 shrink-0 items-center justify-center text-xs font-semibold text-white"
+                      aria-hidden="true"
+                    >
+                      {getCalendarInitials(calendar)}
+                    </span>
+                  )}
+                  {editingId === calendar.id ? (
+                    <input
+                      ref={editInputRef}
+                      type="text"
+                      value={editingName}
+                      onChange={handleRenameChange}
+                      onBlur={handleRenameSave}
+                      onKeyDown={handleRenameKeyDown}
+                      className="ml-2 flex-1 min-w-0 h-5 rounded bg-white px-0 py-0 text-sm text-gray-900 focus:outline-none dark:bg-slate-700 dark:text-gray-100"
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  ) : (
+                    <span
+                      className="flex-1 truncate text-sm text-gray-700 group-hover:text-gray-900 dark:text-gray-200 dark:group-hover:text-white ml-2"
+                      onDoubleClick={() => handleRenameStart(calendar)}
+                    >
+                      {calendar.name || calendar.id}
+                    </span>
+                  )}
+                </div>
+              </div>
+              {isDropTarget && dropTarget.position === 'bottom' && (
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary z-10 pointer-events-none" />
+              )}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+};

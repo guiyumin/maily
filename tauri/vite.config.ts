@@ -20,6 +20,7 @@ export default defineConfig(async () => ({
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),
+      "@calendar": fileURLToPath(new URL("./src/lib/calendar", import.meta.url)),
     },
   },
 

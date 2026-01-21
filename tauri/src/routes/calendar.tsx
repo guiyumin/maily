@@ -23,7 +23,7 @@ import {
   type Event as DayFlowEvent,
   type CalendarType,
   type CalendarColors,
-} from "@dayflow/core";
+} from "@/lib/calendar";
 import { Temporal } from "temporal-polyfill";
 
 // Generate calendar colors from a hex color
@@ -184,7 +184,9 @@ function CalendarPage() {
   const loadCalendarData = async () => {
     setLoading(true);
     try {
+      console.log("Loading calendars...");
       const cals = await invoke<CalendarInfo[]>("calendar_list_calendars");
+      console.log("Calendars loaded:", cals);
       setCalendars(cals);
       await loadEvents();
     } catch (err) {
@@ -208,10 +210,12 @@ function CalendarPage() {
     end.setHours(23, 59, 59, 999);
 
     try {
+      console.log("Loading events from", start, "to", end);
       const evts = await invoke<CalendarEvent[]>("calendar_list_events", {
         startTimestamp: Math.floor(start.getTime() / 1000),
         endTimestamp: Math.floor(end.getTime() / 1000),
       });
+      console.log("Events loaded:", evts);
       setEvents(evts);
     } catch (err) {
       console.error("Failed to load events:", err);
@@ -357,7 +361,7 @@ function CalendarPage() {
 
       {/* DayFlow Calendar */}
       <main className="flex-1 overflow-hidden">
-        <DayFlowCalendar calendar={calendar} />
+        <DayFlowCalendar calendar={calendar} className="maily-calendar" />
       </main>
     </div>
   );

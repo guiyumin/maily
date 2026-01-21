@@ -43,7 +43,6 @@ const COLORS = [
 interface DayFlowCalendarProps {
   calendar: UseCalendarAppReturn;
   className?: string;
-  style?: React.CSSProperties | undefined;
   /** Custom event detail content component (content only, will be wrapped in default panel) */
   customDetailPanelContent?: EventDetailContentRenderer;
   /** Custom event detail dialog component (Dialog mode) */
@@ -77,7 +76,6 @@ const CalendarInternalLocaleProvider: React.FC<{
 const CalendarLayout: React.FC<DayFlowCalendarProps> = ({
   calendar,
   className,
-  style,
   customDetailPanelContent,
   customEventDetailDialog,
   meta,
@@ -336,7 +334,6 @@ const CalendarLayout: React.FC<DayFlowCalendarProps> = ({
     <ThemeProvider initialTheme={theme} onThemeChange={handleThemeChange}>
       <div
         className={`calendar-container relative flex flex-row h-full overflow-hidden ${className ?? ''}`}
-        style={{ height: 800, ...style }}
       >
         {sidebarEnabled && (
           <aside

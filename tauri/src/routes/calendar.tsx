@@ -26,17 +26,28 @@ import {
 } from "@/lib/calendar";
 import { Temporal } from "temporal-polyfill";
 
+// Predefined calendar colors for visual consistency
+const CALENDAR_COLORS = [
+  '#ea426b', // red/pink
+  '#f19a38', // orange
+  '#f7cf46', // yellow
+  '#83d754', // green
+  '#51aaf2', // blue
+  '#b672d0', // purple
+  '#957e5e', // brown
+];
+
 // Generate calendar colors from a hex color
 function getCalendarColors(hex: string): { colors: CalendarColors; darkColors: CalendarColors } {
   return {
     colors: {
-      eventColor: hex,
+      eventColor: `${hex}1A`, // 10% opacity for background
       eventSelectedColor: hex,
       lineColor: hex,
       textColor: "#1f2937",
     },
     darkColors: {
-      eventColor: hex,
+      eventColor: `${hex}CC`, // 80% opacity for dark mode
       eventSelectedColor: hex,
       lineColor: hex,
       textColor: "#f9fafb",
@@ -80,8 +91,10 @@ export const Route = createFileRoute("/calendar")({
 });
 
 // Convert Tauri calendar to DayFlow calendar type
-function toDayFlowCalendar(cal: CalendarInfo): CalendarType {
-  const { colors, darkColors } = getCalendarColors(cal.color);
+function toDayFlowCalendar(cal: CalendarInfo, index: number): CalendarType {
+  // Use predefined colors cycling through the array
+  const colorHex = CALENDAR_COLORS[index % CALENDAR_COLORS.length];
+  const { colors, darkColors } = getCalendarColors(colorHex);
   return {
     id: cal.id,
     name: cal.title,
@@ -224,7 +237,7 @@ function CalendarPage() {
 
   // Convert to DayFlow formats
   const dayflowCalendars = useMemo(
-    () => calendars.map(toDayFlowCalendar),
+    () => calendars.map((cal, index) => toDayFlowCalendar(cal, index)),
     [calendars]
   );
   const dayflowEvents = useMemo(

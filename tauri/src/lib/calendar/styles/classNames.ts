@@ -82,8 +82,9 @@ export const dayLabel = 'text-right text-gray-500 dark:text-gray-400 text-sm py-
 
 /**
  * WeekView week title
+ * pr-[10px] matches the scrollbar width for column alignment
  */
-export const weekDayHeader = 'flex border-b border-gray-200 dark:border-gray-700';
+export const weekDayHeader = 'flex border-b border-gray-200 dark:border-gray-700 pr-[10px]';
 
 /**
  * WeekView week title cell
@@ -111,8 +112,9 @@ export const monthGrid6Rows = 'grid grid-rows-6 h-full overflow-hidden';
 
 /**
  * Calendar content area (week/day view)
+ * Uses overflow-y-scroll to always reserve scrollbar space for column alignment
  */
-export const calendarContent = 'relative overflow-y-auto calendar-content';
+export const calendarContent = 'relative overflow-y-scroll calendar-content';
 
 /**
  * Hide scrollbar
@@ -167,8 +169,9 @@ export const currentTimeLineBar = 'h-0.5 w-full bg-primary relative';
 
 /**
  * All-day event row container
+ * pr-[10px] matches the scrollbar width for column alignment
  */
-export const allDayRow = 'flex items-center border-b border-gray-200 dark:border-gray-700 sticky';
+export const allDayRow = 'flex items-center border-b border-gray-200 dark:border-gray-700 sticky pr-[10px]';
 
 /**
  * All-day event label

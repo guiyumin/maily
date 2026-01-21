@@ -245,6 +245,16 @@ export class CalendarRegistry {
   }
 
   /**
+   * Replace all calendars (for external data sync)
+   */
+  setAll(calendars: CalendarType[]): void {
+    this.calendars.clear();
+    calendars.forEach(calendar => {
+      this.calendars.set(calendar.id, calendar);
+    });
+  }
+
+  /**
    * Get visible calendar types
    */
   getVisible(): CalendarType[] {
@@ -375,6 +385,23 @@ export class CalendarRegistry {
     // Fall back to default calendar if not found
     if (!calendar) {
       calendar = this.getDefaultCalendar();
+    }
+
+    // If still no calendar (empty registry), return fallback colors
+    if (!calendar) {
+      return isDark
+        ? {
+            eventColor: 'rgba(59, 130, 246, 0.8)',
+            eventSelectedColor: '#3b82f6',
+            lineColor: '#3b82f6',
+            textColor: '#dbeafe',
+          }
+        : {
+            eventColor: '#eff6ff',
+            eventSelectedColor: '#3b82f6',
+            lineColor: '#3b82f6',
+            textColor: '#1e3a8a',
+          };
     }
 
     // Return appropriate colors based on theme

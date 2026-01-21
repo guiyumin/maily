@@ -90,7 +90,7 @@ body {
 
 @layer components {
   .calendar-container {
-    @apply relative flex flex-col bg-white dark:bg-gray-900 rounded-lg overflow-hidden shadow-lg border border-gray-200 dark:border-gray-700;
+    @apply relative flex flex-col bg-white dark:bg-gray-900 overflow-hidden;
   }
 
   .calendar-header {
@@ -199,10 +199,10 @@ body {
   scrollbar-width: none; /* Firefox */
 }
 
-/* Custom 2px scrollbar */
+/* Custom 10px scrollbar */
 ::-webkit-scrollbar {
-  width: 2px;
-  height: 2px;
+  width: 10px;
+  height: 10px;
 }
 
 * {

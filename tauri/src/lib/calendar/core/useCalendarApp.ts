@@ -134,6 +134,23 @@ export function useCalendarApp(
     setEvents(app.getEvents());
   }, [app]);
 
+  // Sync external events when config.events changes
+  useEffect(() => {
+    if (config.events && config.events.length > 0) {
+      app.setEvents(config.events);
+      setEvents([...app.getEvents()]);
+      triggerUpdate();
+    }
+  }, [config.events, app, triggerUpdate]);
+
+  // Sync external calendars when config.calendars changes
+  useEffect(() => {
+    if (config.calendars && config.calendars.length > 0) {
+      app.setCalendars(config.calendars);
+      triggerUpdate();
+    }
+  }, [config.calendars, app, triggerUpdate]);
+
   // Wrapped methods to ensure state synchronization
   const changeView = useCallback(
     (view: ViewType) => {

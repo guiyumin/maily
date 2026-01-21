@@ -267,6 +267,16 @@ export class CalendarApp implements ICalendarApp {
     return [...this.state.events];
   };
 
+  // Bulk set events (for external data sync)
+  setEvents = (events: Event[]): void => {
+    this.state.events = [...events];
+  };
+
+  // Bulk set calendars (for external data sync)
+  setCalendars = (calendars: CalendarType[]): void => {
+    this.calendarRegistry.setAll(calendars);
+  };
+
   highlightEvent = (eventId: string | null): void => {
     this.state.highlightedEventId = eventId;
     this.callbacks.onRender?.();

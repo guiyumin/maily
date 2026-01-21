@@ -41,6 +41,8 @@ pub struct Calendar {
     pub id: String,
     pub title: String,
     pub color: String,
+    pub source_title: String,  // e.g., "iCloud", "Google", "Gmail", "On My Mac"
+    pub source_type: String,   // e.g., "local", "caldav", "exchange", "subscribed", "birthdays"
 }
 
 /// Calendar event representation
@@ -85,6 +87,7 @@ mod macos {
     use objc2::runtime::Bool;
     use objc2_event_kit::{
         EKAlarm, EKAuthorizationStatus, EKCalendar, EKEntityType, EKEvent, EKEventStore, EKSpan,
+        EKSourceType,
     };
     use objc2_foundation::{NSDate, NSError, NSString};
     use std::sync::atomic::{AtomicBool, Ordering};
@@ -105,6 +108,18 @@ mod macos {
 
     fn optional_retained_to_string(ns: Option<Retained<NSString>>) -> String {
         ns.map(|s| s.to_string()).unwrap_or_default()
+    }
+
+    fn source_type_to_string(source_type: EKSourceType) -> String {
+        match source_type {
+            EKSourceType::Local => "local".to_string(),
+            EKSourceType::Exchange => "exchange".to_string(),
+            EKSourceType::CalDAV => "caldav".to_string(),
+            EKSourceType::MobileMe => "mobileme".to_string(),
+            EKSourceType::Subscribed => "subscribed".to_string(),
+            EKSourceType::Birthdays => "birthdays".to_string(),
+            _ => "unknown".to_string(),
+        }
     }
 
     pub fn get_auth_status() -> AuthStatus {
@@ -168,10 +183,24 @@ mod macos {
         let count = calendars.count();
         for i in 0..count {
             let cal: Retained<EKCalendar> = calendars.objectAtIndex(i);
+
+            // Get source info from calendar
+            let (source_title, source_type) = unsafe {
+                if let Some(source) = cal.source() {
+                    let title = retained_to_string(&source.title());
+                    let stype = source_type_to_string(source.sourceType());
+                    (title, stype)
+                } else {
+                    ("Unknown".to_string(), "unknown".to_string())
+                }
+            };
+
             result.push(Calendar {
                 id: retained_to_string(unsafe { &cal.calendarIdentifier() }),
                 title: retained_to_string(unsafe { &cal.title() }),
                 color: "#808080".to_string(),
+                source_title,
+                source_type,
             });
         }
 

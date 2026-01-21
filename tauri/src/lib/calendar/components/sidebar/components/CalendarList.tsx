@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { CalendarType } from '../../../types';
 
 interface CalendarListProps {
@@ -19,6 +19,30 @@ const getCalendarInitials = (calendar: CalendarType): string => {
   const name = calendar.name || calendar.id;
   return name.charAt(0).toUpperCase();
 };
+
+// Get icon for source type
+const getSourceIcon = (sourceType?: string): string => {
+  switch (sourceType) {
+    case 'caldav':
+      return '☁️';
+    case 'exchange':
+      return '📧';
+    case 'local':
+      return '💻';
+    case 'subscribed':
+      return '📅';
+    case 'birthdays':
+      return '🎂';
+    default:
+      return '📁';
+  }
+};
+
+interface CalendarGroup {
+  sourceTitle: string;
+  sourceType: string;
+  calendars: CalendarType[];
+}
 
 export const CalendarList: React.FC<CalendarListProps> = ({
   calendars,
@@ -189,87 +213,141 @@ export const CalendarList: React.FC<CalendarListProps> = ({
     }
   }, [editingId, calendars]);
 
+  // Group calendars by source
+  const groupedCalendars = useMemo(() => {
+    const groups: CalendarGroup[] = [];
+    const groupMap = new Map<string, CalendarGroup>();
 
+    calendars.forEach(calendar => {
+      const sourceTitle = calendar.sourceTitle || 'Other';
+      const sourceType = calendar.sourceType || 'unknown';
+      const key = `${sourceTitle}-${sourceType}`;
+
+      if (!groupMap.has(key)) {
+        const group: CalendarGroup = {
+          sourceTitle,
+          sourceType,
+          calendars: [],
+        };
+        groupMap.set(key, group);
+        groups.push(group);
+      }
+
+      groupMap.get(key)!.calendars.push(calendar);
+    });
+
+    return groups;
+  }, [calendars]);
+
+  // Check if we have source info (to decide whether to show grouped view)
+  const hasSourceInfo = calendars.some(c => c.sourceTitle);
+
+  // Render a single calendar item
+  const renderCalendarItem = (calendar: CalendarType, indented: boolean = false) => {
+    const isVisible = calendar.isVisible !== false;
+    const calendarColor = calendar.colors?.lineColor || '#3b82f6';
+    const showIcon = Boolean(calendar.icon);
+    const isDropTarget = dropTarget?.id === calendar.id;
+    const isActive = activeContextMenuCalendarId === calendar.id || editingId === calendar.id;
+
+    return (
+      <li
+        key={calendar.id}
+        className="relative"
+        onDragOver={(e) => handleDragOver(e, calendar.id)}
+        onDragLeave={handleDragLeave}
+        onDrop={() => handleDrop(calendar)}
+        onContextMenu={(e) => onContextMenu(e, calendar.id)}
+      >
+        {isDropTarget && dropTarget.position === 'top' && (
+          <div className="absolute top-0 left-0 right-0 h-0.5 bg-primary z-10 pointer-events-none" />
+        )}
+        <div
+          draggable
+          onDragStart={(e) => handleDragStart(calendar, e)}
+          onDragEnd={handleDragEnd}
+          className={`rounded transition ${draggedCalendarId === calendar.id ? 'opacity-50' : ''}`}
+        >
+          <div
+            className={`group flex items-center rounded px-2 py-1.5 transition hover:bg-gray-100 dark:hover:bg-slate-800 ${isActive ? 'bg-gray-100 dark:bg-slate-800' : ''} ${indented ? 'ml-4' : ''}`}
+            title={calendar.name}
+          >
+            <input
+              type="checkbox"
+              className="calendar-checkbox cursor-pointer shrink-0"
+              style={{
+                '--checkbox-color': calendarColor,
+              } as React.CSSProperties}
+              checked={isVisible}
+              onChange={event =>
+                onToggleVisibility(calendar.id, event.target.checked)
+              }
+            />
+            {showIcon && (
+              <span
+                className="ml-2 flex h-5 w-5 shrink-0 items-center justify-center text-xs font-semibold text-white"
+                aria-hidden="true"
+              >
+                {getCalendarInitials(calendar)}
+              </span>
+            )}
+            {editingId === calendar.id ? (
+              <input
+                ref={editInputRef}
+                type="text"
+                value={editingName}
+                onChange={handleRenameChange}
+                onBlur={handleRenameSave}
+                onKeyDown={handleRenameKeyDown}
+                className="ml-2 flex-1 min-w-0 h-5 rounded bg-white px-0 py-0 text-sm text-gray-900 focus:outline-none dark:bg-slate-700 dark:text-gray-100"
+                onClick={(e) => e.stopPropagation()}
+              />
+            ) : (
+              <span
+                className="flex-1 truncate text-sm text-gray-700 group-hover:text-gray-900 dark:text-gray-200 dark:group-hover:text-white ml-2"
+                onDoubleClick={() => handleRenameStart(calendar)}
+              >
+                {calendar.name || calendar.id}
+              </span>
+            )}
+          </div>
+        </div>
+        {isDropTarget && dropTarget.position === 'bottom' && (
+          <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary z-10 pointer-events-none" />
+        )}
+      </li>
+    );
+  };
+
+  // If no source info, render flat list (backward compatible)
+  if (!hasSourceInfo) {
+    return (
+      <div className="flex-1 overflow-y-auto px-2 pb-3">
+        <ul className="space-y-1 relative">
+          {calendars.map(calendar => renderCalendarItem(calendar, false))}
+        </ul>
+      </div>
+    );
+  }
+
+  // Render grouped by source
   return (
     <div className="flex-1 overflow-y-auto px-2 pb-3">
-      <ul className="space-y-1 relative">
-        {calendars.map(calendar => {
-          const isVisible = calendar.isVisible !== false;
-          const calendarColor = calendar.colors?.lineColor || '#3b82f6';
-          const showIcon = Boolean(calendar.icon);
-          const isDropTarget = dropTarget?.id === calendar.id;
-          const isActive = activeContextMenuCalendarId === calendar.id || editingId === calendar.id;
-
-          return (
-            <li
-              key={calendar.id}
-              className="relative"
-              onDragOver={(e) => handleDragOver(e, calendar.id)}
-              onDragLeave={handleDragLeave}
-              onDrop={() => handleDrop(calendar)}
-              onContextMenu={(e) => onContextMenu(e, calendar.id)}
-            >
-              {isDropTarget && dropTarget.position === 'top' && (
-                <div className="absolute top-0 left-0 right-0 h-0.5 bg-primary z-10 pointer-events-none" />
-              )}
-              <div
-                draggable
-                onDragStart={(e) => handleDragStart(calendar, e)}
-                onDragEnd={handleDragEnd}
-                className={`rounded transition ${draggedCalendarId === calendar.id ? 'opacity-50' : ''
-                  }`}
-              >
-                <div
-                  className={`group flex items-center rounded px-2 py-2 transition hover:bg-gray-100 dark:hover:bg-slate-800 ${isActive ? 'bg-gray-100 dark:bg-slate-800' : ''}`}
-                  title={calendar.name}
-                >
-                  <input
-                    type="checkbox"
-                    className="calendar-checkbox cursor-pointer shrink-0"
-                    style={{
-                      '--checkbox-color': calendarColor,
-                    } as React.CSSProperties}
-                    checked={isVisible}
-                    onChange={event =>
-                      onToggleVisibility(calendar.id, event.target.checked)
-                    }
-                  />
-                  {showIcon && (
-                    <span
-                      className="ml-2 flex h-5 w-5 shrink-0 items-center justify-center text-xs font-semibold text-white"
-                      aria-hidden="true"
-                    >
-                      {getCalendarInitials(calendar)}
-                    </span>
-                  )}
-                  {editingId === calendar.id ? (
-                    <input
-                      ref={editInputRef}
-                      type="text"
-                      value={editingName}
-                      onChange={handleRenameChange}
-                      onBlur={handleRenameSave}
-                      onKeyDown={handleRenameKeyDown}
-                      className="ml-2 flex-1 min-w-0 h-5 rounded bg-white px-0 py-0 text-sm text-gray-900 focus:outline-none dark:bg-slate-700 dark:text-gray-100"
-                      onClick={(e) => e.stopPropagation()}
-                    />
-                  ) : (
-                    <span
-                      className="flex-1 truncate text-sm text-gray-700 group-hover:text-gray-900 dark:text-gray-200 dark:group-hover:text-white ml-2"
-                      onDoubleClick={() => handleRenameStart(calendar)}
-                    >
-                      {calendar.name || calendar.id}
-                    </span>
-                  )}
-                </div>
-              </div>
-              {isDropTarget && dropTarget.position === 'bottom' && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary z-10 pointer-events-none" />
-              )}
-            </li>
-          );
-        })}
-      </ul>
+      <div className="space-y-3">
+        {groupedCalendars.map((group) => (
+          <div key={`${group.sourceTitle}-${group.sourceType}`}>
+            {/* Source header */}
+            <div className="flex items-center gap-1.5 px-2 py-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400">
+              <span>{getSourceIcon(group.sourceType)}</span>
+              <span className="truncate">{group.sourceTitle}</span>
+            </div>
+            {/* Calendars in this source */}
+            <ul className="space-y-0.5 relative">
+              {group.calendars.map(calendar => renderCalendarItem(calendar, true))}
+            </ul>
+          </div>
+        ))}
+      </div>
     </div>
   );
 };

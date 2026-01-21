@@ -42,6 +42,12 @@ export interface CalendarType {
 
   /** Whether events of this type should be visible */
   isVisible?: boolean;
+
+  /** Source title (e.g., 'iCloud', 'Google', 'Gmail', 'On My Mac') */
+  sourceTitle?: string;
+
+  /** Source type (e.g., 'local', 'caldav', 'exchange', 'subscribed', 'birthdays') */
+  sourceType?: string;
 }
 
 /**

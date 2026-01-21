@@ -59,6 +59,8 @@ interface CalendarInfo {
   id: string;
   title: string;
   color: string;
+  source_title: string;
+  source_type: string;
 }
 
 interface CalendarEvent {
@@ -101,6 +103,8 @@ function toDayFlowCalendar(cal: CalendarInfo, index: number): CalendarType {
     isVisible: true,
     colors,
     darkColors,
+    sourceTitle: cal.source_title,
+    sourceType: cal.source_type,
   };
 }
 

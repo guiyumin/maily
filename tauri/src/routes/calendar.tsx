@@ -112,10 +112,10 @@ function toDayFlowEvent(event: CalendarEvent): DayFlowEvent {
     start: new Date(event.start_time * 1000),
     end: new Date(event.end_time * 1000),
     calendarId: event.calendar,
+    allDay: event.all_day,
     meta: {
       location: event.location,
       notes: event.notes,
-      allDay: event.all_day,
       alarmMinutesBefore: event.alarm_minutes_before,
     },
   });

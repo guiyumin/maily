@@ -30,25 +30,6 @@ import {
 } from "@calendar/components/monthView/util";
 import { temporalToDate, dateToZonedDateTime } from "@calendar/utils/temporal";
 import { useCalendarDrop } from "@calendar/hooks/useCalendarDrop";
-import {
-  calendarContainer,
-  weekDayHeader,
-  weekDayCell,
-  miniCalendarToday,
-  dateNumber,
-  allDayRow,
-  allDayLabel,
-  allDayContent,
-  allDayCell,
-  calendarContent,
-  timeColumn,
-  timeSlot,
-  timeLabel,
-  timeGridRow,
-  timeGridCell,
-  currentTimeLine,
-  currentTimeLabel,
-} from "@calendar/styles/classNames";
 
 interface WeekViewProps {
   app: CalendarApp; // Required prop, provided by CalendarRenderer
@@ -459,7 +440,7 @@ const WeekView: React.FC<WeekViewProps> = ({
   }, []);
 
   return (
-    <div className={calendarContainer}>
+    <div className="relative flex flex-col bg-white dark:bg-gray-900 w-full overflow-hidden h-full">
       {/* Header navigation */}
       <ViewHeader
         calendar={app}
@@ -472,14 +453,14 @@ const WeekView: React.FC<WeekViewProps> = ({
       />
 
       {/* Weekday titles */}
-      <div className={weekDayHeader}>
+      <div className="flex border-b border-gray-200 dark:border-gray-700 pr-[10px]">
         <div className="w-20 shrink-0"></div>
         <div className="flex flex-1">
           {weekDaysLabels.map((day, i) => (
             <div
               key={i}
               className={clsx(
-                weekDayCell,
+                "flex flex-1 justify-center items-center text-center text-gray-500 dark:text-gray-400 text-sm p-1",
                 i < weekDaysLabels.length - 1 &&
                   "border-r border-gray-200 dark:border-gray-700",
               )}
@@ -489,8 +470,8 @@ const WeekView: React.FC<WeekViewProps> = ({
               </div>
               <div
                 className={clsx(
-                  dateNumber,
-                  weekDates[i].isToday && miniCalendarToday,
+                  "inline-flex items-center justify-center h-6 w-6 rounded-full text-sm mt-1",
+                  weekDates[i].isToday && "bg-primary rounded-full text-primary-foreground",
                 )}
               >
                 {weekDates[i].date}
@@ -501,10 +482,10 @@ const WeekView: React.FC<WeekViewProps> = ({
       </div>
 
       {/* All-day event area */}
-      <div className={allDayRow} ref={allDayRowRef}>
-        <div className={allDayLabel}>{t("allDay")}</div>
+      <div className="flex items-center border-b border-gray-200 dark:border-gray-700 sticky pr-[10px]" ref={allDayRowRef}>
+        <div className="w-20 flex-shrink-0 p-1 text-xs font-medium text-gray-500 dark:text-gray-400 flex justify-end">{t("allDay")}</div>
         <div
-          className={allDayContent}
+          className="flex flex-1 relative"
           style={{ minHeight: `${allDayAreaHeight}px` }}
         >
           {weekDaysLabels.map((_, dayIndex) => {
@@ -513,7 +494,7 @@ const WeekView: React.FC<WeekViewProps> = ({
             return (
               <div
                 key={`allday-${dayIndex}`}
-                className={`${allDayCell} ${dayIndex === weekDaysLabels.length - 1 ? "border-r-0" : ""}`}
+                className={`flex-1 border-r border-gray-200 dark:border-gray-700 relative ${dayIndex === weekDaysLabels.length - 1 ? "border-r-0" : ""}`}
                 style={{ minHeight: `${allDayAreaHeight}px` }}
                 onDoubleClick={(e) => handleCreateAllDayEvent?.(e, dayIndex)}
                 onDragOver={handleDragOver}
@@ -568,7 +549,7 @@ const WeekView: React.FC<WeekViewProps> = ({
       </div>
 
       {/* Time grid and event area */}
-      <div className={calendarContent} style={{ position: "relative" }}>
+      <div className="relative overflow-y-scroll calendar-content" style={{ position: "relative" }}>
         <div className="relative flex">
           {/* Current time line */}
           {isCurrentWeek &&
@@ -584,7 +565,7 @@ const WeekView: React.FC<WeekViewProps> = ({
 
               return (
                 <div
-                  className={currentTimeLine}
+                  className="absolute left-0 top-0 flex pointer-events-none"
                   style={{
                     top: `${topPx}px`,
                     width: "100%",
@@ -597,7 +578,7 @@ const WeekView: React.FC<WeekViewProps> = ({
                     style={{ width: `${TIME_COLUMN_WIDTH}px` }}
                   >
                     <div className="relative w-full flex items-center"></div>
-                    <div className={currentTimeLabel}>{formatTime(hours)}</div>
+                    <div className="ml-2 text-primary-foreground text-xs font-bold px-1.5 bg-primary rounded-sm">{formatTime(hours)}</div>
                   </div>
 
                   <div className="flex flex-1">
@@ -626,10 +607,10 @@ const WeekView: React.FC<WeekViewProps> = ({
             })()}
 
           {/* Time column */}
-          <div className={timeColumn}>
+          <div className="w-20 flex-shrink-0 border-gray-200 dark:border-gray-700">
             {timeSlots.map((slot, slotIndex) => (
-              <div key={slotIndex} className={timeSlot}>
-                <div className={timeLabel}>
+              <div key={slotIndex} className="relative h-[4.5rem] flex">
+                <div className="absolute -top-2.5 right-2 text-[12px] text-gray-500 dark:text-gray-400">
                   {slotIndex === 0 ? "" : slot.label}
                 </div>
               </div>
@@ -639,14 +620,14 @@ const WeekView: React.FC<WeekViewProps> = ({
           {/* Time grid */}
           <div className="grow relative">
             {timeSlots.map((slot, slotIndex) => (
-              <div key={slotIndex} className={timeGridRow}>
+              <div key={slotIndex} className="h-[4.5rem] border-t first:border-none border-gray-200 dark:border-gray-700 flex">
                 {weekDaysLabels.map((_, dayIndex) => {
                   const dropDate = new Date(currentWeekStart);
                   dropDate.setDate(currentWeekStart.getDate() + dayIndex);
                   return (
                     <div
                       key={`${slotIndex}-${dayIndex}`}
-                      className={`${timeGridCell} ${dayIndex === weekDaysLabels.length - 1 ? "border-r-0" : ""}`}
+                      className={`flex-1 relative border-r border-gray-200 dark:border-gray-700 ${dayIndex === weekDaysLabels.length - 1 ? "border-r-0" : ""}`}
                       onDoubleClick={(e) => {
                         handleCreateStart(e, dayIndex, slot.hour);
                       }}

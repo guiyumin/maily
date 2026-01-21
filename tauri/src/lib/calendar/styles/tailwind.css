@@ -1,9 +1,7 @@
-@import 'tailwindcss';
+@reference "tailwindcss";
 
-@variant dark (.dark &);
-
-/* Define default CSS variables with low specificity using :where() */
-:where(:root) {
+/* Calendar-scoped CSS variables */
+.maily-calendar {
   /* Light mode colors */
   --color-background: rgb(255 255 255);
   --color-foreground: rgb(46 46 46);
@@ -25,7 +23,8 @@
   --color-destructive-foreground: rgb(255 255 255);
 }
 
-:where(.dark) {
+.dark .maily-calendar,
+.maily-calendar.dark {
   /* Dark mode colors */
   --color-background: rgb(21 21 21);
   --color-hover: rgb(28 28 28);
@@ -46,30 +45,9 @@
   --color-destructive-foreground: rgb(254 242 242);
 }
 
-@theme inline {
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-
-  --color-background: var(--color-background);
-  --color-foreground: var(--color-foreground);
-  --color-hover: var(--color-hover);
-  --color-border: var(--color-border);
-  --color-card: var(--color-card);
-  --color-card-foreground: var(--color-card-foreground);
-  --color-muted: var(--color-muted);
-  --color-muted-foreground: var(--color-muted-foreground);
-
-  --color-primary: var(--color-primary);
-  --color-primary-foreground: var(--color-primary-foreground);
-  --color-secondary: var(--color-secondary);
-  --color-secondary-foreground: var(--color-secondary-foreground);
-
-  --color-destructive: var(--color-destructive);
-  --color-destructive-foreground: var(--color-destructive-foreground);
-}
 
 @media (prefers-color-scheme: dark) {
-  :root:not(.light):not(.dark) {
+  .maily-calendar:not(.light):not(.dark) {
     --color-background: rgb(17 24 39);
     --color-foreground: rgb(243 244 246);
     --color-border: rgb(55 65 81);
@@ -80,16 +58,11 @@
   }
 }
 
-body {
-  background: var(--color-background);
-  color: var(--color-foreground);
-  font-family: Arial, Helvetica, sans-serif;
-}
 
 /* ==================== Component Layer ==================== */
 
 @layer components {
-  .calendar-container {
+  .maily-calendar {
     @apply relative flex flex-col bg-white dark:bg-gray-900 overflow-hidden;
   }
 
@@ -199,34 +172,36 @@ body {
   scrollbar-width: none; /* Firefox */
 }
 
-/* Custom 10px scrollbar */
-::-webkit-scrollbar {
+/* Custom 10px scrollbar - scoped to calendar */
+.maily-calendar ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
 
-* {
+.maily-calendar,
+.maily-calendar * {
   scrollbar-width: thin; /* Firefox */
   scrollbar-color: #d1d5db transparent; /* Firefox */
 }
 
-.dark * {
+.dark .maily-calendar,
+.dark .maily-calendar * {
   scrollbar-color: #4b5563 transparent; /* Firefox */
 }
 
-::-webkit-scrollbar-track {
+.maily-calendar ::-webkit-scrollbar-track {
   background: transparent;
 }
 
-::-webkit-scrollbar-thumb {
+.maily-calendar ::-webkit-scrollbar-thumb {
   background: #d1d5db; /* gray-300 */
   border-radius: 1px;
 }
 
-.dark ::-webkit-scrollbar-thumb {
+.dark .maily-calendar ::-webkit-scrollbar-thumb {
   background: #4b5563; /* gray-600 */
 }
 
-::-webkit-scrollbar-thumb:hover {
+.maily-calendar ::-webkit-scrollbar-thumb:hover {
   background: #9ca3af; /* gray-400 */
 }

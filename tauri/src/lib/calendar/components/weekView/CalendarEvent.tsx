@@ -26,27 +26,6 @@ import { MultiDayEventSegment } from '../monthView/WeekComponent';
 import MultiDayEvent from '../monthView/MultiDayEvent';
 import DefaultEventDetailPanel from '../common/DefaultEventDetailPanel';
 import EventDetailPanelWithContent from '../common/EventDetailPanelWithContent';
-import {
-  baseEvent,
-  eventShadow,
-  allDayRounded,
-  regularEventRounded,
-  monthAllDayContent,
-  monthRegularContent,
-  eventTitleSmall,
-  eventTime,
-  eventColorBar,
-  eventIcon,
-  resizeHandleTop,
-  resizeHandleBottom,
-  resizeHandleLeft,
-  resizeHandleRight,
-  textXs,
-  textGray500,
-  textGray800,
-  px1,
-  mr1,
-} from '@calendar/styles/classNames';
 import ReactDOM from 'react-dom';
 import { CalendarApp } from '@calendar/core';
 
@@ -1114,17 +1093,17 @@ const CalendarEvent: React.FC<CalendarEventProps> = ({
       return renderMonthMultiDayContent();
     }
     return (
-      <div className={monthAllDayContent}>
+      <div className="text-xs px-1 mb-0.5 rounded truncate cursor-pointer flex items-center">
         {event.title.toLowerCase().includes('easter') ||
           event.title.toLowerCase().includes('holiday') ? (
           <span
-            className={`inline-block ${mr1} shrink-0 ${isEventSelected ? 'text-yellow-200' : 'text-yellow-600'}`}
+            className={`inline-block mr-1 shrink-0 ${isEventSelected ? 'text-yellow-200' : 'text-yellow-600'}`}
           >
             ⭐
           </span>
         ) : (
           <CalendarDays
-            className={`${eventIcon} ${isEventSelected ? 'text-white' : ''}`}
+            className={`h-3 w-3 mr-1 ${isEventSelected ? 'text-white' : ''}`}
           />
         )}
         <span className={`truncate ${isEventSelected ? 'text-white' : ''}`}>
@@ -1142,13 +1121,13 @@ const CalendarEvent: React.FC<CalendarEventProps> = ({
       .padStart(2, '0')}`;
 
     return (
-      <div className={monthRegularContent}>
+      <div className="text-xs mb-0.5 cursor-pointer flex items-center justify-between">
         <div className="flex items-center flex-1 min-w-0">
           <span
             style={{
               backgroundColor: getLineColor(event.calendarId || 'blue', app?.getCalendarRegistry()),
             }}
-            className={`inline-block w-0.75 h-3 ${mr1} shrink-0 rounded-full`}
+            className="inline-block w-0.75 h-3 mr-1 shrink-0 rounded-full"
           ></span>
           <span
             className={`truncate ${isEventSelected ? 'text-white' : ''}`}
@@ -1157,7 +1136,7 @@ const CalendarEvent: React.FC<CalendarEventProps> = ({
           </span>
         </div>
         <span
-          className={`${textXs} ml-1 shrink-0 ${isEventSelected ? 'text-white' : ''}`}
+          className={`text-xs ml-1 shrink-0 ${isEventSelected ? 'text-white' : ''}`}
           style={!isEventSelected ? { opacity: 0.8 } : undefined}
         >
           {startTime}
@@ -1169,12 +1148,12 @@ const CalendarEvent: React.FC<CalendarEventProps> = ({
   const renderAllDayContent = () => {
     return (
       <div
-        className={`h-full flex items-center overflow-hidden pl-3 ${px1} py-0 relative group`}
+        className="h-full flex items-center overflow-hidden pl-3 px-1 py-0 relative group"
       >
         {/* Left resize handle - only shown for single-day all-day events with onResizeStart */}
         {onResizeStart && (
           <div
-            className={resizeHandleLeft}
+            className="resize-handle absolute left-0 top-0 bottom-0 w-1 cursor-ew-resize opacity-0 group-hover:opacity-100 transition-opacity z-20"
             onMouseDown={e => {
               e.preventDefault();
               e.stopPropagation();
@@ -1187,9 +1166,9 @@ const CalendarEvent: React.FC<CalendarEventProps> = ({
           />
         )}
 
-        <CalendarDays className={eventIcon} />
+        <CalendarDays className="h-3 w-3 mr-1" />
         <div
-          className={`${eventTitleSmall} pr-1`}
+          className="font-medium text-xs truncate pr-1"
           style={{ lineHeight: '1.2' }}
         >
           {event.title}
@@ -1198,7 +1177,7 @@ const CalendarEvent: React.FC<CalendarEventProps> = ({
         {/* Right resize handle - only shown for single-day all-day events with onResizeStart */}
         {onResizeStart && (
           <div
-            className={resizeHandleRight}
+            className="resize-handle absolute right-0 top-0 bottom-0 w-1 cursor-ew-resize opacity-0 group-hover:opacity-100 transition-opacity z-20"
             onMouseDown={e => {
               e.preventDefault();
               e.stopPropagation();
@@ -1228,14 +1207,14 @@ const CalendarEvent: React.FC<CalendarEventProps> = ({
     return (
       <>
         <div
-          className={eventColorBar}
+          className="absolute left-1 top-1 bottom-1 w-[3px] rounded-full"
           style={{ backgroundColor: getLineColor(event.calendarId || 'blue', app?.getCalendarRegistry()) }}
         />
         <div
           className={`h-full flex flex-col overflow-hidden pl-3 ${getDynamicPadding()}`}
         >
           <div
-            className={`${eventTitleSmall} pr-1`}
+            className="font-medium text-xs truncate pr-1"
             style={{
               lineHeight: duration <= 0.25 ? '1.2' : 'normal',
             }}
@@ -1243,7 +1222,7 @@ const CalendarEvent: React.FC<CalendarEventProps> = ({
             {event.title}
           </div>
           {duration > 0.5 && (
-            <div className={eventTime}>
+            <div className="text-xs opacity-80 truncate">
               {multiDaySegmentInfo
                 ? `${formatTime(startHour)} - ${formatTime(endHour)}`
                 : formatEventTimeRange(event)}
@@ -1256,21 +1235,21 @@ const CalendarEvent: React.FC<CalendarEventProps> = ({
             {/* Only show top resize handle on the first segment */}
             {isFirstSegment && (
               <div
-                className={resizeHandleTop}
+                className="absolute top-0 left-0 w-full h-1.5 cursor-ns-resize z-10 rounded-t-sm"
                 onMouseDown={e => onResizeStart(e, event, 'top')}
               />
             )}
             {/* Only show bottom resize handle on the last segment */}
             {isLastSegment && (
               <div
-                className={resizeHandleBottom}
+                className="absolute bottom-0 left-0 w-full h-1.5 cursor-ns-resize z-10 rounded-b-sm"
                 onMouseDown={e => onResizeStart(e, event, 'bottom')}
               />
             )}
             {/* Right resize handle for multi-day events (only on the last segment) */}
             {!isFirstSegment && isLastSegment && multiDaySegmentInfo && (
               <div
-                className={resizeHandleRight}
+                className="resize-handle absolute right-0 top-0 bottom-0 w-1 cursor-ew-resize opacity-0 group-hover:opacity-100 transition-opacity z-20"
                 onMouseDown={e => {
                   e.preventDefault();
                   e.stopPropagation();
@@ -1293,7 +1272,7 @@ const CalendarEvent: React.FC<CalendarEventProps> = ({
       const { segmentType } = segment;
 
       if (segmentType === 'single' || segmentType === 'start') {
-        return allDayRounded;
+        return 'rounded-xl my-0.5';
       } else if (segmentType === 'start-week-end') {
         return 'rounded-l-xl rounded-r-none my-0.5';
       } else if (segmentType === 'end' || segmentType === 'end-week-start') {
@@ -1303,23 +1282,23 @@ const CalendarEvent: React.FC<CalendarEventProps> = ({
       }
     }
 
-    return allDayRounded;
+    return 'rounded-xl my-0.5';
   };
 
   const getDefaultEventClass = () => {
-    return regularEventRounded;
+    return 'rounded-sm';
   };
 
   const getRenderClass = () => {
     if (isMonthView) {
       return `
-        ${baseEvent}
+        calendar-event select-none pointer-events-auto px-0.5
         ${isAllDay ? getAllDayClass() : getDefaultEventClass()}
         `;
     }
     return `
-          ${baseEvent}
-          ${eventShadow}
+          calendar-event select-none pointer-events-auto px-0.5
+          shadow-sm
           ${isAllDay ? getAllDayClass() : getDefaultEventClass()}
         `;
   };

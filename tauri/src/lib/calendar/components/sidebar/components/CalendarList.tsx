@@ -1,5 +1,11 @@
-import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { CalendarType } from '../../../types';
+import React, {
+  useState,
+  useCallback,
+  useRef,
+  useEffect,
+  useMemo,
+} from "react";
+import { CalendarType } from "../../../types";
 
 interface CalendarListProps {
   calendars: CalendarType[];
@@ -23,18 +29,18 @@ const getCalendarInitials = (calendar: CalendarType): string => {
 // Get icon for source type
 const getSourceIcon = (sourceType?: string): string => {
   switch (sourceType) {
-    case 'caldav':
-      return '☁️';
-    case 'exchange':
-      return '📧';
-    case 'local':
-      return '💻';
-    case 'subscribed':
-      return '📅';
-    case 'birthdays':
-      return '🎂';
+    case "caldav":
+      return "☁️";
+    case "exchange":
+      return "📧";
+    case "local":
+      return "💻";
+    case "subscribed":
+      return "📅";
+    case "birthdays":
+      return "🎂";
     default:
-      return '📁';
+      return "📁";
   }
 };
 
@@ -54,33 +60,44 @@ export const CalendarList: React.FC<CalendarListProps> = ({
   setEditingId,
   activeContextMenuCalendarId,
 }) => {
-  const [editingName, setEditingName] = useState('');
+  const [editingName, setEditingName] = useState("");
   const editInputRef = useRef<HTMLInputElement>(null);
 
   // Drag state
   const [isDragging, setIsDragging] = useState(false);
-  const [draggedCalendarId, setDraggedCalendarId] = useState<string | null>(null);
-  const [dropTarget, setDropTarget] = useState<{ id: string; position: 'top' | 'bottom' } | null>(null);
+  const [draggedCalendarId, setDraggedCalendarId] = useState<string | null>(
+    null,
+  );
+  const [dropTarget, setDropTarget] = useState<{
+    id: string;
+    position: "top" | "bottom";
+  } | null>(null);
 
-  const handleDragStart = useCallback((calendar: CalendarType, e: React.DragEvent) => {
-    // Prevent dragging when editing
-    if (editingId) {
-      e.preventDefault();
-      return;
-    }
-    setIsDragging(true);
-    setDraggedCalendarId(calendar.id);
+  const handleDragStart = useCallback(
+    (calendar: CalendarType, e: React.DragEvent) => {
+      // Prevent dragging when editing
+      if (editingId) {
+        e.preventDefault();
+        return;
+      }
+      setIsDragging(true);
+      setDraggedCalendarId(calendar.id);
 
-    // Store calendar data for drop handling
-    const dragData = {
-      calendarId: calendar.id,
-      calendarName: calendar.name,
-      calendarColors: calendar.colors,
-      calendarIcon: calendar.icon,
-    };
-    e.dataTransfer.setData('application/x-dayflow-calendar', JSON.stringify(dragData));
-    e.dataTransfer.effectAllowed = 'copy';
-  }, [editingId]);
+      // Store calendar data for drop handling
+      const dragData = {
+        calendarId: calendar.id,
+        calendarName: calendar.name,
+        calendarColors: calendar.colors,
+        calendarIcon: calendar.icon,
+      };
+      e.dataTransfer.setData(
+        "application/x-dayflow-calendar",
+        JSON.stringify(dragData),
+      );
+      e.dataTransfer.effectAllowed = "copy";
+    },
+    [editingId],
+  );
 
   const handleDragEnd = useCallback(() => {
     setIsDragging(false);
@@ -88,91 +105,106 @@ export const CalendarList: React.FC<CalendarListProps> = ({
     setDropTarget(null);
   }, []);
 
-  const handleDragOver = useCallback((e: React.DragEvent, targetId: string) => {
-    e.preventDefault();
-    if (draggedCalendarId === targetId) {
-      setDropTarget(null);
-      return;
-    }
+  const handleDragOver = useCallback(
+    (e: React.DragEvent, targetId: string) => {
+      e.preventDefault();
+      if (draggedCalendarId === targetId) {
+        setDropTarget(null);
+        return;
+      }
 
-    const targetIndex = calendars.findIndex(c => c.id === targetId);
-    const isLast = targetIndex === calendars.length - 1;
+      const targetIndex = calendars.findIndex((c) => c.id === targetId);
+      const isLast = targetIndex === calendars.length - 1;
 
-    const rect = e.currentTarget.getBoundingClientRect();
-    const isTopHalf = e.clientY < rect.top + rect.height / 2;
+      const rect = e.currentTarget.getBoundingClientRect();
+      const isTopHalf = e.clientY < rect.top + rect.height / 2;
 
-    if (isLast) {
-      setDropTarget({
-        id: targetId,
-        position: isTopHalf ? 'top' : 'bottom',
-      });
-    } else {
-      setDropTarget({
-        id: targetId,
-        position: 'top',
-      });
-    }
-  }, [draggedCalendarId, calendars]);
+      if (isLast) {
+        setDropTarget({
+          id: targetId,
+          position: isTopHalf ? "top" : "bottom",
+        });
+      } else {
+        setDropTarget({
+          id: targetId,
+          position: "top",
+        });
+      }
+    },
+    [draggedCalendarId, calendars],
+  );
 
   const handleDragLeave = useCallback(() => {
     setDropTarget(null);
   }, []);
 
-  const handleDrop = useCallback((targetCalendar: CalendarType) => {
-    if (!draggedCalendarId || !dropTarget) return;
-    if (draggedCalendarId === targetCalendar.id) return;
+  const handleDrop = useCallback(
+    (targetCalendar: CalendarType) => {
+      if (!draggedCalendarId || !dropTarget) return;
+      if (draggedCalendarId === targetCalendar.id) return;
 
-    const fromIndex = calendars.findIndex(c => c.id === draggedCalendarId);
-    let toIndex = calendars.findIndex(c => c.id === targetCalendar.id);
+      const fromIndex = calendars.findIndex((c) => c.id === draggedCalendarId);
+      let toIndex = calendars.findIndex((c) => c.id === targetCalendar.id);
 
-    // Adjust target index based on position
-    if (dropTarget.position === 'bottom') {
-      toIndex += 1;
-    }
+      // Adjust target index based on position
+      if (dropTarget.position === "bottom") {
+        toIndex += 1;
+      }
 
-    // Adjust for removal of the item
-    if (toIndex > fromIndex) {
-      toIndex -= 1;
-    }
+      // Adjust for removal of the item
+      if (toIndex > fromIndex) {
+        toIndex -= 1;
+      }
 
-    if (fromIndex !== -1 && toIndex !== -1) {
-      onReorder(fromIndex, toIndex);
-    }
-    setDropTarget(null);
-  }, [draggedCalendarId, dropTarget, calendars, onReorder]);
+      if (fromIndex !== -1 && toIndex !== -1) {
+        onReorder(fromIndex, toIndex);
+      }
+      setDropTarget(null);
+    },
+    [draggedCalendarId, dropTarget, calendars, onReorder],
+  );
 
-  const handleRenameStart = useCallback((calendar: CalendarType) => {
-    setEditingId(calendar.id);
-    setEditingName(calendar.name);
-  }, [setEditingId]);
+  const handleRenameStart = useCallback(
+    (calendar: CalendarType) => {
+      setEditingId(calendar.id);
+      setEditingName(calendar.name);
+    },
+    [setEditingId],
+  );
 
-  const handleRenameChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setEditingName(e.target.value);
-  }, []);
+  const handleRenameChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      setEditingName(e.target.value);
+    },
+    [],
+  );
 
   const handleRenameSave = useCallback(() => {
     if (editingId && editingName.trim()) {
-      const calendar = calendars.find(c => c.id === editingId);
+      const calendar = calendars.find((c) => c.id === editingId);
       if (calendar && calendar.name !== editingName.trim()) {
         onRename(editingId, editingName.trim());
       }
     }
     setEditingId(null);
-    setEditingName('');
+    setEditingName("");
   }, [editingId, editingName, calendars, onRename, setEditingId]);
 
   const handleRenameCancel = useCallback(() => {
     setEditingId(null);
-    setEditingName('');
+    setEditingName("");
   }, [setEditingId]);
 
-  const handleRenameKeyDown = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      handleRenameSave();
-    } else if (e.key === 'Escape') {
-      handleRenameCancel();
-    }
-  }, [handleRenameSave, handleRenameCancel]);
+  const handleRenameKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === "Enter") {
+        handleRenameSave();
+      } else if (e.key === "Escape") {
+        handleRenameCancel();
+      }
+    },
+    [handleRenameSave, handleRenameCancel],
+  );
 
   useEffect(() => {
     if (editingId && editInputRef.current) {
@@ -206,7 +238,7 @@ export const CalendarList: React.FC<CalendarListProps> = ({
 
   useEffect(() => {
     if (editingId) {
-      const calendar = calendars.find(c => c.id === editingId);
+      const calendar = calendars.find((c) => c.id === editingId);
       if (calendar) {
         setEditingName(calendar.name);
       }
@@ -218,9 +250,9 @@ export const CalendarList: React.FC<CalendarListProps> = ({
     const groups: CalendarGroup[] = [];
     const groupMap = new Map<string, CalendarGroup>();
 
-    calendars.forEach(calendar => {
-      const sourceTitle = calendar.sourceTitle || 'Other';
-      const sourceType = calendar.sourceType || 'unknown';
+    calendars.forEach((calendar) => {
+      const sourceTitle = calendar.sourceTitle || "Other";
+      const sourceType = calendar.sourceType || "unknown";
       const key = `${sourceTitle}-${sourceType}`;
 
       if (!groupMap.has(key)) {
@@ -240,15 +272,19 @@ export const CalendarList: React.FC<CalendarListProps> = ({
   }, [calendars]);
 
   // Check if we have source info (to decide whether to show grouped view)
-  const hasSourceInfo = calendars.some(c => c.sourceTitle);
+  const hasSourceInfo = calendars.some((c) => c.sourceTitle);
 
   // Render a single calendar item
-  const renderCalendarItem = (calendar: CalendarType, indented: boolean = false) => {
+  const renderCalendarItem = (
+    calendar: CalendarType,
+    indented: boolean = false,
+  ) => {
     const isVisible = calendar.isVisible !== false;
-    const calendarColor = calendar.colors?.lineColor || '#3b82f6';
+    const calendarColor = calendar.colors?.lineColor || "#3b82f6";
     const showIcon = Boolean(calendar.icon);
     const isDropTarget = dropTarget?.id === calendar.id;
-    const isActive = activeContextMenuCalendarId === calendar.id || editingId === calendar.id;
+    const isActive =
+      activeContextMenuCalendarId === calendar.id || editingId === calendar.id;
 
     return (
       <li
@@ -259,27 +295,29 @@ export const CalendarList: React.FC<CalendarListProps> = ({
         onDrop={() => handleDrop(calendar)}
         onContextMenu={(e) => onContextMenu(e, calendar.id)}
       >
-        {isDropTarget && dropTarget.position === 'top' && (
+        {isDropTarget && dropTarget.position === "top" && (
           <div className="absolute top-0 left-0 right-0 h-0.5 bg-primary z-10 pointer-events-none" />
         )}
         <div
           draggable
           onDragStart={(e) => handleDragStart(calendar, e)}
           onDragEnd={handleDragEnd}
-          className={`rounded transition ${draggedCalendarId === calendar.id ? 'opacity-50' : ''}`}
+          className={`rounded transition ${draggedCalendarId === calendar.id ? "opacity-50" : ""}`}
         >
           <div
-            className={`group flex items-center rounded px-2 py-1.5 transition hover:bg-gray-100 dark:hover:bg-slate-800 ${isActive ? 'bg-gray-100 dark:bg-slate-800' : ''} ${indented ? 'ml-4' : ''}`}
+            className={`group flex items-center rounded px-2 py-1.5 transition hover:bg-gray-100 dark:hover:bg-slate-800 ${isActive ? "bg-gray-100 dark:bg-slate-800" : ""} ${indented ? "ml-4" : ""}`}
             title={calendar.name}
           >
             <input
               type="checkbox"
               className="calendar-checkbox cursor-pointer shrink-0"
-              style={{
-                '--checkbox-color': calendarColor,
-              } as React.CSSProperties}
+              style={
+                {
+                  "--checkbox-color": calendarColor,
+                } as React.CSSProperties
+              }
               checked={isVisible}
-              onChange={event =>
+              onChange={(event) =>
                 onToggleVisibility(calendar.id, event.target.checked)
               }
             />
@@ -312,7 +350,7 @@ export const CalendarList: React.FC<CalendarListProps> = ({
             )}
           </div>
         </div>
-        {isDropTarget && dropTarget.position === 'bottom' && (
+        {isDropTarget && dropTarget.position === "bottom" && (
           <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary z-10 pointer-events-none" />
         )}
       </li>
@@ -322,9 +360,9 @@ export const CalendarList: React.FC<CalendarListProps> = ({
   // If no source info, render flat list (backward compatible)
   if (!hasSourceInfo) {
     return (
-      <div className="flex-1 overflow-y-auto px-2 pb-3">
+      <div className="flex-1 overflow-y-auto px-2 py-3">
         <ul className="space-y-1 relative">
-          {calendars.map(calendar => renderCalendarItem(calendar, false))}
+          {calendars.map((calendar) => renderCalendarItem(calendar, false))}
         </ul>
       </div>
     );
@@ -332,7 +370,7 @@ export const CalendarList: React.FC<CalendarListProps> = ({
 
   // Render grouped by source
   return (
-    <div className="flex-1 overflow-y-auto px-2 pb-3">
+    <div className="flex-1 overflow-y-auto px-2 py-3">
       <div className="space-y-3">
         {groupedCalendars.map((group) => (
           <div key={`${group.sourceTitle}-${group.sourceType}`}>
@@ -343,7 +381,9 @@ export const CalendarList: React.FC<CalendarListProps> = ({
             </div>
             {/* Calendars in this source */}
             <ul className="space-y-0.5 relative">
-              {group.calendars.map(calendar => renderCalendarItem(calendar, true))}
+              {group.calendars.map((calendar) =>
+                renderCalendarItem(calendar, true),
+              )}
             </ul>
           </div>
         ))}

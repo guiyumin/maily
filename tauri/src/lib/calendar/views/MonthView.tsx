@@ -19,13 +19,6 @@ import ViewHeader, { ViewSwitcherMode } from '@calendar/components/common/ViewHe
 import WeekComponent from '@calendar/components/monthView/WeekComponent';
 import { temporalToDate } from '@calendar/utils/temporal';
 import { useCalendarDrop } from '@calendar/hooks/useCalendarDrop';
-import {
-  monthViewContainer,
-  weekHeaderRow,
-  weekGrid,
-  dayLabel,
-  scrollContainer,
-} from '@calendar/styles/classNames';
 
 interface MonthViewProps {
   app: CalendarApp; // Required prop, provided by CalendarRenderer
@@ -409,7 +402,7 @@ const MonthView: React.FC<MonthViewProps> = ({
   };
 
   return (
-    <div className={monthViewContainer}>
+    <div className="h-full flex flex-col bg-white dark:bg-gray-900">
       <ViewHeader
         calendar={app}
         viewType={ViewType.MONTH}
@@ -430,10 +423,10 @@ const MonthView: React.FC<MonthViewProps> = ({
         switcherMode={switcherMode}
       />
 
-      <div className={weekHeaderRow}>
-        <div className={`${weekGrid} px-2`}>
+      <div className="sticky top-0 z-10 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
+        <div className="grid grid-cols-7 px-2">
           {weekDaysLabels.map((day, i) => (
-            <div key={i} className={dayLabel}>
+            <div key={i} className="text-right text-gray-500 dark:text-gray-400 text-sm py-2 pr-2">
               {day}
             </div>
           ))}
@@ -442,7 +435,7 @@ const MonthView: React.FC<MonthViewProps> = ({
 
       <div
         ref={scrollElementRef}
-        className={scrollContainer}
+        className="flex-1 overflow-auto will-change-scroll"
         style={{
           scrollSnapType: 'y mandatory',
           overflow: 'hidden auto',

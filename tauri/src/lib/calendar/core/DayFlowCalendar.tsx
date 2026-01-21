@@ -5,6 +5,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import clsx from 'clsx';
 import {
   EventDetailContentRenderer,
   EventDetailDialogRenderer,
@@ -333,7 +334,7 @@ const CalendarLayout: React.FC<DayFlowCalendarProps> = ({
   return (
     <ThemeProvider initialTheme={theme} onThemeChange={handleThemeChange}>
       <div
-        className={`calendar-container relative flex flex-row h-full overflow-hidden ${className ?? ''}`}
+        className={clsx('maily-calendar relative flex flex-row h-full overflow-hidden', className)}
       >
         {sidebarEnabled && (
           <aside
@@ -347,7 +348,10 @@ const CalendarLayout: React.FC<DayFlowCalendarProps> = ({
         )}
 
         <div
-          className={`flex flex-col flex-1 h-full overflow-hidden relative z-10 bg-white dark:bg-gray-900 transition-all duration-250 ease-in-out border-l ${isCollapsed ? 'border-gray-200 dark:border-gray-700 shadow-xl' : 'border-transparent'}`}
+          className={clsx(
+              'flex flex-col flex-1 h-full overflow-hidden relative z-10 bg-white dark:bg-gray-900 transition-all duration-250 ease-in-out border-l',
+              isCollapsed ? 'border-gray-200 dark:border-gray-700 shadow-xl' : 'border-transparent'
+            )}
           style={{
             marginLeft: sidebarEnabled
               ? isCollapsed

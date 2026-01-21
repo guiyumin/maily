@@ -1,11 +1,5 @@
 import React from 'react';
 import TodayBox from './TodayBox';
-import {
-  headerContainer,
-  headerTitle,
-  headerSubtitle,
-  textGray900,
-} from '../../styles/classNames';
 import { CalendarApp } from '../../types';
 import { useLocale } from '@calendar/locale';
 
@@ -99,14 +93,14 @@ const ViewHeader: React.FC<ViewHeaderProps> = ({
     viewType === 'day' ? customSubtitle || getDefaultSubtitle() : null;
 
   return (
-    <div className={headerContainer} style={{ position: 'relative' }}>
+    <div className="p-2 flex justify-between" style={{ position: 'relative' }}>
       <div className="flex-1">
         {/* For Year view: show sticky year if available, otherwise show title */}
         {viewType === 'year' && stickyYear ? (
           <div style={{ position: 'relative', overflow: 'hidden', height: '1.5em' }}>
             {/* Current sticky year - being pushed up */}
             <h1
-              className={headerTitle}
+              className="text-2xl font-semibold text-gray-900 dark:text-gray-100"
               style={{
                 position: 'absolute',
                 top: 0,
@@ -120,7 +114,7 @@ const ViewHeader: React.FC<ViewHeaderProps> = ({
             {/* Next year - coming from below */}
             {nextYear && (
               <h1
-                className={headerTitle}
+                className="text-2xl font-semibold text-gray-900 dark:text-gray-100"
                 style={{
                   position: 'absolute',
                   top: 0,
@@ -135,8 +129,8 @@ const ViewHeader: React.FC<ViewHeaderProps> = ({
           </div>
         ) : (
           <div>
-            <div className={`${headerTitle} ${textGray900}`}>{title}</div>
-            {subtitle && <div className={headerSubtitle}>{subtitle}</div>}
+            <div className="text-2xl font-semibold text-gray-900 dark:text-gray-100">{title}</div>
+            {subtitle && <div className="mt-3 text-gray-600 dark:text-gray-400">{subtitle}</div>}
           </div>
         )}
       </div>

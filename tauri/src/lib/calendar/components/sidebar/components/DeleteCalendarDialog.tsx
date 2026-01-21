@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { CalendarType } from '../../../types';
-import { cancelButton } from '@calendar/styles/classNames';
 import { useLocale } from '@calendar/locale';
 
 interface DeleteCalendarDialogProps {
@@ -74,7 +73,7 @@ export const DeleteCalendarDialog: React.FC<DeleteCalendarDialogProps> = ({
                 <button
                   type="button"
                   onClick={onCancel}
-                  className={cancelButton}
+                  className="rounded-md bg-background border border-border px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-(--hover)"
                 >
                   {t('cancel')}
                 </button>

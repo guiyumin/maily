@@ -1,6 +1,5 @@
 import { DragIndicatorRenderer } from '@calendar/types/dragIndicator';
 import { CalendarDays } from 'lucide-react';
-import { eventColorBar } from '@calendar/styles/classNames';
 
 export const DefaultDragIndicatorRenderer: DragIndicatorRenderer = {
   renderAllDayContent: ({ title, color }) => (
@@ -24,7 +23,7 @@ export const DefaultDragIndicatorRenderer: DragIndicatorRenderer = {
     return (
       <>
         <div
-          className={eventColorBar}
+          className="absolute left-1 top-1 bottom-1 w-[3px] rounded-full"
           style={{ backgroundColor: getLineColor(color || 'blue') }}
         />
         <div

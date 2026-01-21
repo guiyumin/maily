@@ -25,20 +25,6 @@ import { defaultDragConfig } from '@calendar/core/config';
 import ViewHeader, { ViewSwitcherMode } from '@calendar/components/common/ViewHeader';
 import { temporalToDate, dateToZonedDateTime } from '@calendar/utils/temporal';
 import { useCalendarDrop } from '@calendar/hooks/useCalendarDrop';
-import {
-  allDayRow,
-  allDayLabel,
-  calendarContent,
-  timeColumn,
-  timeSlot,
-  timeLabel,
-  timeGridRow,
-  currentTimeLine,
-  currentTimeLabel,
-  currentTimeLineBar,
-  bgGray50,
-  flexCol,
-} from '@calendar/styles/classNames';
 
 interface DayViewProps {
   app: CalendarApp;
@@ -307,10 +293,10 @@ const DayView: React.FC<DayViewProps> = ({
   }, []);
 
   return (
-    <div className={clsx('flex h-full', bgGray50)}>
+    <div className={clsx('flex h-full', 'bg-gray-50 dark:bg-gray-800')}>
       {/* Main calendar area */}
       <div className="w-full bg-white dark:bg-gray-900">
-        <div className={clsx('relative', flexCol, 'h-full')}>
+        <div className={clsx('relative', 'flex flex-col', 'h-full')}>
           {/* Fixed navigation bar */}
           <ViewHeader
             calendar={app}
@@ -322,8 +308,8 @@ const DayView: React.FC<DayViewProps> = ({
             })}
           />
           {/* All-day event area */}
-          <div className={`${allDayRow} pt-px`} ref={allDayRowRef}>
-            <div className={allDayLabel}>{t('allDay')}</div>
+          <div className="flex items-center border-b border-gray-200 dark:border-gray-700 sticky pr-[10px] pt-px" ref={allDayRowRef}>
+            <div className="w-20 flex-shrink-0 p-1 text-xs font-medium text-gray-500 dark:text-gray-400 flex justify-end">{t('allDay')}</div>
             <div className="flex flex-1 relative">
               <div
                 className="w-full relative"
@@ -381,7 +367,7 @@ const DayView: React.FC<DayViewProps> = ({
           </div>
 
           {/* Time grid and event area */}
-          <div className={calendarContent} style={{ position: 'relative' }}>
+          <div className="relative overflow-y-scroll calendar-content" style={{ position: 'relative' }}>
             <div className="relative flex">
               {/* Current time line */}
               {isToday && currentTime &&
@@ -394,7 +380,7 @@ const DayView: React.FC<DayViewProps> = ({
 
                   return (
                     <div
-                      className={currentTimeLine}
+                      className="absolute left-0 top-0 flex pointer-events-none"
                       style={{
                         top: `${topPx}px`,
                         width: '100%',
@@ -407,23 +393,23 @@ const DayView: React.FC<DayViewProps> = ({
                         style={{ width: `${TIME_COLUMN_WIDTH}px` }}
                       >
                         <div className="relative w-full flex items-center"></div>
-                        <div className={currentTimeLabel}>
+                        <div className="ml-2 text-primary-foreground text-xs font-bold px-1.5 bg-primary rounded-sm">
                           {formatTime(hours)}
                         </div>
                       </div>
 
                       <div className="flex-1 flex items-center">
-                        <div className={currentTimeLineBar} />
+                        <div className="h-0.5 w-full bg-primary relative" />
                       </div>
                     </div>
                   );
                 })()}
 
               {/* Time column */}
-              <div className={timeColumn}>
+              <div className="w-20 flex-shrink-0 border-gray-200 dark:border-gray-700">
                 {timeSlots.map((slot, slotIndex) => (
-                  <div key={slotIndex} className={timeSlot}>
-                    <div className={timeLabel}>
+                  <div key={slotIndex} className="relative h-[4.5rem] flex">
+                    <div className="absolute -top-2.5 right-2 text-[12px] text-gray-500 dark:text-gray-400">
                       {slotIndex === 0 ? '' : slot.label}
                     </div>
                   </div>
@@ -435,7 +421,7 @@ const DayView: React.FC<DayViewProps> = ({
                 {timeSlots.map((slot, slotIndex) => (
                   <div
                     key={slotIndex}
-                    className={timeGridRow}
+                    className="h-[4.5rem] border-t first:border-none border-gray-200 dark:border-gray-700 flex"
                     onDoubleClick={e => {
                       const currentDayIndex = Math.floor(
                         (currentDate.getTime() - currentWeekStart.getTime()) /

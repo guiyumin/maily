@@ -1,14 +1,5 @@
 import React, { useMemo } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import {
-  miniCalendarDay,
-  miniCalendarDayHeader,
-  miniCalendarGrid,
-  miniCalendarCurrentMonth,
-  miniCalendarOtherMonth,
-  miniCalendarToday,
-  miniCalendarSelected,
-} from '../../styles/classNames';
 import { useLocale, getWeekDaysLabels } from '@calendar/locale';
 
 interface MiniCalendarProps {
@@ -98,9 +89,9 @@ export const MiniCalendar: React.FC<MiniCalendarProps> = ({
           </button>
         </div> : ''
       }
-      <div className={miniCalendarGrid}>
+      <div className="grid grid-cols-7 gap-1 text-xs justify-items-center">
         {weekdayLabels.map((label, index) => (
-          <div key={`weekday-${index}`} className={`${miniCalendarDayHeader} text-gray-500 dark:text-gray-400`}>
+          <div key={`weekday-${index}`} className="text-center text-gray-500 dark:text-gray-400 font-medium py-1 h-6 w-6">
             {label}
           </div>
         ))}
@@ -109,14 +100,14 @@ export const MiniCalendar: React.FC<MiniCalendarProps> = ({
             type="button"
             key={day.fullDate.getTime()}
             className={`
-              ${miniCalendarDay}
+              text-center py-1 rounded text-xs h-6 w-6
               ${day.isToday
-                ? miniCalendarToday
+                ? 'bg-primary rounded-full text-primary-foreground'
                 : day.isCurrentMonth
-                  ? miniCalendarCurrentMonth
-                  : miniCalendarOtherMonth
+                  ? 'text-gray-900 dark:text-gray-100'
+                  : 'text-gray-400 dark:text-gray-600'
               }
-              ${day.isSelected && !day.isToday ? miniCalendarSelected : ''}
+              ${day.isSelected && !day.isToday ? 'bg-secondary text-secondary-foreground rounded-full font-medium' : ''}
             `}
             onClick={() => onDateSelect(day.fullDate)}
           >

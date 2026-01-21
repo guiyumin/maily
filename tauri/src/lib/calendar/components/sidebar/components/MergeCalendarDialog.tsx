@@ -1,4 +1,3 @@
-import { cancelButton } from '@calendar/styles/classNames';
 import React from 'react';
 import { useLocale } from '@calendar/locale';
 
@@ -29,7 +28,7 @@ export const MergeCalendarDialog: React.FC<MergeCalendarDialogProps> = ({
           <button
             type="button"
             onClick={onCancel}
-            className={cancelButton}
+            className="rounded-md bg-background border border-border px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-(--hover)"
           >
             {t('cancel')}
           </button>

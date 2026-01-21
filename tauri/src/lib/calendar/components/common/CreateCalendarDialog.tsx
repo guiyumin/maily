@@ -4,7 +4,6 @@ import { getCalendarColorsForHex } from '../../core/calendarRegistry';
 import { generateUniKey } from '../../utils/helpers';
 import { CalendarType, CreateCalendarDialogProps } from '../../types';
 import { useTheme } from '../../contexts/ThemeContext';
-import { cancelButton } from '@calendar/styles/classNames';
 import { useLocale } from '@calendar/locale';
 
 const COLORS = [
@@ -169,7 +168,7 @@ export const CreateCalendarDialog: React.FC<CreateCalendarDialogProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className={cancelButton}
+              className="rounded-md bg-background border border-border px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-(--hover)"
             >
               {t('cancel')}
             </button>

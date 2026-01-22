@@ -20,8 +20,6 @@ import { CreateCalendarDialog } from '../components/common/CreateCalendarDialog'
 import SearchDrawer from '../components/common/SearchDrawer';
 import { CalendarSearchProps, CalendarSearchEvent } from '../types/search';
 import { normalizeCssWidth } from '../utils/styleUtils';
-import { ThemeProvider } from '../contexts/ThemeContext';
-import { ThemeMode } from '../types/calendarTypes';
 import { LocaleProvider } from '../locale/LocaleProvider';
 import { useLocale } from '../locale/useLocale';
 import { LocaleMessages, LocaleCode, Locale } from '../locale/types';
@@ -98,9 +96,6 @@ const CalendarLayout: React.FC<DayFlowCalendarProps> = ({
   const [editingCalendarId, setEditingCalendarId] = useState<string | null>(
     null
   );
-
-  // Theme state
-  const [theme, setTheme] = useState<ThemeMode>(() => app.getTheme());
 
   // Search State
   const [searchKeyword, setSearchKeyword] = useState('');
@@ -210,25 +205,6 @@ const CalendarLayout: React.FC<DayFlowCalendarProps> = ({
     setIsCollapsed(sidebarConfig?.initialCollapsed ?? false);
   }, [sidebarConfig?.initialCollapsed]);
 
-  // Subscribe to theme changes from CalendarApp
-  useEffect(() => {
-    const unsubscribe = app.subscribeThemeChange(newTheme => {
-      setTheme(newTheme);
-    });
-
-    return () => {
-      unsubscribe();
-    };
-  }, [app]);
-
-  // Sync theme changes from ThemeProvider back to CalendarApp
-  const handleThemeChange = useCallback(
-    (newTheme: ThemeMode) => {
-      app.setTheme(newTheme);
-    },
-    [app]
-  );
-
   const refreshSidebar = useCallback(() => {
     setSidebarVersion(prev => prev + 1);
   }, []);
@@ -332,10 +308,9 @@ const CalendarLayout: React.FC<DayFlowCalendarProps> = ({
   const miniSidebarWidth = '50px';
 
   return (
-    <ThemeProvider initialTheme={theme} onThemeChange={handleThemeChange}>
-      <div
-        className={clsx('maily-calendar relative flex flex-row h-full overflow-hidden', className)}
-      >
+    <div
+      className={clsx('maily-calendar relative flex flex-row h-full overflow-hidden', className)}
+    >
         {sidebarEnabled && (
           <aside
             className={`absolute top-0 bottom-0 left-0 z-0 h-full`}
@@ -412,8 +387,7 @@ const CalendarLayout: React.FC<DayFlowCalendarProps> = ({
               }}
             />
           ))}
-      </div>
-    </ThemeProvider>
+    </div>
   );
 };
 

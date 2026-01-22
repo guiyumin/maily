@@ -3,7 +3,7 @@ import { PhotoshopPicker, ColorResult } from 'react-color';
 import { getCalendarColorsForHex } from '../../core/calendarRegistry';
 import { generateUniKey } from '../../utils/helpers';
 import { CalendarType, CreateCalendarDialogProps } from '../../types';
-import { useTheme } from '../../contexts/ThemeContext';
+import { useCalendarTheme } from '../../core/CalendarStoreContext';
 import { useLocale } from '@calendar/locale';
 
 const COLORS = [
@@ -26,7 +26,7 @@ export const CreateCalendarDialog: React.FC<CreateCalendarDialogProps> = ({
   );
   const [showPicker, setShowPicker] = useState(false);
   const [previousColor, setPreviousColor] = useState('');
-  const { effectiveTheme } = useTheme();
+  const { effectiveTheme } = useCalendarTheme();
   const { t } = useLocale();
 
   const handleSubmit = (e: React.FormEvent) => {

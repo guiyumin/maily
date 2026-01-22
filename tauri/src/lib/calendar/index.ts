@@ -2,14 +2,18 @@
 import './styles/tailwind.css';
 
 // Core exports
-export { CalendarApp } from './core/CalendarApp';
-export { useCalendarApp } from './core/useCalendarApp';
+export { useCalendarApp, createCalendarStore } from './core/useCalendarApp';
+export type { CalendarStoreApi, CalendarStore } from './core/calendarStore';
 export { DayFlowCalendar } from './core/DayFlowCalendar';
 export { CalendarRegistry } from './core/calendarRegistry';
 
-// Theme exports
-export { ThemeProvider, useTheme } from './contexts/ThemeContext';
-export type { ThemeContextType, ThemeProviderProps } from './contexts/ThemeContext';
+// Theme exports (from calendar store)
+export {
+  useCalendarStore,
+  useCalendarStoreSelector,
+  useCalendarTheme,
+} from './core/CalendarStoreContext';
+export type { CalendarTheme } from './core/CalendarStoreContext';
 
 // View factories
 export { createDayView } from './factories/createDayView';
@@ -64,7 +68,7 @@ export type {
   CalendarSidebarRenderProps,
   SidebarConfig,
   UseCalendarAppReturn,
-  CalendarApp as ICalendarApp,
+  CalendarApp,
   CalendarAppConfig,
   CalendarCallbacks,
 } from './types/core';

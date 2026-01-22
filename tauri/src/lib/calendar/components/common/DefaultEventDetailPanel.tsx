@@ -6,7 +6,7 @@ import { isPlainDate } from '../../utils/temporal';
 import { getDefaultCalendarRegistry } from '../../core/calendarRegistry';
 import ColorPicker, { ColorOption } from './ColorPicker';
 import RangePicker from './RangePicker';
-import { useTheme } from '../../contexts/ThemeContext';
+import { useCalendarTheme } from '../../core/CalendarStoreContext';
 import { resolveAppliedTheme } from '../../utils/themeUtils';
 import { CalendarApp } from '@calendar/core';
 import { useLocale } from '@calendar/locale';
@@ -30,7 +30,7 @@ const DefaultEventDetailPanel: React.FC<DefaultEventDetailPanelProps> = ({
   onEventDelete,
   app,
 }) => {
-  const { effectiveTheme } = useTheme();
+  const { effectiveTheme } = useCalendarTheme();
   const appliedTheme = resolveAppliedTheme(effectiveTheme);
   const { t } = useLocale();
   const arrowBgColor = appliedTheme === 'dark' ? '#1f2937' : 'white';

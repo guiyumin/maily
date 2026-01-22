@@ -4,7 +4,7 @@ import {
   EventDetailPanelProps,
   EventDetailContentRenderer,
 } from '../../types/eventDetail';
-import { useTheme } from '../../contexts/ThemeContext';
+import { useCalendarTheme } from '../../core/CalendarStoreContext';
 import { resolveAppliedTheme } from '../../utils/themeUtils';
 
 /**
@@ -30,7 +30,7 @@ export const EventDetailPanelWithContent: React.FC<
   onClose,
   contentRenderer: ContentComponent,
 }) => {
-    const { effectiveTheme } = useTheme();
+    const { effectiveTheme } = useCalendarTheme();
     const appliedTheme = resolveAppliedTheme(effectiveTheme);
     const arrowBgColor = appliedTheme === 'dark' ? '#1f2937' : 'white';
     const arrowBorderColor =

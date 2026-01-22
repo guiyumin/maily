@@ -3,7 +3,10 @@ export * from './useCalendarApp';
 export * from './config';
 export * from './DayFlowCalendar';
 
-export { CalendarApp } from './CalendarApp';
+// Zustand store and selectors
+export { createCalendarStore } from './calendarStore';
+export type { CalendarStoreApi, CalendarStore } from './calendarStore';
+export * from './calendarSelectors';
 
 // Re-export types from @/types for convenience
 export { ViewType } from '../types';
@@ -14,7 +17,7 @@ export type {
   CalendarCallbacks,
   CalendarAppConfig,
   CalendarAppState,
-  CalendarApp as ICalendarApp,
+  CalendarApp,
   UseCalendarAppReturn,
   CalendarConfig,
 } from '../types';

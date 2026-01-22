@@ -1,249 +1,215 @@
-import { useState, useCallback, useMemo, useEffect } from 'react';
-import { CalendarApp } from './CalendarApp';
-import { CalendarAppConfig, UseCalendarAppReturn, ViewType, CalendarType } from '../types';
+/**
+ * useCalendarApp hook - Zustand-based implementation
+ * Maintains backward compatibility with the previous CalendarApp class-based approach
+ */
+import { useMemo, useEffect, useRef } from 'react';
+import { useStore } from 'zustand';
+import { createCalendarStore, CalendarStoreApi, CalendarStoreSingleton } from './calendarStore';
+import {
+  CalendarAppConfig,
+  UseCalendarAppReturn,
+  CalendarApp,
+  CalendarAppState,
+  ViewType,
+  CalendarType,
+} from '../types';
 import { Event } from '../types';
+import React from 'react';
 
-export function useCalendarApp(
-  config: CalendarAppConfig
-): UseCalendarAppReturn {
-  // Create calendar application instance
-  const app = useMemo(() => new CalendarApp(config), []);
+/**
+ * Create a CalendarApp-compatible interface from the store
+ * This provides backward compatibility for components expecting the CalendarApp interface
+ */
+function createAppFromStore(store: CalendarStoreApi): CalendarApp {
+  const getState = () => store.getState();
 
-  // Reactive state - synchronize state from app instance
-  const [currentView, setCurrentView] = useState<ViewType>(
-    app.state.currentView
-  );
-  const [currentDate, setCurrentDateState] = useState<Date>(
-    app.state.currentDate
-  );
-  const [events, setEvents] = useState<Event[]>(app.getEvents());
+  // Create a proxy state object that reads from the store
+  const stateProxy: CalendarAppState = {
+    get currentView() {
+      return getState().currentView;
+    },
+    get currentDate() {
+      return getState().currentDate;
+    },
+    get events() {
+      return getState().events;
+    },
+    get plugins() {
+      return getState()._plugins;
+    },
+    get views() {
+      return getState()._views;
+    },
+    get switcherMode() {
+      return getState().switcherMode;
+    },
+    get sidebar() {
+      return getState()._sidebarConfig;
+    },
+    get locale() {
+      return getState().locale;
+    },
+    get highlightedEventId() {
+      return getState().highlightedEventId;
+    },
+  };
 
-  // Component re-render trigger
-  const [, forceUpdate] = useState({});
-  const triggerUpdate = useCallback(() => {
-    forceUpdate({});
+  return {
+    state: stateProxy,
+
+    // View management
+    changeView: (view: ViewType) => getState().changeView(view),
+    getCurrentView: () => getState().getCurrentView(),
+
+    // Date management
+    setCurrentDate: (date: Date) => getState().setCurrentDate(date),
+    getCurrentDate: () => getState().getCurrentDate(),
+    goToToday: () => getState().goToToday(),
+    goToPrevious: () => getState().goToPrevious(),
+    goToNext: () => getState().goToNext(),
+    selectDate: (date: Date) => getState().selectDate(date),
+    setVisibleMonth: (date: Date) => getState().setVisibleMonth(date),
+    getVisibleMonth: () => getState().getVisibleMonth(),
+
+    // Event management
+    addEvent: (event: Event) => getState().addEvent(event),
+    updateEvent: (id: string, event: Partial<Event>, isPending?: boolean) =>
+      getState().updateEvent(id, event, isPending),
+    deleteEvent: (id: string) => getState().deleteEvent(id),
+    getEvents: () => getState().getEvents(),
+    getAllEvents: () => getState().getAllEvents(),
+    highlightEvent: (eventId: string | null) => getState().highlightEvent(eventId),
+
+    // Calendar management
+    getCalendars: () => getState().getCalendars(),
+    reorderCalendars: (fromIndex: number, toIndex: number) =>
+      getState().reorderCalendars(fromIndex, toIndex),
+    setCalendarVisibility: (calendarId: string, visible: boolean) =>
+      getState().setCalendarVisibility(calendarId, visible),
+    setAllCalendarsVisibility: (visible: boolean) =>
+      getState().setAllCalendarsVisibility(visible),
+    updateCalendar: (id: string, updates: Partial<CalendarType>) =>
+      getState().updateCalendar(id, updates),
+    createCalendar: (calendar: CalendarType) => getState().createCalendar(calendar),
+    deleteCalendar: (id: string) => getState().deleteCalendar(id),
+    mergeCalendars: (sourceId: string, targetId: string) =>
+      getState().mergeCalendars(sourceId, targetId),
+
+    // Plugin management
+    getPlugin: <T = unknown>(name: string) => getState().getPlugin<T>(name),
+    hasPlugin: (name: string) => getState().hasPlugin(name),
+
+    // Rendering (legacy - no-op in new implementation)
+    render: () => React.createElement('div', { className: 'calendar-app' }, 'Calendar App'),
+
+    // Config getters
+    getSidebarConfig: () => getState().getSidebarConfig(),
+    triggerRender: () => getState().triggerRender(),
+    getCalendarRegistry: () => getState().getCalendarRegistry(),
+    getUseEventDetailDialog: () => getState().getUseEventDetailDialog(),
+
+    // Theme management
+    setTheme: (mode) => getState().setTheme(mode),
+    getTheme: () => getState().getTheme(),
+    subscribeThemeChange: (callback) => getState().subscribeThemeChange(callback),
+    unsubscribeThemeChange: (callback) => getState().unsubscribeThemeChange(callback),
+  };
+}
+
+/**
+ * Hook to use the calendar application
+ * Provides a Zustand-based state management with selective subscriptions
+ */
+export function useCalendarApp(config: CalendarAppConfig): UseCalendarAppReturn {
+  // Create store once per component instance and set as singleton
+  const store = useMemo(() => {
+    const newStore = createCalendarStore(config);
+    CalendarStoreSingleton.set(newStore);
+    return newStore;
   }, []);
 
-  // Synchronize state changes
+  // Subscribe to reactive state with selective subscriptions
+  // This is the key improvement - only re-render when specific state changes
+  const currentView = useStore(store, state => state.currentView);
+  const currentDate = useStore(store, state => state.currentDate);
+
+  // Subscribe to raw events and calendar version
+  const rawEvents = useStore(store, state => state.events);
+  const calendarVersion = useStore(store, state => state._calendarVersion);
+
+  // Compute visible events with useMemo to avoid creating new arrays on every render
+  const events = useMemo(() => {
+    const registry = store.getState()._calendarRegistry;
+    const visibleCalendars = new Set(
+      registry
+        .getAll()
+        .filter(calendar => calendar.isVisible !== false)
+        .map(calendar => calendar.id)
+    );
+
+    return rawEvents.filter(event => {
+      if (!event.calendarId) return true;
+      if (!registry.has(event.calendarId)) return true;
+      return visibleCalendars.has(event.calendarId);
+    });
+  }, [rawEvents, calendarVersion, store]);
+
+  // Create the CalendarApp-compatible interface
+  const app = useMemo(() => createAppFromStore(store), [store]);
+
+  // Track previous values to avoid unnecessary updates
+  const prevEventsRef = useRef<Event[] | undefined>(undefined);
+  const prevCalendarsRef = useRef<CalendarType[] | undefined>(undefined);
+
+  // Sync events from config when they change
   useEffect(() => {
-    const originalChangeView = app.changeView;
-    app.changeView = (view: ViewType) => {
-      originalChangeView(view);
-      setCurrentView(view);
-      triggerUpdate();
-    };
-
-    const originalSetCurrentDate = app.setCurrentDate;
-    app.setCurrentDate = (date: Date) => {
-      originalSetCurrentDate(date);
-      setCurrentDateState(new Date(date));
-      triggerUpdate();
-    };
-
-    const originalAddEvent = app.addEvent;
-    app.addEvent = (event: Event) => {
-      originalAddEvent(event);
-      setEvents([...app.getEvents()]);
-      triggerUpdate();
-    };
-
-    const originalUpdateEvent = app.updateEvent;
-    app.updateEvent = (
-      id: string,
-      eventUpdate: Partial<Event>,
-      isPending?: boolean
-    ) => {
-      originalUpdateEvent(id, eventUpdate, isPending);
-      setEvents([...app.getEvents()]);
-      triggerUpdate();
-    };
-
-    const originalDeleteEvent = app.deleteEvent;
-    app.deleteEvent = (id: string) => {
-      originalDeleteEvent(id);
-      setEvents([...app.getEvents()]);
-      triggerUpdate();
-    };
-
-    const originalSetCalendarVisibility = app.setCalendarVisibility;
-    app.setCalendarVisibility = (calendarId: string, visible: boolean) => {
-      originalSetCalendarVisibility(calendarId, visible);
-      setEvents([...app.getEvents()]);
-      triggerUpdate();
-    };
-
-    const originalSetAllCalendarsVisibility = app.setAllCalendarsVisibility;
-    app.setAllCalendarsVisibility = (visible: boolean) => {
-      originalSetAllCalendarsVisibility(visible);
-      setEvents([...app.getEvents()]);
-      triggerUpdate();
-    };
-
-    const originalSetVisibleMonth = app.setVisibleMonth;
-    app.setVisibleMonth = (date: Date) => {
-      originalSetVisibleMonth(date);
-      triggerUpdate();
-    };
-
-    const originalReorderCalendars = app.reorderCalendars;
-    app.reorderCalendars = (fromIndex: number, toIndex: number) => {
-      originalReorderCalendars(fromIndex, toIndex);
-      triggerUpdate();
-    };
-
-    const originalUpdateCalendar = app.updateCalendar;
-    app.updateCalendar = (id: string, updates: Partial<CalendarType>) => {
-      originalUpdateCalendar(id, updates);
-      triggerUpdate();
-    };
-
-    const originalCreateCalendar = app.createCalendar;
-    app.createCalendar = (calendar: CalendarType) => {
-      originalCreateCalendar(calendar);
-      triggerUpdate();
-    };
-
-    const originalDeleteCalendar = app.deleteCalendar;
-    app.deleteCalendar = (id: string) => {
-      originalDeleteCalendar(id);
-      triggerUpdate();
-    };
-
-    const originalMergeCalendars = app.mergeCalendars;
-    app.mergeCalendars = (sourceId: string, targetId: string) => {
-      originalMergeCalendars(sourceId, targetId);
-      setEvents([...app.getEvents()]);
-      triggerUpdate();
-    };
-
-    const originalHighlightEvent = app.highlightEvent;
-    app.highlightEvent = (eventId: string | null) => {
-      originalHighlightEvent(eventId);
-      triggerUpdate();
-    };
-
-    return () => {
-      // Cleanup work, if needed
-    };
-  }, [app, triggerUpdate]);
-
-  // Synchronize state on initialization
-  useEffect(() => {
-    setCurrentView(app.state.currentView);
-    setCurrentDateState(app.state.currentDate);
-    setEvents(app.getEvents());
-  }, [app]);
-
-  // Sync external events when config.events changes
-  useEffect(() => {
-    if (config.events && config.events.length > 0) {
-      app.setEvents(config.events);
-      setEvents([...app.getEvents()]);
-      triggerUpdate();
+    const configEvents = config.events;
+    // Only update if events array reference changed and has content
+    if (configEvents && configEvents !== prevEventsRef.current) {
+      prevEventsRef.current = configEvents;
+      store.getState().setEvents(configEvents);
     }
-  }, [config.events, app, triggerUpdate]);
+  }, [config.events, store]);
 
-  // Sync external calendars when config.calendars changes
+  // Sync calendars from config when they change
   useEffect(() => {
-    if (config.calendars && config.calendars.length > 0) {
-      app.setCalendars(config.calendars);
-      triggerUpdate();
+    const configCalendars = config.calendars;
+    // Only update if calendars array reference changed and has content
+    if (configCalendars && configCalendars !== prevCalendarsRef.current) {
+      prevCalendarsRef.current = configCalendars;
+      store.getState().setCalendars(configCalendars);
     }
-  }, [config.calendars, app, triggerUpdate]);
-
-  // Wrapped methods to ensure state synchronization
-  const changeView = useCallback(
-    (view: ViewType) => {
-      app.changeView(view);
-    },
-    [app]
-  );
-
-  const setCurrentDate = useCallback(
-    (date: Date) => {
-      app.setCurrentDate(date);
-    },
-    [app]
-  );
-
-  const addEvent = useCallback(
-    (event: Event) => {
-      app.addEvent(event);
-    },
-    [app]
-  );
-
-  const updateEvent = useCallback(
-    (id: string, event: Partial<Event>, isPending?: boolean) => {
-      app.updateEvent(id, event, isPending);
-    },
-    [app]
-  );
-
-  const deleteEvent = useCallback(
-    (id: string) => {
-      app.deleteEvent(id);
-    },
-    [app]
-  );
-
-  // Navigation methods
-  const goToToday = useCallback(() => {
-    app.goToToday();
-  }, [app]);
-
-  const goToPrevious = useCallback(() => {
-    app.goToPrevious();
-  }, [app]);
-
-  const goToNext = useCallback(() => {
-    app.goToNext();
-  }, [app]);
-
-  const selectDate = useCallback(
-    (date: Date) => {
-      app.selectDate(date);
-    },
-    [app]
-  );
-
-  const setCalendarVisibility = useCallback(
-    (calendarId: string, visible: boolean) => {
-      app.setCalendarVisibility(calendarId, visible);
-    },
-    [app]
-  );
-
-  const setAllCalendarsVisibility = useCallback(
-    (visible: boolean) => {
-      app.setAllCalendarsVisibility(visible);
-    },
-    [app]
-  );
+  }, [config.calendars, store]);
 
   return {
     app,
     currentView,
     currentDate,
     events,
-    changeView,
-    setCurrentDate,
-    addEvent,
-    updateEvent,
-    deleteEvent,
-    goToToday,
-    goToPrevious,
-    goToNext,
-    selectDate,
-    getCalendars: () => app.getCalendars(),
-    createCalendar: (calendar: CalendarType) => app.createCalendar(calendar),
-    mergeCalendars: (sourceId: string, targetId: string) => app.mergeCalendars(sourceId, targetId),
-    setCalendarVisibility,
-    setAllCalendarsVisibility,
-    getAllEvents: () => app.getAllEvents(),
-    highlightEvent: (eventId: string | null) => app.highlightEvent(eventId),
-    setVisibleMonth: (date: Date) => app.setVisibleMonth(date),
-    getVisibleMonth: () => app.getVisibleMonth(),
-    sidebarConfig: app.getSidebarConfig(),
+
+    // Expose actions directly for convenience
+    changeView: store.getState().changeView,
+    setCurrentDate: store.getState().setCurrentDate,
+    addEvent: store.getState().addEvent,
+    updateEvent: store.getState().updateEvent,
+    deleteEvent: store.getState().deleteEvent,
+    goToToday: store.getState().goToToday,
+    goToPrevious: store.getState().goToPrevious,
+    goToNext: store.getState().goToNext,
+    selectDate: store.getState().selectDate,
+    getCalendars: store.getState().getCalendars,
+    createCalendar: store.getState().createCalendar,
+    mergeCalendars: store.getState().mergeCalendars,
+    setCalendarVisibility: store.getState().setCalendarVisibility,
+    setAllCalendarsVisibility: store.getState().setAllCalendarsVisibility,
+    getAllEvents: store.getState().getAllEvents,
+    highlightEvent: store.getState().highlightEvent,
+    setVisibleMonth: store.getState().setVisibleMonth,
+    getVisibleMonth: store.getState().getVisibleMonth,
+    sidebarConfig: store.getState().getSidebarConfig(),
   };
 }
+
+// Re-export for direct store access in advanced use cases
+export { createCalendarStore } from './calendarStore';
+export type { CalendarStoreApi, CalendarStore } from './calendarStore';

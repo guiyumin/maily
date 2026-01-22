@@ -443,10 +443,8 @@ const WeekView: React.FC<WeekViewProps> = ({
     <div className="relative flex flex-col bg-white dark:bg-gray-900 w-full overflow-hidden h-full">
       {/* Header navigation */}
       <ViewHeader
-        calendar={app}
         viewType={ViewType.WEEK}
         currentDate={currentDate}
-        switcherMode={switcherMode}
         onPrevious={() => app.goToPrevious()}
         onNext={() => app.goToNext()}
         onToday={() => app.goToToday()}
@@ -471,7 +469,8 @@ const WeekView: React.FC<WeekViewProps> = ({
               <div
                 className={clsx(
                   "inline-flex items-center justify-center h-6 w-6 rounded-full text-sm mt-1",
-                  weekDates[i].isToday && "bg-primary rounded-full text-primary-foreground",
+                  weekDates[i].isToday &&
+                    "bg-primary rounded-full text-primary-foreground",
                 )}
               >
                 {weekDates[i].date}
@@ -482,8 +481,13 @@ const WeekView: React.FC<WeekViewProps> = ({
       </div>
 
       {/* All-day event area */}
-      <div className="flex items-center border-b border-gray-200 dark:border-gray-700 sticky pr-[10px]" ref={allDayRowRef}>
-        <div className="w-20 flex-shrink-0 p-1 text-xs font-medium text-gray-500 dark:text-gray-400 flex justify-end">{t("allDay")}</div>
+      <div
+        className="flex items-center border-b border-gray-200 dark:border-gray-700 sticky pr-[10px]"
+        ref={allDayRowRef}
+      >
+        <div className="w-20 flex-shrink-0 p-1 text-xs font-medium text-gray-500 dark:text-gray-400 flex justify-end">
+          {t("allDay")}
+        </div>
         <div
           className="flex flex-1 relative"
           style={{ minHeight: `${allDayAreaHeight}px` }}
@@ -549,7 +553,10 @@ const WeekView: React.FC<WeekViewProps> = ({
       </div>
 
       {/* Time grid and event area */}
-      <div className="relative overflow-y-scroll calendar-content" style={{ position: "relative" }}>
+      <div
+        className="relative overflow-y-scroll calendar-content"
+        style={{ position: "relative" }}
+      >
         <div className="relative flex">
           {/* Current time line */}
           {isCurrentWeek &&
@@ -578,7 +585,9 @@ const WeekView: React.FC<WeekViewProps> = ({
                     style={{ width: `${TIME_COLUMN_WIDTH}px` }}
                   >
                     <div className="relative w-full flex items-center"></div>
-                    <div className="ml-2 text-primary-foreground text-xs font-bold px-1.5 bg-primary rounded-sm">{formatTime(hours)}</div>
+                    <div className="ml-2 text-primary-foreground text-xs font-bold px-1.5 bg-primary rounded-sm">
+                      {formatTime(hours)}
+                    </div>
                   </div>
 
                   <div className="flex flex-1">
@@ -620,7 +629,10 @@ const WeekView: React.FC<WeekViewProps> = ({
           {/* Time grid */}
           <div className="grow relative">
             {timeSlots.map((slot, slotIndex) => (
-              <div key={slotIndex} className="h-[4.5rem] border-t first:border-none border-gray-200 dark:border-gray-700 flex">
+              <div
+                key={slotIndex}
+                className="h-[4.5rem] border-t first:border-none border-gray-200 dark:border-gray-700 flex"
+              >
                 {weekDaysLabels.map((_, dayIndex) => {
                   const dropDate = new Date(currentWeekStart);
                   dropDate.setDate(currentWeekStart.getDate() + dayIndex);

@@ -1,24 +1,26 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { CalendarApp } from '@calendar/core';
-import { extractHourFromDate } from '@calendar/utils';
-import { useLocale } from '@calendar/locale';
+import React, { useState, useMemo, useEffect, useRef } from "react";
+import { CalendarApp } from "@calendar/core";
+import { extractHourFromDate } from "@calendar/utils";
+import { useLocale } from "@calendar/locale";
 import {
   Event,
   MonthEventDragState,
   ViewType,
   EventDetailContentRenderer,
   EventDetailDialogRenderer,
-} from '@calendar/types';
-import { VirtualWeekItem } from '@calendar/types/monthView';
+} from "@calendar/types";
+import { VirtualWeekItem } from "@calendar/types/monthView";
 import {
   useVirtualMonthScroll,
   useResponsiveMonthConfig,
-} from '@calendar/hooks/virtualScroll';
-import { useDragForView } from '@calendar/plugins/dragPlugin';
-import ViewHeader, { ViewSwitcherMode } from '@calendar/components/common/ViewHeader';
-import WeekComponent from '@calendar/components/monthView/WeekComponent';
-import { temporalToDate } from '@calendar/utils/temporal';
-import { useCalendarDrop } from '@calendar/hooks/useCalendarDrop';
+} from "@calendar/hooks/virtualScroll";
+import { useDragForView } from "@calendar/plugins/dragPlugin";
+import ViewHeader, {
+  ViewSwitcherMode,
+} from "@calendar/components/common/ViewHeader";
+import WeekComponent from "@calendar/components/monthView/WeekComponent";
+import { temporalToDate } from "@calendar/utils/temporal";
+import { useCalendarDrop } from "@calendar/hooks/useCalendarDrop";
 
 interface MonthViewProps {
   app: CalendarApp; // Required prop, provided by CalendarRenderer
@@ -33,12 +35,15 @@ const MonthView: React.FC<MonthViewProps> = ({
   customDetailPanelContent,
   customEventDetailDialog,
   calendarRef,
-  switcherMode = 'buttons',
+  switcherMode = "buttons",
 }) => {
   const { getWeekDaysLabels, getMonthLabels, locale } = useLocale();
   const currentDate = app.getCurrentDate();
   const rawEvents = app.getEvents();
-  const calendarSignature = app.getCalendars().map(c => c.id + c.colors.lineColor).join('-');
+  const calendarSignature = app
+    .getCalendars()
+    .map((c) => c.id + c.colors.lineColor)
+    .join("-");
   const previousEventsRef = useRef<Event[] | null>(null);
   const DEFAULT_WEEK_HEIGHT = 119;
   // Stabilize events reference so week calculations do not rerun on every scroll frame
@@ -79,7 +84,7 @@ const MonthView: React.FC<MonthViewProps> = ({
       }
     };
 
-    events.forEach(event => {
+    events.forEach((event) => {
       if (!event.start) return;
 
       const startFull = temporalToDate(event.start);
@@ -142,7 +147,7 @@ const MonthView: React.FC<MonthViewProps> = ({
 
   // ID of newly created event, used to automatically display detail panel
   const [newlyCreatedEventId, setNewlyCreatedEventId] = useState<string | null>(
-    null
+    null,
   );
 
   // Selected event ID, used for cross-week MultiDayEvent selected state synchronization
@@ -157,7 +162,7 @@ const MonthView: React.FC<MonthViewProps> = ({
 
   // Detail panel event ID, used to control displaying only one detail panel
   const [detailPanelEventId, setDetailPanelEventId] = useState<string | null>(
-    null
+    null,
   );
 
   // Calculate the week start time for the current date (used for event day field calculation)
@@ -181,32 +186,32 @@ const MonthView: React.FC<MonthViewProps> = ({
     viewType: ViewType.MONTH,
     onEventsUpdate: (
       updateFunc: (events: Event[]) => Event[],
-      isResizing?: boolean
+      isResizing?: boolean,
     ) => {
       const newEvents = updateFunc(events);
 
       // Find events that need to be deleted (in old list but not in new list)
-      const newEventIds = new Set(newEvents.map(e => e.id));
-      const eventsToDelete = events.filter(e => !newEventIds.has(e.id));
+      const newEventIds = new Set(newEvents.map((e) => e.id));
+      const eventsToDelete = events.filter((e) => !newEventIds.has(e.id));
 
       // Find events that need to be added (in new list but not in old list)
-      const oldEventIds = new Set(events.map(e => e.id));
-      const eventsToAdd = newEvents.filter(e => !oldEventIds.has(e.id));
+      const oldEventIds = new Set(events.map((e) => e.id));
+      const eventsToAdd = newEvents.filter((e) => !oldEventIds.has(e.id));
 
       // Find events that need to be updated (exist in both lists but content may differ)
-      const eventsToUpdate = newEvents.filter(e => {
+      const eventsToUpdate = newEvents.filter((e) => {
         if (!oldEventIds.has(e.id)) return false;
-        const oldEvent = events.find(old => old.id === e.id);
+        const oldEvent = events.find((old) => old.id === e.id);
         // Check if there are real changes
         return (
           oldEvent &&
           (temporalToDate(oldEvent.start).getTime() !==
             temporalToDate(e.start).getTime() ||
             temporalToDate(oldEvent.end).getTime() !==
-            temporalToDate(e.end).getTime() ||
+              temporalToDate(e.end).getTime() ||
             oldEvent.day !== e.day ||
             extractHourFromDate(oldEvent.start) !==
-            extractHourFromDate(e.start) ||
+              extractHourFromDate(e.start) ||
             extractHourFromDate(oldEvent.end) !== extractHourFromDate(e.end) ||
             oldEvent.title !== e.title ||
             // for All day events
@@ -216,10 +221,10 @@ const MonthView: React.FC<MonthViewProps> = ({
       });
 
       // Perform operations - updateEvent will automatically trigger onEventUpdate callback
-      eventsToDelete.forEach(event => app.deleteEvent(event.id));
-      eventsToAdd.forEach(event => app.addEvent(event));
-      eventsToUpdate.forEach(event =>
-        app.updateEvent(event.id, event, isResizing)
+      eventsToDelete.forEach((event) => app.deleteEvent(event.id));
+      eventsToAdd.forEach((event) => app.addEvent(event));
+      eventsToUpdate.forEach((event) =>
+        app.updateEvent(event.id, event, isResizing),
       );
     },
     onEventCreate: (event: Event) => {
@@ -241,7 +246,7 @@ const MonthView: React.FC<MonthViewProps> = ({
   });
 
   const weekDaysLabels = useMemo(() => {
-    return getWeekDaysLabels(locale, 'short');
+    return getWeekDaysLabels(locale, "short");
   }, [locale, getWeekDaysLabels]);
 
   const {
@@ -259,8 +264,11 @@ const MonthView: React.FC<MonthViewProps> = ({
     currentDate,
     weekHeight,
     onCurrentMonthChange: (monthName: string, year: number) => {
-      const isAsian = locale.startsWith('zh') || locale.startsWith('ja');
-      const localizedMonths = getMonthLabels(locale, isAsian ? 'short' : 'long');
+      const isAsian = locale.startsWith("zh") || locale.startsWith("ja");
+      const localizedMonths = getMonthLabels(
+        locale,
+        isAsian ? "short" : "long",
+      );
       const monthIndex = localizedMonths.indexOf(monthName);
 
       if (monthIndex >= 0) {
@@ -268,7 +276,7 @@ const MonthView: React.FC<MonthViewProps> = ({
       }
     },
     initialWeeksToLoad: 156,
-    locale: locale
+    locale: locale,
   });
 
   const previousStartIndexRef = useRef(0);
@@ -283,7 +291,7 @@ const MonthView: React.FC<MonthViewProps> = ({
     const { visibleItems, displayStartIndex } = virtualData;
 
     const startIdx = visibleItems.findIndex(
-      item => item.index === displayStartIndex
+      (item) => item.index === displayStartIndex,
     );
 
     if (startIdx === -1) {
@@ -315,7 +323,9 @@ const MonthView: React.FC<MonthViewProps> = ({
     const total = virtualData.totalHeight;
     const WEEKS_TO_LOAD = 16;
     const occupied =
-      effectiveStartIndex * weekHeight + WEEKS_TO_LOAD * weekHeight + remainingSpace;
+      effectiveStartIndex * weekHeight +
+      WEEKS_TO_LOAD * weekHeight +
+      remainingSpace;
     return Math.max(0, total - occupied);
   }, [
     virtualData.totalHeight,
@@ -329,7 +339,7 @@ const MonthView: React.FC<MonthViewProps> = ({
     const element = scrollElementRef.current;
     if (!element) return;
 
-    const resizeObserver = new ResizeObserver(entries => {
+    const resizeObserver = new ResizeObserver((entries) => {
       for (const entry of entries) {
         const containerHeight = entry.contentRect.height;
         // Save actual container height for other calculations
@@ -339,7 +349,7 @@ const MonthView: React.FC<MonthViewProps> = ({
         if (!isWeekHeightInitialized && containerHeight > 0) {
           const calculatedWeekHeight = Math.max(
             80,
-            Math.floor(containerHeight / 6)
+            Math.floor(containerHeight / 6),
           );
 
           // If weekHeight changed from initial value, adjust scrollTop to maintain position
@@ -348,7 +358,9 @@ const MonthView: React.FC<MonthViewProps> = ({
             const currentScrollTop = element.scrollTop;
             if (currentScrollTop > 0) {
               // Calculate which week we're currently showing
-              const currentWeekIndex = Math.round(currentScrollTop / previousWeekHeightRef.current);
+              const currentWeekIndex = Math.round(
+                currentScrollTop / previousWeekHeightRef.current,
+              );
               // Recalculate scrollTop with new weekHeight
               const newScrollTop = currentWeekIndex * calculatedWeekHeight;
 
@@ -397,17 +409,17 @@ const MonthView: React.FC<MonthViewProps> = ({
 
   // TODO: remove getCustomTitle and using app.currentDate to fixed
   const getCustomTitle = () => {
-    const isAsianLocale = locale.startsWith('zh') || locale.startsWith('ja');
-    return isAsianLocale ? `${currentYear}年${currentMonth}` : `${currentMonth} ${currentYear}`;
+    const isAsianLocale = locale.startsWith("zh") || locale.startsWith("ja");
+    return isAsianLocale
+      ? `${currentYear}年${currentMonth}`
+      : `${currentMonth} ${currentYear}`;
   };
 
   return (
     <div className="h-full flex flex-col bg-white dark:bg-gray-900">
       <ViewHeader
-        calendar={app}
         viewType={ViewType.MONTH}
         currentDate={currentDate}
-        customTitle={getCustomTitle()}
         onPrevious={() => {
           app.goToPrevious();
           handlePreviousMonth();
@@ -420,13 +432,15 @@ const MonthView: React.FC<MonthViewProps> = ({
           app.goToToday();
           handleToday();
         }}
-        switcherMode={switcherMode}
       />
 
       <div className="sticky top-0 z-10 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
         <div className="grid grid-cols-7 px-2">
           {weekDaysLabels.map((day, i) => (
-            <div key={i} className="text-right text-gray-500 dark:text-gray-400 text-sm py-2 pr-2">
+            <div
+              key={i}
+              className="text-right text-gray-500 dark:text-gray-400 text-sm py-2 pr-2"
+            >
               {day}
             </div>
           ))}
@@ -437,9 +451,9 @@ const MonthView: React.FC<MonthViewProps> = ({
         ref={scrollElementRef}
         className="flex-1 overflow-auto will-change-scroll"
         style={{
-          scrollSnapType: 'y mandatory',
-          overflow: 'hidden auto',
-          visibility: isWeekHeightInitialized ? 'visible' : 'hidden',
+          scrollSnapType: "y mandatory",
+          overflow: "hidden auto",
+          visibility: isWeekHeightInitialized ? "visible" : "hidden",
         }}
         onScroll={handleScroll}
       >
@@ -456,9 +470,9 @@ const MonthView: React.FC<MonthViewProps> = ({
           const adjustedItem =
             index === 5
               ? {
-                ...item,
-                height: item.height + remainingSpace,
-              }
+                  ...item,
+                  height: item.height + remainingSpace,
+                }
               : item;
 
           return (

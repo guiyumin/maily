@@ -1,13 +1,13 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { useLocale } from '@calendar/locale';
-import { CalendarApp } from '@calendar/core';
+import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { useLocale } from "@calendar/locale";
+import { CalendarApp } from "@calendar/core";
 import {
   useVirtualScroll,
   useResponsiveConfig,
   YearDataCache,
   VIRTUAL_SCROLL_CONFIG,
-} from '@calendar/hooks/virtualScroll';
-import { VirtualItem } from '@calendar/types';
+} from "@calendar/hooks/virtualScroll";
+import { VirtualItem } from "@calendar/types";
 
 interface YearViewProps {
   app: CalendarApp; // Required prop, provided by CalendarRenderer
@@ -31,7 +31,7 @@ interface YearData {
   months: MonthData[];
 }
 
-import ViewHeader from '@calendar/components/common/ViewHeader';
+import ViewHeader from "@calendar/components/common/ViewHeader";
 
 // Main component
 const VirtualizedYearView: React.FC<YearViewProps> = ({ app }) => {
@@ -95,11 +95,13 @@ const VirtualizedYearView: React.FC<YearViewProps> = ({ app }) => {
       }
 
       const monthDate = new Date(year, month, 1);
-      const localizedMonthName = monthDate.toLocaleDateString(locale, { month: 'long' });
+      const localizedMonthName = monthDate.toLocaleDateString(locale, {
+        month: "long",
+      });
 
       return { year, month, monthName: localizedMonthName, days };
     },
-    [currentDate, locale]
+    [currentDate, locale],
   );
 
   // Cached year data retrieval
@@ -118,11 +120,11 @@ const VirtualizedYearView: React.FC<YearViewProps> = ({ app }) => {
 
       return yearData;
     },
-    [generateMonthData]
+    [generateMonthData],
   );
 
   const weekDayLabels = useMemo(() => {
-    return getWeekDaysLabels(locale, 'narrow');
+    return getWeekDaysLabels(locale, "narrow");
   }, [locale, getWeekDaysLabels]);
 
   // Navigation functions
@@ -137,35 +139,35 @@ const VirtualizedYearView: React.FC<YearViewProps> = ({ app }) => {
       if (e.repeat) return;
 
       switch (e.key) {
-        case 'ArrowUp':
+        case "ArrowUp":
           e.preventDefault();
           handlePreviousYear();
           break;
-        case 'ArrowDown':
+        case "ArrowDown":
           e.preventDefault();
           handleNextYear();
           break;
-        case 'Home':
+        case "Home":
           e.preventDefault();
           handleToday();
           break;
-        case 'PageUp':
+        case "PageUp":
           e.preventDefault();
           const prev = Math.max(
             VIRTUAL_SCROLL_CONFIG.MIN_YEAR,
-            currentYear - 5
+            currentYear - 5,
           );
           scrollToYear(prev);
           break;
-        case 'PageDown':
+        case "PageDown":
           e.preventDefault();
           const next = Math.min(
             VIRTUAL_SCROLL_CONFIG.MAX_YEAR,
-            currentYear + 5
+            currentYear + 5,
           );
           scrollToYear(next);
           break;
-        case 'F12':
+        case "F12":
           if (e.shiftKey) {
             e.preventDefault();
             setShowDebugger(!showDebugger);
@@ -174,8 +176,8 @@ const VirtualizedYearView: React.FC<YearViewProps> = ({ app }) => {
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, [
     currentYear,
     handlePreviousYear,
@@ -191,8 +193,9 @@ const VirtualizedYearView: React.FC<YearViewProps> = ({ app }) => {
       return (
         <div className="h-fit">
           <div
-            className={`text-red-600 font-semibold mb-2 sm:mb-3 ${screenSize === 'mobile' ? 'text-xs' : 'text-xs sm:text-sm'
-              } `}
+            className={`text-red-600 font-semibold mb-2 sm:mb-3 ${
+              screenSize === "mobile" ? "text-xs" : "text-xs sm:text-sm"
+            } `}
           >
             {monthData.monthName}
           </div>
@@ -215,22 +218,26 @@ const VirtualizedYearView: React.FC<YearViewProps> = ({ app }) => {
                 className={`
                 text-center rounded-sm transition-colors
                 w-10
-                ${screenSize === 'mobile'
-                    ? 'text-xs py-1 min-h-4.5'
-                    : 'text-xs py-1 sm:py-1.5 min-h-5 sm:min-h-6.5'
-                  }
-                ${day.isCurrentMonth
-                    ? 'text-gray-900 font-medium hover:bg-gray-100 active:bg-gray-200'
-                    : 'text-gray-300 cursor-not-allowed'
-                  }
-                ${day.isToday
-                    ? 'bg-red-500 text-white hover:bg-red-600 font-bold shadow-sm ring-2 ring-red-200'
-                    : ''
-                  }
-                ${day.isSelected && !day.isToday
-                    ? 'bg-red-100 text-red-600 font-semibold ring-1 ring-red-300'
-                    : ''
-                  }
+                ${
+                  screenSize === "mobile"
+                    ? "text-xs py-1 min-h-4.5"
+                    : "text-xs py-1 sm:py-1.5 min-h-5 sm:min-h-6.5"
+                }
+                ${
+                  day.isCurrentMonth
+                    ? "text-gray-900 font-medium hover:bg-gray-100 active:bg-gray-200"
+                    : "text-gray-300 cursor-not-allowed"
+                }
+                ${
+                  day.isToday
+                    ? "bg-red-500 text-white hover:bg-red-600 font-bold shadow-sm ring-2 ring-red-200"
+                    : ""
+                }
+                ${
+                  day.isSelected && !day.isToday
+                    ? "bg-red-100 text-red-600 font-semibold ring-1 ring-red-300"
+                    : ""
+                }
               `}
                 onClick={() =>
                   day.isCurrentMonth && app.selectDate(day.fullDate)
@@ -243,7 +250,7 @@ const VirtualizedYearView: React.FC<YearViewProps> = ({ app }) => {
           </div>
         </div>
       );
-    }
+    },
   );
 
   // Virtual year item
@@ -256,21 +263,22 @@ const VirtualizedYearView: React.FC<YearViewProps> = ({ app }) => {
         style={{
           top: item.top,
           height: item.height,
-          contain: 'layout style paint',
+          contain: "layout style paint",
         }}
       >
         <div className="px-4 py-2 bg-white">
           <div className="mx-auto px-8">
             {/* Month grid - corrected to 3 rows 4 columns layout */}
             <div
-              className={`grid gap-3 lg:gap-8 ${screenSize === 'mobile'
-                ? 'grid-cols-2 grid-rows-6' // Mobile: 2 columns 6 rows
-                : screenSize === 'tablet'
-                  ? 'grid-cols-3 grid-rows-4' // Tablet: 3 columns 4 rows
-                  : 'grid-cols-4 grid-rows-3' // Desktop: 4 columns 3 rows
-                }`}
+              className={`grid gap-3 lg:gap-8 ${
+                screenSize === "mobile"
+                  ? "grid-cols-2 grid-rows-6" // Mobile: 2 columns 6 rows
+                  : screenSize === "tablet"
+                    ? "grid-cols-3 grid-rows-4" // Tablet: 3 columns 4 rows
+                    : "grid-cols-4 grid-rows-3" // Desktop: 4 columns 3 rows
+              }`}
             >
-              {yearData.months.map(monthData => (
+              {yearData.months.map((monthData) => (
                 <MonthComponent
                   key={`${monthData.year}-${monthData.month}`}
                   monthData={monthData}
@@ -283,17 +291,15 @@ const VirtualizedYearView: React.FC<YearViewProps> = ({ app }) => {
     );
   });
 
-  MonthComponent.displayName = 'MonthComponent';
-  VirtualYearItem.displayName = 'VirtualYearItem';
+  MonthComponent.displayName = "MonthComponent";
+  VirtualYearItem.displayName = "VirtualYearItem";
 
   return (
     <div className="relative flex flex-col bg-white shadow-md w-full overflow-hidden h-full">
       {/* Header navigation */}
       <ViewHeader
-        calendar={app}
         viewType="year"
         currentDate={currentDate}
-        customTitle={currentYear.toString()}
         onPrevious={() => {
           app.goToPrevious();
           handlePreviousYear();
@@ -318,12 +324,12 @@ const VirtualizedYearView: React.FC<YearViewProps> = ({ app }) => {
         className="flex-1 overflow-auto bg-gray-50"
         onScroll={handleScroll}
         style={{
-          contain: 'layout style paint',
-          scrollBehavior: 'auto',
+          contain: "layout style paint",
+          scrollBehavior: "auto",
         }}
       >
         <div className="relative" style={{ height: virtualData.totalHeight }}>
-          {virtualData.visibleItems.map(item => (
+          {virtualData.visibleItems.map((item) => (
             <VirtualYearItem key={item.year} item={item} />
           ))}
         </div>
@@ -336,7 +342,7 @@ const VirtualizedYearView: React.FC<YearViewProps> = ({ app }) => {
             ((currentYear - VIRTUAL_SCROLL_CONFIG.MIN_YEAR) /
               (VIRTUAL_SCROLL_CONFIG.MAX_YEAR -
                 VIRTUAL_SCROLL_CONFIG.MIN_YEAR)) *
-            100
+              100,
           )}
           %
         </div>

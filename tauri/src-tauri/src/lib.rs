@@ -36,7 +36,7 @@ use calendar::{
     NewEvent, get_auth_status as cal_auth_status, request_access as cal_request_access,
     list_calendars as cal_list_calendars, list_events as cal_list_events,
     create_event as cal_create_event, delete_event as cal_delete_event,
-    get_default_calendar as cal_default_calendar,
+    get_default_calendar as cal_default_calendar, search_events as cal_search_events,
 };
 use reminders::{
     AuthStatus as ReminderAuthStatus, Reminder, ReminderList, NewReminder, ReminderFromEmail,
@@ -524,6 +524,17 @@ async fn calendar_get_default() -> Result<String, String> {
     .map_err(|e| e.to_string())?
 }
 
+/// Search calendar events by keyword (searches title, location, notes)
+/// Searches within a 1-year range (6 months back, 6 months forward)
+#[tauri::command]
+async fn calendar_search_events(keyword: String) -> Result<Vec<CalendarEvent>, String> {
+    tokio::task::spawn_blocking(move || {
+        cal_search_events(&keyword).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
 // ============ REMINDERS COMMANDS ============
 
 #[tauri::command]
@@ -756,6 +767,7 @@ pub fn run() {
             calendar_create_event,
             calendar_delete_event,
             calendar_get_default,
+            calendar_search_events,
             // Reminders operations
             reminders_get_auth_status,
             reminders_request_access,

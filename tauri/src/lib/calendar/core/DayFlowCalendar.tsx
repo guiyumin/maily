@@ -17,7 +17,7 @@ import DefaultCalendarSidebar from '../components/sidebar/DefaultCalendarSidebar
 import DefaultEventDetailDialog from '../components/common/DefaultEventDetailDialog';
 import CalendarHeader from '../components/common/CalendarHeader';
 import { CreateCalendarDialog } from '../components/common/CreateCalendarDialog';
-import SearchDrawer from '../components/common/SearchDrawer';
+import SearchDialog from '../components/common/SearchDialog';
 import { CalendarSearchProps, CalendarSearchEvent } from '../types/search';
 import { normalizeCssWidth } from '../utils/styleUtils';
 import { LocaleProvider } from '../locale/LocaleProvider';
@@ -26,6 +26,7 @@ import { LocaleMessages, LocaleCode, Locale } from '../locale/types';
 import { getCalendarColorsForHex } from './calendarRegistry';
 import { generateUniKey } from '../utils/helpers';
 import { temporalToDate } from '../utils/temporal';
+import { createEvent } from '../utils/eventHelpers';
 
 const DEFAULT_SIDEBAR_WIDTH = '240px';
 
@@ -103,10 +104,21 @@ const CalendarLayout: React.FC<DayFlowCalendarProps> = ({
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchResults, setSearchResults] = useState<CalendarSearchEvent[]>([]);
 
+  // Keyboard shortcut for search (⌘K / Ctrl+K)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setIsSearchOpen(true);
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   // Search Logic
   useEffect(() => {
     if (!searchKeyword.trim()) {
-      setIsSearchOpen(false);
       setSearchResults([]);
       app.highlightEvent(null);
       return;
@@ -116,7 +128,6 @@ const CalendarLayout: React.FC<DayFlowCalendarProps> = ({
 
     const performSearch = async () => {
       setSearchLoading(true);
-      setIsSearchOpen(true);
 
       try {
         let results: CalendarSearchEvent[] = [];
@@ -257,6 +268,34 @@ const CalendarLayout: React.FC<DayFlowCalendarProps> = ({
     refreshSidebar(); // Refresh sidebar to show new calendar
   }, [app, sidebarConfig.createCalendarMode, t, refreshSidebar]);
 
+  // Handle creating a new event from the header button
+  const handleCreateEvent = useCallback(() => {
+    const currentDate = app.getCurrentDate();
+    const now = new Date();
+
+    // Create event starting at current hour (or next hour if past half)
+    const startHour = now.getMinutes() > 30 ? now.getHours() + 1 : now.getHours();
+    const startDate = new Date(currentDate);
+    startDate.setHours(startHour, 0, 0, 0);
+
+    const endDate = new Date(startDate);
+    endDate.setHours(startHour + 1);
+
+    // Get default calendar
+    const calendars = app.getCalendars();
+    const defaultCalendar = calendars.find(c => c.isDefault) || calendars[0];
+
+    const newEvent = createEvent({
+      id: generateUniKey(),
+      title: '',
+      start: startDate,
+      end: endDate,
+      calendarId: defaultCalendar?.id,
+    });
+
+    app.addEvent(newEvent);
+  }, [app]);
+
   // DOM reference for the entire calendar
   const calendarRef = useRef<HTMLDivElement>(null!);
 
@@ -338,34 +377,34 @@ const CalendarLayout: React.FC<DayFlowCalendarProps> = ({
           <CalendarHeader
             calendar={app}
             switcherMode={app.state.switcherMode}
-            onAddCalendar={handleCreateCalendar}
-            onSearchChange={setSearchKeyword}
-            searchValue={searchKeyword}
-            isSearchOpen={isSearchOpen}
+            onCreateEvent={handleCreateEvent}
+            onSearchClick={() => setIsSearchOpen(true)}
           />
 
           <div className="flex-1 overflow-hidden relative" ref={calendarRef}>
-            <div className="calendar-renderer h-full relative flex flex-row">
-              <div className="flex-1 h-full overflow-hidden">
+            <div className="calendar-renderer h-full relative">
+              <div className="h-full overflow-hidden">
                 <ViewComponent {...viewProps} />
               </div>
-
-              <SearchDrawer
-                isOpen={isSearchOpen}
-                onClose={() => {
-                  setIsSearchOpen(false);
-                  setSearchKeyword(''); // Clear search on close
-                  app.highlightEvent(null); // Clear highlight on close
-                }}
-                loading={searchLoading}
-                results={searchResults}
-                keyword={searchKeyword}
-                onResultClick={handleSearchResultClick}
-                emptyText={searchConfig?.emptyText}
-              />
             </div>
           </div>
         </div>
+
+        {/* Search Dialog */}
+        <SearchDialog
+          isOpen={isSearchOpen}
+          onClose={() => {
+            setIsSearchOpen(false);
+            setSearchKeyword('');
+            app.highlightEvent(null);
+          }}
+          loading={searchLoading}
+          results={searchResults}
+          keyword={searchKeyword}
+          onKeywordChange={setSearchKeyword}
+          onResultClick={handleSearchResultClick}
+          emptyText={searchConfig?.emptyText}
+        />
 
         {showCreateDialog &&
           (sidebarConfig.renderCreateCalendarDialog ? (

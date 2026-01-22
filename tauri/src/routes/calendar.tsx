@@ -249,6 +249,32 @@ function CalendarPage() {
     [events]
   );
 
+  // Backend search function - searches EventKit for 1 year range
+  const handleSearch = useCallback(async (keyword: string) => {
+    const results = await invoke<CalendarEvent[]>("calendar_search_events", { keyword });
+    return results.map((event) => {
+      // Find the calendar to get its color
+      const calendarIndex = calendars.findIndex(c => c.id === event.calendar);
+      const colorHex = CALENDAR_COLORS[calendarIndex >= 0 ? calendarIndex % CALENDAR_COLORS.length : 0];
+      const dayflowEvent = createEvent({
+        id: event.id,
+        title: event.title,
+        start: new Date(event.start_time * 1000),
+        end: new Date(event.end_time * 1000),
+        calendarId: event.calendar,
+        allDay: event.all_day,
+        meta: {
+          location: event.location,
+          notes: event.notes,
+        },
+      });
+      return {
+        ...dayflowEvent,
+        color: colorHex,
+      };
+    });
+  }, [calendars]);
+
   // Create DayFlow calendar app
   const calendar = useCalendarApp({
     views: [createMonthView(), createWeekView(), createDayView()],
@@ -378,7 +404,13 @@ function CalendarPage() {
 
       {/* DayFlow Calendar */}
       <main className="flex-1 overflow-hidden">
-        <DayFlowCalendar calendar={calendar} className="maily-calendar" />
+        <DayFlowCalendar
+          calendar={calendar}
+          className="maily-calendar"
+          search={{
+            onSearch: handleSearch,
+          }}
+        />
       </main>
     </div>
   );

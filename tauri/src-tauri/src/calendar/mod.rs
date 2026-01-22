@@ -344,6 +344,93 @@ mod macos {
             None => Err(CalendarError::NotFound),
         }
     }
+
+    /// Search events by keyword in title, location, and notes
+    /// Searches within a 1-year range centered on the current date
+    pub fn search_events(keyword: &str) -> Result<Vec<Event>, CalendarError> {
+        if !ACCESS_GRANTED.load(Ordering::SeqCst) {
+            return Err(CalendarError::AccessDenied);
+        }
+
+        if keyword.trim().is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let keyword_lower = keyword.to_lowercase();
+        let store = create_event_store();
+
+        // Search 6 months back and 6 months forward (1 year total)
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs() as i64;
+
+        let six_months_seconds: i64 = 6 * 30 * 24 * 60 * 60; // ~6 months
+        let start_timestamp = now - six_months_seconds;
+        let end_timestamp = now + six_months_seconds;
+
+        let start_date = NSDate::dateWithTimeIntervalSince1970(start_timestamp as f64);
+        let end_date = NSDate::dateWithTimeIntervalSince1970(end_timestamp as f64);
+
+        let predicate = unsafe {
+            store.predicateForEventsWithStartDate_endDate_calendars(&start_date, &end_date, None)
+        };
+
+        let events = unsafe { store.eventsMatchingPredicate(&predicate) };
+
+        let mut result = Vec::new();
+        let count = events.count();
+        for i in 0..count {
+            let event: Retained<EKEvent> = events.objectAtIndex(i);
+
+            // Get event fields for matching
+            let title = retained_to_string(unsafe { &event.title() }).to_lowercase();
+            let location = optional_retained_to_string(unsafe { event.location() }).to_lowercase();
+            let notes = optional_retained_to_string(unsafe { event.notes() }).to_lowercase();
+
+            // Check if keyword matches any field
+            if title.contains(&keyword_lower)
+                || location.contains(&keyword_lower)
+                || notes.contains(&keyword_lower)
+            {
+                let alarm_minutes = unsafe {
+                    event
+                        .alarms()
+                        .and_then(|alarms| {
+                            if alarms.count() > 0 {
+                                Some(alarms.objectAtIndex(0))
+                            } else {
+                                None
+                            }
+                        })
+                        .map(|alarm| (-alarm.relativeOffset() / 60.0) as i32)
+                        .unwrap_or(0)
+                };
+
+                let start_time = unsafe { event.startDate() }.timeIntervalSince1970() as i64;
+                let end_time = unsafe { event.endDate() }.timeIntervalSince1970() as i64;
+
+                result.push(Event {
+                    id: optional_retained_to_string(unsafe { event.eventIdentifier() }),
+                    title: retained_to_string(unsafe { &event.title() }),
+                    start_time,
+                    end_time,
+                    location: optional_retained_to_string(unsafe { event.location() }),
+                    notes: optional_retained_to_string(unsafe { event.notes() }),
+                    calendar: unsafe { event.calendar() }
+                        .map(|c| retained_to_string(unsafe { &c.calendarIdentifier() }))
+                        .unwrap_or_default(),
+                    all_day: unsafe { event.isAllDay() },
+                    alarm_minutes_before: alarm_minutes,
+                });
+            }
+        }
+
+        // Sort by start time
+        result.sort_by(|a, b| a.start_time.cmp(&b.start_time));
+
+        Ok(result)
+    }
 }
 
 // ============ Non-macOS Stub ============
@@ -377,6 +464,10 @@ mod stub {
     }
 
     pub fn get_default_calendar() -> Result<String, CalendarError> {
+        Err(CalendarError::NotSupported)
+    }
+
+    pub fn search_events(_keyword: &str) -> Result<Vec<Event>, CalendarError> {
         Err(CalendarError::NotSupported)
     }
 }
@@ -457,5 +548,18 @@ pub fn get_default_calendar() -> Result<String, CalendarError> {
     #[cfg(not(target_os = "macos"))]
     {
         stub::get_default_calendar()
+    }
+}
+
+/// Search events by keyword in title, location, and notes
+/// Searches within a 1-year range (6 months back, 6 months forward)
+pub fn search_events(keyword: &str) -> Result<Vec<Event>, CalendarError> {
+    #[cfg(target_os = "macos")]
+    {
+        macos::search_events(keyword)
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        stub::search_events(keyword)
     }
 }

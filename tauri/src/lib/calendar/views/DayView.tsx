@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import clsx from 'clsx';
-import { CalendarApp } from '@calendar/core';
+import React, { useState, useEffect, useMemo } from "react";
+import clsx from "clsx";
+import { CalendarApp } from "@calendar/core";
 import {
   formatTime,
   weekDays,
@@ -8,23 +8,25 @@ import {
   createDateWithHour,
   getLineColor,
   getEventEndHour,
-} from '@calendar/utils';
-import { useLocale } from '@calendar/locale';
+} from "@calendar/utils";
+import { useLocale } from "@calendar/locale";
 import {
   EventLayout,
   Event,
   EventDetailContentRenderer,
   EventDetailDialogRenderer,
   ViewType,
-} from '@calendar/types';
-import CalendarEvent from '@calendar/components/weekView/CalendarEvent';
-import { EventLayoutCalculator } from '@calendar/components/EventLayout';
-import { useDragForView } from '@calendar/plugins/dragPlugin';
-import { ViewType as DragViewType, WeekDayDragState } from '@calendar/types';
-import { defaultDragConfig } from '@calendar/core/config';
-import ViewHeader, { ViewSwitcherMode } from '@calendar/components/common/ViewHeader';
-import { temporalToDate, dateToZonedDateTime } from '@calendar/utils/temporal';
-import { useCalendarDrop } from '@calendar/hooks/useCalendarDrop';
+} from "@calendar/types";
+import CalendarEvent from "@calendar/components/weekView/CalendarEvent";
+import { EventLayoutCalculator } from "@calendar/components/EventLayout";
+import { useDragForView } from "@calendar/plugins/dragPlugin";
+import { ViewType as DragViewType, WeekDayDragState } from "@calendar/types";
+import { defaultDragConfig } from "@calendar/core/config";
+import ViewHeader, {
+  ViewSwitcherMode,
+} from "@calendar/components/common/ViewHeader";
+import { temporalToDate, dateToZonedDateTime } from "@calendar/utils/temporal";
+import { useCalendarDrop } from "@calendar/hooks/useCalendarDrop";
 
 interface DayViewProps {
   app: CalendarApp;
@@ -39,7 +41,7 @@ const DayView: React.FC<DayViewProps> = ({
   customDetailPanelContent,
   customEventDetailDialog,
   calendarRef,
-  switcherMode = 'buttons',
+  switcherMode = "buttons",
 }) => {
   const events = app.getEvents();
   const { t, locale } = useLocale();
@@ -47,13 +49,13 @@ const DayView: React.FC<DayViewProps> = ({
   const [currentTime, setCurrentTime] = useState<Date | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [detailPanelEventId, setDetailPanelEventId] = useState<string | null>(
-    null
+    null,
   );
 
   // Sync highlighted event from app state
   useEffect(() => {
     if (app.state.highlightedEventId) {
-      const event = events.find(e => e.id === app.state.highlightedEventId);
+      const event = events.find((e) => e.id === app.state.highlightedEventId);
       if (event) {
         setSelectedEvent(event);
       }
@@ -61,7 +63,7 @@ const DayView: React.FC<DayViewProps> = ({
   }, [app.state.highlightedEventId, events]);
 
   const [newlyCreatedEventId, setNewlyCreatedEventId] = useState<string | null>(
-    null
+    null,
   );
 
   const currentDate = app.getCurrentDate();
@@ -91,12 +93,12 @@ const DayView: React.FC<DayViewProps> = ({
   // Calculate the week start time for the current date
   const currentWeekStart = useMemo(
     () => getWeekStart(currentDate),
-    [currentDate]
+    [currentDate],
   );
 
   // Events for the current date
   const currentDayEvents = useMemo(() => {
-    const filtered = events.filter(event => {
+    const filtered = events.filter((event) => {
       const eventDate = temporalToDate(event.start);
       eventDate.setHours(0, 0, 0, 0);
       const targetDate = new Date(currentDate);
@@ -105,11 +107,11 @@ const DayView: React.FC<DayViewProps> = ({
     });
 
     // Recalculate the day field to fit the current week start time
-    return filtered.map(event => {
+    return filtered.map((event) => {
       const eventDate = temporalToDate(event.start);
       const dayDiff = Math.floor(
         (eventDate.getTime() - currentWeekStart.getTime()) /
-        (24 * 60 * 60 * 1000)
+          (24 * 60 * 60 * 1000),
       );
       const correctDay = Math.max(0, Math.min(6, dayDiff)); // Ensure within 0-6 range
 
@@ -123,7 +125,7 @@ const DayView: React.FC<DayViewProps> = ({
   // Calculate event layouts
   const eventLayouts = useMemo(() => {
     return EventLayoutCalculator.calculateDayEventLayouts(currentDayEvents, {
-      viewType: 'day',
+      viewType: "day",
     });
   }, [currentDayEvents]);
 
@@ -131,7 +133,7 @@ const DayView: React.FC<DayViewProps> = ({
   const calculateNewEventLayout = (
     targetDay: number,
     startHour: number,
-    endHour: number
+    endHour: number,
   ): EventLayout | null => {
     const startDate = new Date(currentDate);
     const endDate = new Date(currentDate);
@@ -139,41 +141,41 @@ const DayView: React.FC<DayViewProps> = ({
     endDate.setHours(Math.floor(endHour), (endHour % 1) * 60, 0, 0);
 
     const tempEvent: Event = {
-      id: '-1',
-      title: 'Temp',
+      id: "-1",
+      title: "Temp",
       day: targetDay,
       start: dateToZonedDateTime(startDate),
       end: dateToZonedDateTime(endDate),
-      calendarId: 'blue',
+      calendarId: "blue",
       allDay: false,
     };
 
-    const dayEvents = [...currentDayEvents.filter(e => !e.allDay), tempEvent];
+    const dayEvents = [...currentDayEvents.filter((e) => !e.allDay), tempEvent];
     const tempLayouts = EventLayoutCalculator.calculateDayEventLayouts(
       dayEvents,
-      { viewType: 'day' }
+      { viewType: "day" },
     );
-    return tempLayouts.get('-1') || null;
+    return tempLayouts.get("-1") || null;
   };
 
   const calculateDragLayout = (
     draggedEvent: Event,
     targetDay: number,
     targetStartHour: number,
-    targetEndHour: number
+    targetEndHour: number,
   ): EventLayout | null => {
     // Create temporary event list, including the dragged event in the new position
-    const tempEvents = currentDayEvents.map(e => {
+    const tempEvents = currentDayEvents.map((e) => {
       if (e.id !== draggedEvent.id) return e;
 
       const eventDateForCalc = temporalToDate(e.start);
       const newStartDate = createDateWithHour(
         eventDateForCalc,
-        targetStartHour
+        targetStartHour,
       ) as Date;
       const newEndDate = createDateWithHour(
         eventDateForCalc,
-        targetEndHour
+        targetEndHour,
       ) as Date;
       const newStart = dateToZonedDateTime(newStartDate);
       const newEnd = dateToZonedDateTime(newEndDate);
@@ -181,14 +183,14 @@ const DayView: React.FC<DayViewProps> = ({
       return { ...e, day: targetDay, start: newStart, end: newEnd };
     });
 
-    const dayEvents = tempEvents.filter(e => !e.allDay);
+    const dayEvents = tempEvents.filter((e) => !e.allDay);
 
     if (dayEvents.length === 0) return null;
 
     // Use layout calculator to calculate temporary layout
     const tempLayouts = EventLayoutCalculator.calculateDayEventLayouts(
       dayEvents,
-      { viewType: 'day' }
+      { viewType: "day" },
     );
     return tempLayouts.get(draggedEvent.id) || null;
   };
@@ -209,38 +211,38 @@ const DayView: React.FC<DayViewProps> = ({
       const newEvents = updateFunc(currentDayEvents);
 
       // Find events that need to be deleted (in old list but not in new list)
-      const newEventIds = new Set(newEvents.map(e => e.id));
+      const newEventIds = new Set(newEvents.map((e) => e.id));
       const eventsToDelete = currentDayEvents.filter(
-        e => !newEventIds.has(e.id)
+        (e) => !newEventIds.has(e.id),
       );
 
       // Find events that need to be added (in new list but not in old list)
-      const oldEventIds = new Set(currentDayEvents.map(e => e.id));
-      const eventsToAdd = newEvents.filter(e => !oldEventIds.has(e.id));
+      const oldEventIds = new Set(currentDayEvents.map((e) => e.id));
+      const eventsToAdd = newEvents.filter((e) => !oldEventIds.has(e.id));
 
       // Find events that need to be updated (exist in both lists but content may differ)
-      const eventsToUpdate = newEvents.filter(e => {
+      const eventsToUpdate = newEvents.filter((e) => {
         if (!oldEventIds.has(e.id)) return false;
-        const oldEvent = currentDayEvents.find(old => old.id === e.id);
+        const oldEvent = currentDayEvents.find((old) => old.id === e.id);
         // Check if there are real changes
         return (
           oldEvent &&
           (temporalToDate(oldEvent.start).getTime() !==
             temporalToDate(e.start).getTime() ||
             temporalToDate(oldEvent.end).getTime() !==
-            temporalToDate(e.end).getTime() ||
+              temporalToDate(e.end).getTime() ||
             oldEvent.day !== e.day ||
             extractHourFromDate(oldEvent.start) !==
-            extractHourFromDate(e.start) ||
+              extractHourFromDate(e.start) ||
             extractHourFromDate(oldEvent.end) !== extractHourFromDate(e.end) ||
             oldEvent.title !== e.title)
         );
       });
 
       // Perform operations - updateEvent will automatically trigger onEventUpdate callback
-      eventsToDelete.forEach(event => app.deleteEvent(event.id));
-      eventsToAdd.forEach(event => app.addEvent(event));
-      eventsToUpdate.forEach(event => app.updateEvent(event.id, event));
+      eventsToDelete.forEach((event) => app.deleteEvent(event.id));
+      eventsToAdd.forEach((event) => app.addEvent(event));
+      eventsToUpdate.forEach((event) => app.updateEvent(event.id, event));
     },
     onEventCreate: (event: Event) => {
       app.addEvent(event);
@@ -293,42 +295,45 @@ const DayView: React.FC<DayViewProps> = ({
   }, []);
 
   return (
-    <div className={clsx('flex h-full', 'bg-gray-50 dark:bg-gray-800')}>
+    <div className={clsx("flex h-full", "bg-gray-50 dark:bg-gray-800")}>
       {/* Main calendar area */}
       <div className="w-full bg-white dark:bg-gray-900">
-        <div className={clsx('relative', 'flex flex-col', 'h-full')}>
+        <div className={clsx("relative", "flex flex-col", "h-full")}>
           {/* Fixed navigation bar */}
           <ViewHeader
-            calendar={app}
             viewType={ViewType.DAY}
             currentDate={currentDate}
-            switcherMode={switcherMode}
-            customSubtitle={currentDate.toLocaleDateString(locale, {
-              weekday: 'long',
-            })}
+            onPrevious={() => app.goToPrevious()}
+            onNext={() => app.goToNext()}
+            onToday={() => app.goToToday()}
           />
           {/* All-day event area */}
-          <div className="flex items-center border-b border-gray-200 dark:border-gray-700 sticky pr-[10px] pt-px" ref={allDayRowRef}>
-            <div className="w-20 flex-shrink-0 p-1 text-xs font-medium text-gray-500 dark:text-gray-400 flex justify-end">{t('allDay')}</div>
+          <div
+            className="flex items-center border-b border-gray-200 dark:border-gray-700 sticky pr-[10px] pt-px"
+            ref={allDayRowRef}
+          >
+            <div className="w-20 flex-shrink-0 p-1 text-xs font-medium text-gray-500 dark:text-gray-400 flex justify-end">
+              {t("allDay")}
+            </div>
             <div className="flex flex-1 relative">
               <div
                 className="w-full relative"
                 style={{ minHeight: `${ALL_DAY_HEIGHT}px` }}
-                onDoubleClick={e => {
+                onDoubleClick={(e) => {
                   const currentDayIndex = Math.floor(
                     (currentDate.getTime() - currentWeekStart.getTime()) /
-                    (24 * 60 * 60 * 1000)
+                      (24 * 60 * 60 * 1000),
                   );
                   handleCreateAllDayEvent?.(e, currentDayIndex);
                 }}
                 onDragOver={handleDragOver}
-                onDrop={e => {
+                onDrop={(e) => {
                   handleDrop(e, currentDate, undefined, true);
                 }}
               >
                 {currentDayEvents
-                  .filter(event => event.allDay)
-                  .map(event => (
+                  .filter((event) => event.allDay)
+                  .map((event) => (
                     <CalendarEvent
                       key={event.id}
                       event={event}
@@ -339,7 +344,7 @@ const DayView: React.FC<DayViewProps> = ({
                       isBeingDragged={
                         isDragging &&
                         (dragState as WeekDayDragState)?.eventId === event.id &&
-                        (dragState as WeekDayDragState)?.mode === 'move'
+                        (dragState as WeekDayDragState)?.mode === "move"
                       }
                       hourHeight={HOUR_HEIGHT}
                       firstHour={FIRST_HOUR}
@@ -354,7 +359,7 @@ const DayView: React.FC<DayViewProps> = ({
                       }
                       selectedEventId={selectedEvent?.id ?? null}
                       onEventSelect={(eventId: string | null) => {
-                        const evt = events.find(e => e.id === eventId);
+                        const evt = events.find((e) => e.id === eventId);
                         setSelectedEvent(evt || null);
                       }}
                       customDetailPanelContent={customDetailPanelContent}
@@ -367,10 +372,14 @@ const DayView: React.FC<DayViewProps> = ({
           </div>
 
           {/* Time grid and event area */}
-          <div className="relative overflow-y-scroll calendar-content" style={{ position: 'relative' }}>
+          <div
+            className="relative overflow-y-scroll calendar-content"
+            style={{ position: "relative" }}
+          >
             <div className="relative flex">
               {/* Current time line */}
-              {isToday && currentTime &&
+              {isToday &&
+                currentTime &&
                 (() => {
                   const now = currentTime;
                   const hours = now.getHours() + now.getMinutes() / 60;
@@ -383,7 +392,7 @@ const DayView: React.FC<DayViewProps> = ({
                       className="absolute left-0 top-0 flex pointer-events-none"
                       style={{
                         top: `${topPx}px`,
-                        width: '100%',
+                        width: "100%",
                         height: 0,
                         zIndex: 20,
                       }}
@@ -410,7 +419,7 @@ const DayView: React.FC<DayViewProps> = ({
                 {timeSlots.map((slot, slotIndex) => (
                   <div key={slotIndex} className="relative h-[4.5rem] flex">
                     <div className="absolute -top-2.5 right-2 text-[12px] text-gray-500 dark:text-gray-400">
-                      {slotIndex === 0 ? '' : slot.label}
+                      {slotIndex === 0 ? "" : slot.label}
                     </div>
                   </div>
                 ))}
@@ -422,41 +431,43 @@ const DayView: React.FC<DayViewProps> = ({
                   <div
                     key={slotIndex}
                     className="h-[4.5rem] border-t first:border-none border-gray-200 dark:border-gray-700 flex"
-                    onDoubleClick={e => {
+                    onDoubleClick={(e) => {
                       const currentDayIndex = Math.floor(
                         (currentDate.getTime() - currentWeekStart.getTime()) /
-                        (24 * 60 * 60 * 1000)
+                          (24 * 60 * 60 * 1000),
                       );
                       const rect = calendarRef.current
-                        ?.querySelector('.calendar-content')
+                        ?.querySelector(".calendar-content")
                         ?.getBoundingClientRect();
                       if (!rect) return;
                       const relativeY =
                         e.clientY -
-                        rect.top +
-                        (
-                          calendarRef.current?.querySelector(
-                            '.calendar-content'
-                          ) as HTMLElement
-                        )?.scrollTop || 0;
+                          rect.top +
+                          (
+                            calendarRef.current?.querySelector(
+                              ".calendar-content",
+                            ) as HTMLElement
+                          )?.scrollTop || 0;
                       const clickedHour = FIRST_HOUR + relativeY / HOUR_HEIGHT;
                       handleCreateStart(e, currentDayIndex, clickedHour);
                     }}
                     onDragOver={handleDragOver}
-                    onDrop={e => {
+                    onDrop={(e) => {
                       const rect = calendarRef.current
-                        ?.querySelector('.calendar-content')
+                        ?.querySelector(".calendar-content")
                         ?.getBoundingClientRect();
                       if (!rect) return;
                       const relativeY =
                         e.clientY -
-                        rect.top +
-                        (
-                          calendarRef.current?.querySelector(
-                            '.calendar-content'
-                          ) as HTMLElement
-                        )?.scrollTop || 0;
-                      const dropHour = Math.floor(FIRST_HOUR + relativeY / HOUR_HEIGHT);
+                          rect.top +
+                          (
+                            calendarRef.current?.querySelector(
+                              ".calendar-content",
+                            ) as HTMLElement
+                          )?.scrollTop || 0;
+                      const dropHour = Math.floor(
+                        FIRST_HOUR + relativeY / HOUR_HEIGHT,
+                      );
                       handleDrop(e, currentDate, dropHour);
                     }}
                   />
@@ -472,8 +483,8 @@ const DayView: React.FC<DayViewProps> = ({
                 {/* Event layer */}
                 <div className="absolute top-0 left-0 right-0 bottom-0 pointer-events-none">
                   {currentDayEvents
-                    .filter(event => !event.allDay)
-                    .map(event => {
+                    .filter((event) => !event.allDay)
+                    .map((event) => {
                       const eventLayout = eventLayouts.get(event.id);
                       return (
                         <CalendarEvent
@@ -485,8 +496,8 @@ const DayView: React.FC<DayViewProps> = ({
                           isBeingDragged={
                             isDragging &&
                             (dragState as WeekDayDragState)?.eventId ===
-                            event.id &&
-                            (dragState as WeekDayDragState)?.mode === 'move'
+                              event.id &&
+                            (dragState as WeekDayDragState)?.mode === "move"
                           }
                           hourHeight={HOUR_HEIGHT}
                           firstHour={FIRST_HOUR}
@@ -502,7 +513,7 @@ const DayView: React.FC<DayViewProps> = ({
                           }
                           selectedEventId={selectedEvent?.id ?? null}
                           onEventSelect={(eventId: string | null) => {
-                            const evt = events.find(e => e.id === eventId);
+                            const evt = events.find((e) => e.id === eventId);
                             setSelectedEvent(evt || null);
                           }}
                           customDetailPanelContent={customDetailPanelContent}

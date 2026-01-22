@@ -1,13 +1,12 @@
-import React from 'react';
-import TodayBox from './TodayBox';
-import { CalendarApp } from '../../types';
-import { useLocale } from '@calendar/locale';
+import React from "react";
+import NavBox from "./NavBox";
+import { Pin } from "lucide-react";
+import { useLocale } from "@calendar/locale";
 
-export type ViewHeaderType = 'day' | 'week' | 'month' | 'year';
-export type ViewSwitcherMode = 'buttons' | 'select';
+export type ViewHeaderType = "day" | "week" | "month" | "year";
+export type ViewSwitcherMode = "buttons" | "select";
 
 interface ViewHeaderProps {
-  calendar: CalendarApp;
   /** View type */
   viewType: ViewHeaderType;
   /** Current date */
@@ -18,23 +17,6 @@ interface ViewHeaderProps {
   onNext?: () => void;
   /** Go to today */
   onToday?: () => void;
-  /** Custom title (optional, takes priority over default title) */
-  customTitle?: string;
-  /** Custom subtitle (optional, only for Day view) */
-  customSubtitle?: string;
-  /** Whether to show TodayBox (default determined by viewType: day=false, week/month=true) */
-  showTodayBox?: boolean;
-  /** Sticky year for Year view (optional, only for Year view) */
-  stickyYear?: number | null;
-  /** Push-away offset for sticky year (in pixels) */
-  stickyYearOffset?: number;
-  /** Next year that's pushing the sticky year (optional, only for Year view) */
-  nextYear?: number | null;
-  /** Offset for the next year coming from below (in pixels) */
-  nextYearOffset?: number;
-  // TODO(remove): Kept for compatibility but not used for rendering switcher anymore
-  switcherMode?: any;
-  onToggleSidebar?: any;
 }
 
 const ViewHeader: React.FC<ViewHeaderProps> = ({
@@ -43,105 +25,36 @@ const ViewHeader: React.FC<ViewHeaderProps> = ({
   onPrevious,
   onNext,
   onToday,
-  customTitle,
-  customSubtitle,
-  showTodayBox,
-  stickyYear,
-  stickyYearOffset = 0,
-  nextYear,
-  nextYearOffset = 0,
 }) => {
-  const { locale } = useLocale();
-  // Determine whether to show TodayBox based on view type
-  // Default: show for all views if callbacks are provided, unless explicitly set to false
-  const shouldShowTodayBox = showTodayBox !== undefined ? showTodayBox : true;
-
-  // Generate default title
-  const getDefaultTitle = (): string => {
-    switch (viewType) {
-      case 'day':
-        return currentDate.toLocaleDateString(locale, {
-          day: 'numeric',
-          month: 'long',
-          year: 'numeric',
-        });
-      case 'week':
-      case 'month':
-        return currentDate.toLocaleDateString(locale, {
-          month: 'long',
-          year: 'numeric',
-        });
-      case 'year':
-        return currentDate.getFullYear().toString();
-      default:
-        return '';
-    }
-  };
-
-  // Generate default subtitle (only for Day view)
-  const getDefaultSubtitle = (): string | null => {
-    if (viewType === 'day') {
-      return currentDate.toLocaleDateString(locale, {
-        weekday: 'long',
-      });
-    }
-    return null;
-  };
-
-  const title = customTitle || getDefaultTitle();
-  const subtitle =
-    viewType === 'day' ? customSubtitle || getDefaultSubtitle() : null;
+  const { t } = useLocale();
+  if (viewType === "day") {
+    return <div className="p-2 h-7 w-full" />;
+  }
 
   return (
-    <div className="p-2 flex justify-between" style={{ position: 'relative' }}>
-      <div className="flex-1">
-        {/* For Year view: show sticky year if available, otherwise show title */}
-        {viewType === 'year' && stickyYear ? (
-          <div style={{ position: 'relative', overflow: 'hidden', height: '1.5em' }}>
-            {/* Current sticky year - being pushed up */}
-            <h1
-              className="text-2xl font-semibold text-gray-900 dark:text-gray-100"
-              style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                transform: `translateY(-${stickyYearOffset}px)`,
-                willChange: 'transform',
-              }}
-            >
-              {stickyYear}
-            </h1>
-            {/* Next year - coming from below */}
-            {nextYear && (
-              <h1
-                className="text-2xl font-semibold text-gray-900 dark:text-gray-100"
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  transform: `translateY(${nextYearOffset}px)`,
-                  willChange: 'transform',
-                }}
-              >
-                {nextYear}
-              </h1>
-            )}
-          </div>
-        ) : (
-          <div>
-            <div className="text-2xl font-semibold text-gray-900 dark:text-gray-100">{title}</div>
-            {subtitle && <div className="mt-3 text-gray-600 dark:text-gray-400">{subtitle}</div>}
-          </div>
+    <div className="m-2 flex justify-between items-center">
+      {/* Left side: Today button + Title */}
+      <div className="flex items-center gap-3">
+        {/* Today Button - always visible */}
+        {onToday && (
+          <button
+            onClick={onToday}
+            className="flex h-7 items-center gap-1.5 px-3 rounded-md border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-700 hover:border-gray-300 dark:hover:border-gray-500 transition-colors shadow-sm"
+          >
+            <Pin className="h-4 w-4" />
+            <span>{t("today")}</span>
+          </button>
         )}
       </div>
 
-      {/* Right side: TodayBox */}
-      {shouldShowTodayBox && onPrevious && onNext && onToday && (
+      {/* Right side: Navigation */}
+      {onPrevious && onNext && (
         <div className="flex items-center gap-2">
-          <TodayBox
+          <NavBox
             handlePreviousMonth={onPrevious}
             handleNextMonth={onNext}
-            handleToday={onToday}
+            viewType={viewType}
+            currentDate={currentDate}
           />
         </div>
       )}

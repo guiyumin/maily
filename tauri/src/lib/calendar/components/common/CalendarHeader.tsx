@@ -1,56 +1,38 @@
-import React from 'react';
-import { CalendarApp, ViewType } from '../../types';
-import ViewSwitcher from './ViewSwitcher';
-import { Plus } from 'lucide-react';
-import { ViewSwitcherMode } from './ViewHeader';
+import React from "react";
+import { CalendarApp, ViewType } from "../../types";
+import ViewSwitcher from "./ViewSwitcher";
+import { Plus, Search } from "lucide-react";
+import { ViewSwitcherMode } from "./ViewHeader";
+import { useLocale } from "@calendar/locale";
 
 interface CalendarHeaderProps {
   calendar: CalendarApp;
   switcherMode?: ViewSwitcherMode;
-  onAddCalendar?: () => void;
-  onSearchChange?: (value: string) => void;
-  searchValue?: string;
-  isSearchOpen?: boolean;
+  onCreateEvent?: () => void;
+  onSearchClick?: () => void;
 }
-
-const SearchIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="11" cy="11" r="8"></circle>
-    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-  </svg>
-);
 
 const CalendarHeader: React.FC<CalendarHeaderProps> = ({
   calendar,
-  switcherMode = 'buttons',
-  onAddCalendar,
-  onSearchChange,
-  searchValue = '',
-  isSearchOpen = false,
+  switcherMode = "buttons",
+  onCreateEvent,
+  onSearchClick,
 }) => {
-  const isSwitcherCentered = switcherMode === 'buttons';
+  const { t } = useLocale();
+  const isSwitcherCentered = switcherMode === "buttons";
   const isDayView = calendar.state.currentView === ViewType.DAY;
-  
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    onSearchChange?.(e.target.value);
-  };
-
-  const handleClearSearch = () => {
-    onSearchChange?.('');
-  };
 
   return (
-    <div className={`flex items-center justify-between px-2 pt-1 bg-white dark:bg-gray-900 transition-colors duration-200 shrink-0 border-b ${(isDayView || isSearchOpen) ? 'border-gray-200 dark:border-gray-700' : 'border-transparent'
-      }`}>
-      {/* Left Section: Add Calendar Button Only */}
+    <div className="flex items-center justify-between p-2 bg-white dark:bg-gray-900 transition-colors duration-200 shrink-0">
+      {/* Left Section: New Event Button */}
       <div className="flex items-center min-w-50">
-        {onAddCalendar && (
+        {onCreateEvent && (
           <button
-            onClick={onAddCalendar}
-            className="flex h-8 w-8 items-center justify-center rounded hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors"
-            title="Add Calendar"
+            onClick={onCreateEvent}
+            className="flex h-7 items-center gap-1.5 px-3 rounded-md bg-primary text-white text-sm font-medium hover:bg-primary/90 transition-colors shadow-sm"
           >
-            <Plus className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+            <Plus className="h-4 w-4" />
+            <span>{t("newEvent")}</span>
           </button>
         )}
       </div>
@@ -62,33 +44,20 @@ const CalendarHeader: React.FC<CalendarHeaderProps> = ({
         )}
       </div>
 
-      {/* Right Section: Search, ViewSwitcher (if select) */}
+      {/* Right Section: Search Button, ViewSwitcher (if select) */}
       <div className="flex items-center justify-end gap-3 min-w-50 pb-1 h-6">
-        <div className="relative hidden md:block group">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <span className="text-gray-400 group-focus-within:text-primary transition-colors">
-              <SearchIcon />
-            </span>
-          </div>
-          <input
-            type="text"
-            placeholder="Search"
-            value={searchValue}
-            onChange={handleSearchChange}
-            className="pl-9 pr-8 py-1 text-sm border border-slate-200 dark:border-gray-600 rounded-lg text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400  focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary transition resize-none w-48"
-          />
-          {searchValue && (
-            <button
-              onClick={handleClearSearch}
-              className="absolute inset-y-0 right-0 pr-2 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <line x1="18" y1="6" x2="6" y2="18"></line>
-                <line x1="6" y1="6" x2="18" y2="18"></line>
-              </svg>
-            </button>
-          )}
-        </div>
+        {onSearchClick && (
+          <button
+            onClick={onSearchClick}
+            className="hidden md:flex items-center gap-2 h-7 px-3 text-sm text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
+          >
+            <Search className="h-4 w-4" />
+            <span>{t("search")}</span>
+            <kbd className="hidden lg:inline-flex h-5 items-center gap-1 rounded border border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-700 px-1.5 text-[10px] font-medium text-gray-500 dark:text-gray-400">
+              ⌘K
+            </kbd>
+          </button>
+        )}
 
         {!isSwitcherCentered && (
           <ViewSwitcher mode={switcherMode} calendar={calendar} />

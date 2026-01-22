@@ -91,7 +91,7 @@ export const CalendarList: React.FC<CalendarListProps> = ({
         calendarIcon: calendar.icon,
       };
       e.dataTransfer.setData(
-        "application/x-dayflow-calendar",
+        "application/x-maily-calendar",
         JSON.stringify(dragData),
       );
       e.dataTransfer.effectAllowed = "copy";

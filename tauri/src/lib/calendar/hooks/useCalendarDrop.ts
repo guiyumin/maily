@@ -1,8 +1,8 @@
-import { useCallback } from 'react';
-import { CalendarApp } from '../core';
-import { Event, CalendarColors } from '../types';
-import { Temporal } from 'temporal-polyfill';
-import { useLocale } from '@calendar/locale';
+import { useCallback } from "react";
+import { CalendarApp } from "../core";
+import { Event, CalendarColors } from "../types";
+import { Temporal } from "temporal-polyfill";
+import { useLocale } from "@calendar/locale";
 
 export interface CalendarDropData {
   calendarId: string;
@@ -21,7 +21,7 @@ export interface CalendarDropReturn {
     e: React.DragEvent,
     dropDate: Date,
     dropHour?: number,
-    isAllDay?: boolean
+    isAllDay?: boolean,
   ) => Event | null;
   handleDragOver: (e: React.DragEvent) => void;
 }
@@ -30,26 +30,31 @@ export interface CalendarDropReturn {
  * Hook to handle dropping calendar from sidebar to create events
  */
 export function useCalendarDrop(
-  options: CalendarDropOptions
+  options: CalendarDropOptions,
 ): CalendarDropReturn {
   const { app, onEventCreated } = options;
   const { t } = useLocale();
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     // Check if the drag data is from a calendar
-    if (e.dataTransfer.types.includes('application/x-dayflow-calendar')) {
+    if (e.dataTransfer.types.includes("application/x-maily-calendar")) {
       e.preventDefault();
-      e.dataTransfer.dropEffect = 'copy';
+      e.dataTransfer.dropEffect = "copy";
     }
   }, []);
 
   const handleDrop = useCallback(
-    (e: React.DragEvent, dropDate: Date, dropHour?: number, isAllDay?: boolean): Event | null => {
+    (
+      e: React.DragEvent,
+      dropDate: Date,
+      dropHour?: number,
+      isAllDay?: boolean,
+    ): Event | null => {
       e.preventDefault();
 
       // Get calendar data from drag event
       const dragDataStr = e.dataTransfer.getData(
-        'application/x-dayflow-calendar'
+        "application/x-maily-calendar",
       );
       if (!dragDataStr) {
         return null;
@@ -112,9 +117,11 @@ export function useCalendarDrop(
         const newEvent: Event = {
           id: eventId,
           title: allDay
-            ? t('newAllDayCalendarEvent', { calendarName: dragData.calendarName })
-            : t('newCalendarEvent', { calendarName: dragData.calendarName }),
-          description: '',
+            ? t("newAllDayCalendarEvent", {
+                calendarName: dragData.calendarName,
+              })
+            : t("newCalendarEvent", { calendarName: dragData.calendarName }),
+          description: "",
           start,
           end,
           calendarId: dragData.calendarId,
@@ -129,11 +136,11 @@ export function useCalendarDrop(
 
         return newEvent;
       } catch (error) {
-        console.error('Error creating event from calendar drop:', error);
+        console.error("Error creating event from calendar drop:", error);
         return null;
       }
     },
-    [app, onEventCreated]
+    [app, onEventCreated],
   );
 
   return {

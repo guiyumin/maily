@@ -1,15 +1,15 @@
 // Core module export file
-export * from './useCalendarApp';
-export * from './config';
-export * from './DayFlowCalendar';
+export * from "./useCalendarApp";
+export * from "./config";
+export * from "./MailyCalendar";
 
 // Zustand store and selectors
-export { createCalendarStore } from './calendarStore';
-export type { CalendarStoreApi, CalendarStore } from './calendarStore';
-export * from './calendarSelectors';
+export { createCalendarStore } from "./calendarStore";
+export type { CalendarStoreApi, CalendarStore } from "./calendarStore";
+export * from "./calendarSelectors";
 
 // Re-export types from @/types for convenience
-export { ViewType } from '../types';
+export { ViewType } from "../types";
 
 export type {
   CalendarPlugin,
@@ -20,4 +20,4 @@ export type {
   CalendarApp,
   UseCalendarAppReturn,
   CalendarConfig,
-} from '../types';
+} from "../types";

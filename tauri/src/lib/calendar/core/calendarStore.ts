@@ -2,8 +2,8 @@
  * Zustand store for calendar state management
  * Replaces the manual forceUpdate pattern with selective subscriptions
  */
-import { create, StoreApi } from 'zustand';
-import { subscribeWithSelector } from 'zustand/middleware';
+import { create, StoreApi } from "zustand";
+import { subscribeWithSelector } from "zustand/middleware";
 import {
   CalendarAppConfig,
   CalendarPlugin,
@@ -12,16 +12,19 @@ import {
   CalendarCallbacks,
   SidebarConfig,
   CalendarType,
-} from '../types';
-import { Event } from '../types';
-import { CalendarRegistry, setDefaultCalendarRegistry } from './calendarRegistry';
-import { normalizeCssWidth } from '../utils/styleUtils';
-import { ThemeMode } from '../types/calendarTypes';
-import { isValidLocale } from '../locale/utils';
-import { Locale } from '../locale/types';
-import { ViewSwitcherMode } from '../components/common/ViewHeader';
+} from "../types";
+import { Event } from "../types";
+import {
+  CalendarRegistry,
+  setDefaultCalendarRegistry,
+} from "./calendarRegistry";
+import { normalizeCssWidth } from "../utils/styleUtils";
+import { ThemeMode } from "../types/calendarTypes";
+import { isValidLocale } from "../locale/utils";
+import { Locale } from "../locale/types";
+import { ViewSwitcherMode } from "../components/common/ViewHeader";
 
-const DEFAULT_SIDEBAR_WIDTH = '240px';
+const DEFAULT_SIDEBAR_WIDTH = "240px";
 
 // ============ Singleton Store ============
 
@@ -34,7 +37,9 @@ export class CalendarStoreSingleton {
 
   static get(): CalendarStoreApi {
     if (!this.instance) {
-      throw new Error('Calendar store not initialized. Make sure useCalendarApp is called first.');
+      throw new Error(
+        "Calendar store not initialized. Make sure useCalendarApp is called first.",
+      );
     }
     return this.instance;
   }
@@ -42,7 +47,9 @@ export class CalendarStoreSingleton {
 
 // ============ Helper Functions ============
 
-const resolveSidebarConfig = (input?: boolean | SidebarConfig): SidebarConfig => {
+const resolveSidebarConfig = (
+  input?: boolean | SidebarConfig,
+): SidebarConfig => {
   if (!input) {
     return {
       enabled: false,
@@ -82,15 +89,15 @@ const resolveSidebarConfig = (input?: boolean | SidebarConfig): SidebarConfig =>
 
 const resolveLocale = (locale?: string | Locale): string | Locale => {
   if (!locale) {
-    return 'en-US';
+    return "en-US";
   }
 
-  if (typeof locale === 'string') {
-    return isValidLocale(locale) ? locale : 'en-US';
+  if (typeof locale === "string") {
+    return isValidLocale(locale) ? locale : "en-US";
   }
 
-  if (locale && typeof locale === 'object' && !isValidLocale(locale.code)) {
-    return { ...locale, code: 'en-US' };
+  if (locale && typeof locale === "object" && !isValidLocale(locale.code)) {
+    return { ...locale, code: "en-US" };
   }
 
   return locale;
@@ -108,8 +115,8 @@ export interface CalendarStoreState {
 
   // Theme state
   theme: ThemeMode;
-  effectiveTheme: 'light' | 'dark';
-  _systemTheme: 'light' | 'dark';
+  effectiveTheme: "light" | "dark";
+  _systemTheme: "light" | "dark";
 
   // Semi-reactive (needed for some components)
   switcherMode: ViewSwitcherMode;
@@ -146,7 +153,11 @@ export interface CalendarStoreActions {
 
   // Event management
   addEvent: (event: Event) => void;
-  updateEvent: (id: string, eventUpdate: Partial<Event>, isPending?: boolean) => void;
+  updateEvent: (
+    id: string,
+    eventUpdate: Partial<Event>,
+    isPending?: boolean,
+  ) => void;
   deleteEvent: (id: string) => void;
   setEvents: (events: Event[]) => void;
   getEvents: () => Event[];
@@ -174,7 +185,10 @@ export interface CalendarStoreActions {
   getPlugin: <T = unknown>(name: string) => T | undefined;
   hasPlugin: (name: string) => boolean;
   getPluginConfig: (pluginName: string) => Record<string, unknown>;
-  updatePluginConfig: (pluginName: string, config: Record<string, unknown>) => void;
+  updatePluginConfig: (
+    pluginName: string,
+    config: Record<string, unknown>,
+  ) => void;
 
   // View config
   getViewConfig: (viewType: ViewType) => Record<string, unknown>;
@@ -192,39 +206,48 @@ export type CalendarStore = CalendarStoreState & CalendarStoreActions;
 
 // ============ Theme Helpers ============
 
-const getSystemTheme = (): 'light' | 'dark' => {
-  if (typeof window === 'undefined') return 'light';
-  if (window.matchMedia?.('(prefers-color-scheme: dark)').matches) return 'dark';
-  return 'light';
+const getSystemTheme = (): "light" | "dark" => {
+  if (typeof window === "undefined") return "light";
+  if (window.matchMedia?.("(prefers-color-scheme: dark)").matches)
+    return "dark";
+  return "light";
 };
 
-const computeEffectiveTheme = (theme: ThemeMode, systemTheme: 'light' | 'dark'): 'light' | 'dark' => {
-  return theme === 'auto' ? systemTheme : theme;
+const computeEffectiveTheme = (
+  theme: ThemeMode,
+  systemTheme: "light" | "dark",
+): "light" | "dark" => {
+  return theme === "auto" ? systemTheme : theme;
 };
 
-const applyThemeToDocument = (theme: ThemeMode, effectiveTheme: 'light' | 'dark') => {
-  if (typeof document === 'undefined') return;
+const applyThemeToDocument = (
+  theme: ThemeMode,
+  effectiveTheme: "light" | "dark",
+) => {
+  if (typeof document === "undefined") return;
 
   const root = document.documentElement;
-  root.classList.remove('light', 'dark');
+  root.classList.remove("light", "dark");
   root.classList.add(effectiveTheme);
 
-  if (theme === 'auto') {
-    root.removeAttribute('data-dayflow-theme-override');
+  if (theme === "auto") {
+    root.removeAttribute("data-maily-theme-override");
   } else {
-    root.setAttribute('data-dayflow-theme-override', effectiveTheme);
+    root.setAttribute("data-maily-theme-override", effectiveTheme);
   }
-  root.setAttribute('data-theme', effectiveTheme);
+  root.setAttribute("data-theme", effectiveTheme);
 };
 
 // ============ Store Factory ============
 
 export type CalendarStoreApi = StoreApi<CalendarStore>;
 
-export function createCalendarStore(config: CalendarAppConfig): CalendarStoreApi {
+export function createCalendarStore(
+  config: CalendarAppConfig,
+): CalendarStoreApi {
   // Initialize views map
   const viewsMap = new Map<ViewType, CalendarView>();
-  config.views.forEach(view => {
+  config.views.forEach((view) => {
     viewsMap.set(view.type, view);
   });
 
@@ -232,7 +255,7 @@ export function createCalendarStore(config: CalendarAppConfig): CalendarStoreApi
   const calendarRegistry = new CalendarRegistry(
     config.calendars,
     config.defaultCalendar,
-    config.theme?.mode || 'light'
+    config.theme?.mode || "light",
   );
   setDefaultCalendarRegistry(calendarRegistry);
 
@@ -241,18 +264,25 @@ export function createCalendarStore(config: CalendarAppConfig): CalendarStoreApi
 
   // Initial date
   const initialDate = config.initialDate || new Date();
-  const initialVisibleMonth = new Date(initialDate.getFullYear(), initialDate.getMonth(), 1);
+  const initialVisibleMonth = new Date(
+    initialDate.getFullYear(),
+    initialDate.getMonth(),
+    1,
+  );
 
   // Initial theme
-  const initialTheme = config.theme?.mode || 'light';
+  const initialTheme = config.theme?.mode || "light";
   const initialSystemTheme = getSystemTheme();
-  const initialEffectiveTheme = computeEffectiveTheme(initialTheme, initialSystemTheme);
+  const initialEffectiveTheme = computeEffectiveTheme(
+    initialTheme,
+    initialSystemTheme,
+  );
 
   return create<CalendarStore>()(
     subscribeWithSelector((set, get) => {
       // Helper to increment calendar version (forces re-render for calendar-dependent components)
       const bumpCalendarVersion = () => {
-        set(state => ({ _calendarVersion: state._calendarVersion + 1 }));
+        set((state) => ({ _calendarVersion: state._calendarVersion + 1 }));
       };
 
       const store: CalendarStore = {
@@ -262,7 +292,7 @@ export function createCalendarStore(config: CalendarAppConfig): CalendarStoreApi
         events: config.events || [],
         highlightedEventId: null,
         visibleMonth: initialVisibleMonth,
-        switcherMode: config.switcherMode || 'buttons',
+        switcherMode: config.switcherMode || "buttons",
         locale: resolveLocale(config.locale),
 
         // Theme state
@@ -295,7 +325,9 @@ export function createCalendarStore(config: CalendarAppConfig): CalendarStoreApi
           const state = get();
           const view = state._views.get(state.currentView);
           if (!view) {
-            throw new Error(`Current view ${state.currentView} is not registered`);
+            throw new Error(
+              `Current view ${state.currentView} is not registered`,
+            );
           }
           return view;
         },
@@ -373,17 +405,24 @@ export function createCalendarStore(config: CalendarAppConfig): CalendarStoreApi
 
         // ============ Event Management ============
         addEvent: (event: Event) => {
-          set(state => ({ events: [...state.events, event] }));
+          set((state) => ({ events: [...state.events, event] }));
           get()._callbacks.onEventCreate?.(event);
         },
 
-        updateEvent: (id: string, eventUpdate: Partial<Event>, isPending?: boolean) => {
-          set(state => {
-            const eventIndex = state.events.findIndex(e => e.id === id);
+        updateEvent: (
+          id: string,
+          eventUpdate: Partial<Event>,
+          isPending?: boolean,
+        ) => {
+          set((state) => {
+            const eventIndex = state.events.findIndex((e) => e.id === id);
             if (eventIndex === -1) {
               throw new Error(`Event with id ${id} not found`);
             }
-            const updatedEvent = { ...state.events[eventIndex], ...eventUpdate };
+            const updatedEvent = {
+              ...state.events[eventIndex],
+              ...eventUpdate,
+            };
             const newEvents = [...state.events];
             newEvents[eventIndex] = updatedEvent;
             return { events: newEvents };
@@ -391,7 +430,7 @@ export function createCalendarStore(config: CalendarAppConfig): CalendarStoreApi
 
           if (!isPending) {
             const state = get();
-            const updatedEvent = state.events.find(e => e.id === id);
+            const updatedEvent = state.events.find((e) => e.id === id);
             if (updatedEvent) {
               state._callbacks.onEventUpdate?.(updatedEvent);
             }
@@ -400,12 +439,12 @@ export function createCalendarStore(config: CalendarAppConfig): CalendarStoreApi
 
         deleteEvent: (id: string) => {
           const state = get();
-          const eventIndex = state.events.findIndex(e => e.id === id);
+          const eventIndex = state.events.findIndex((e) => e.id === id);
           if (eventIndex === -1) {
             throw new Error(`Event with id ${id} not found`);
           }
-          set(s => ({
-            events: s.events.filter(e => e.id !== id),
+          set((s) => ({
+            events: s.events.filter((e) => e.id !== id),
           }));
           state._callbacks.onEventDelete?.(id);
         },
@@ -420,11 +459,11 @@ export function createCalendarStore(config: CalendarAppConfig): CalendarStoreApi
           const visibleCalendars = new Set(
             state._calendarRegistry
               .getAll()
-              .filter(calendar => calendar.isVisible !== false)
-              .map(calendar => calendar.id)
+              .filter((calendar) => calendar.isVisible !== false)
+              .map((calendar) => calendar.id),
           );
 
-          return allEvents.filter(event => {
+          return allEvents.filter((event) => {
             if (!event.calendarId) {
               return true;
             }
@@ -478,9 +517,9 @@ export function createCalendarStore(config: CalendarAppConfig): CalendarStoreApi
           const state = get();
 
           // Update all events from source calendar to target calendar
-          set(s => ({
-            events: s.events.map(e =>
-              e.calendarId === sourceId ? { ...e, calendarId: targetId } : e
+          set((s) => ({
+            events: s.events.map((e) =>
+              e.calendarId === sourceId ? { ...e, calendarId: targetId } : e,
             ),
           }));
 
@@ -508,7 +547,10 @@ export function createCalendarStore(config: CalendarAppConfig): CalendarStoreApi
         // ============ Theme Management ============
         setTheme: (mode: ThemeMode) => {
           const state = get();
-          const newEffectiveTheme = computeEffectiveTheme(mode, state._systemTheme);
+          const newEffectiveTheme = computeEffectiveTheme(
+            mode,
+            state._systemTheme,
+          );
 
           state._calendarRegistry.setTheme(mode);
           set({ theme: mode, effectiveTheme: newEffectiveTheme });
@@ -517,7 +559,7 @@ export function createCalendarStore(config: CalendarAppConfig): CalendarStoreApi
           applyThemeToDocument(mode, newEffectiveTheme);
 
           // Notify listeners
-          state._themeChangeListeners.forEach(listener => listener(mode));
+          state._themeChangeListeners.forEach((listener) => listener(mode));
           bumpCalendarVersion();
         },
 
@@ -548,7 +590,10 @@ export function createCalendarStore(config: CalendarAppConfig): CalendarStoreApi
           return plugin?.config || {};
         },
 
-        updatePluginConfig: (pluginName: string, config: Record<string, unknown>) => {
+        updatePluginConfig: (
+          pluginName: string,
+          config: Record<string, unknown>,
+        ) => {
           const plugin = get()._plugins.get(pluginName);
           if (plugin) {
             plugin.config = { ...plugin.config, ...config };
@@ -573,7 +618,7 @@ export function createCalendarStore(config: CalendarAppConfig): CalendarStoreApi
       };
 
       // Install plugins after store is created
-      config.plugins?.forEach(plugin => {
+      config.plugins?.forEach((plugin) => {
         if (!store._plugins.has(plugin.name)) {
           store._plugins.set(plugin.name, plugin);
           // Create a minimal CalendarApp-like interface for plugin installation
@@ -583,27 +628,36 @@ export function createCalendarStore(config: CalendarAppConfig): CalendarStoreApi
       });
 
       // Setup system theme listener for 'auto' mode
-      if (typeof window !== 'undefined' && window.matchMedia) {
-        const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      if (typeof window !== "undefined" && window.matchMedia) {
+        const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
 
-        const handleSystemThemeChange = (e: MediaQueryListEvent | MediaQueryList) => {
-          const newSystemTheme = e.matches ? 'dark' : 'light';
+        const handleSystemThemeChange = (
+          e: MediaQueryListEvent | MediaQueryList,
+        ) => {
+          const newSystemTheme = e.matches ? "dark" : "light";
           const state = get();
 
           if (state._systemTheme !== newSystemTheme) {
-            const newEffectiveTheme = computeEffectiveTheme(state.theme, newSystemTheme);
-            set({ _systemTheme: newSystemTheme, effectiveTheme: newEffectiveTheme });
+            const newEffectiveTheme = computeEffectiveTheme(
+              state.theme,
+              newSystemTheme,
+            );
+            set({
+              _systemTheme: newSystemTheme,
+              effectiveTheme: newEffectiveTheme,
+            });
 
             // Apply to document if in auto mode
-            if (state.theme === 'auto') {
+            if (state.theme === "auto") {
               applyThemeToDocument(state.theme, newEffectiveTheme);
             }
           }
         };
 
         if (mediaQuery.addEventListener) {
-          mediaQuery.addEventListener('change', handleSystemThemeChange);
-          store._systemThemeCleanup = () => mediaQuery.removeEventListener('change', handleSystemThemeChange);
+          mediaQuery.addEventListener("change", handleSystemThemeChange);
+          store._systemThemeCleanup = () =>
+            mediaQuery.removeEventListener("change", handleSystemThemeChange);
         }
       }
 
@@ -611,14 +665,18 @@ export function createCalendarStore(config: CalendarAppConfig): CalendarStoreApi
       applyThemeToDocument(initialTheme, initialEffectiveTheme);
 
       return store;
-    })
+    }),
   );
 }
 
 // Helper to create CalendarApp-like interface for plugins
 function createPluginAppInterface(
   get: () => CalendarStore,
-  _set: (partial: Partial<CalendarStoreState> | ((state: CalendarStoreState) => Partial<CalendarStoreState>)) => void
+  _set: (
+    partial:
+      | Partial<CalendarStoreState>
+      | ((state: CalendarStoreState) => Partial<CalendarStoreState>),
+  ) => void,
 ): any {
   return {
     get state() {
@@ -635,39 +693,48 @@ function createPluginAppInterface(
         highlightedEventId: s.highlightedEventId,
       };
     },
-    changeView: get().changeView,
-    getCurrentView: get().getCurrentView,
-    setCurrentDate: get().setCurrentDate,
-    getCurrentDate: get().getCurrentDate,
-    goToToday: get().goToToday,
-    goToPrevious: get().goToPrevious,
-    goToNext: get().goToNext,
-    selectDate: get().selectDate,
-    addEvent: get().addEvent,
-    updateEvent: get().updateEvent,
-    deleteEvent: get().deleteEvent,
-    getEvents: get().getEvents,
-    getAllEvents: get().getAllEvents,
-    highlightEvent: get().highlightEvent,
-    getCalendars: get().getCalendars,
-    reorderCalendars: get().reorderCalendars,
-    setCalendarVisibility: get().setCalendarVisibility,
-    setAllCalendarsVisibility: get().setAllCalendarsVisibility,
-    updateCalendar: get().updateCalendar,
-    createCalendar: get().createCalendar,
-    deleteCalendar: get().deleteCalendar,
-    mergeCalendars: get().mergeCalendars,
-    setVisibleMonth: get().setVisibleMonth,
-    getVisibleMonth: get().getVisibleMonth,
-    getPlugin: get().getPlugin,
-    hasPlugin: get().hasPlugin,
-    getSidebarConfig: get().getSidebarConfig,
-    triggerRender: get().triggerRender,
-    getCalendarRegistry: get().getCalendarRegistry,
-    getUseEventDetailDialog: get().getUseEventDetailDialog,
-    setTheme: get().setTheme,
-    getTheme: get().getTheme,
-    subscribeThemeChange: get().subscribeThemeChange,
-    unsubscribeThemeChange: get().unsubscribeThemeChange,
+    // Use arrow functions to defer get() calls until method is invoked
+    changeView: (view: ViewType) => get().changeView(view),
+    getCurrentView: () => get().getCurrentView(),
+    setCurrentDate: (date: Date) => get().setCurrentDate(date),
+    getCurrentDate: () => get().getCurrentDate(),
+    goToToday: () => get().goToToday(),
+    goToPrevious: () => get().goToPrevious(),
+    goToNext: () => get().goToNext(),
+    selectDate: (date: Date) => get().selectDate(date),
+    addEvent: (event: Event) => get().addEvent(event),
+    updateEvent: (id: string, event: Partial<Event>, isPending?: boolean) =>
+      get().updateEvent(id, event, isPending),
+    deleteEvent: (id: string) => get().deleteEvent(id),
+    getEvents: () => get().getEvents(),
+    getAllEvents: () => get().getAllEvents(),
+    highlightEvent: (eventId: string | null) => get().highlightEvent(eventId),
+    getCalendars: () => get().getCalendars(),
+    reorderCalendars: (fromIndex: number, toIndex: number) =>
+      get().reorderCalendars(fromIndex, toIndex),
+    setCalendarVisibility: (calendarId: string, visible: boolean) =>
+      get().setCalendarVisibility(calendarId, visible),
+    setAllCalendarsVisibility: (visible: boolean) =>
+      get().setAllCalendarsVisibility(visible),
+    updateCalendar: (id: string, updates: Partial<CalendarType>) =>
+      get().updateCalendar(id, updates),
+    createCalendar: (calendar: CalendarType) => get().createCalendar(calendar),
+    deleteCalendar: (id: string) => get().deleteCalendar(id),
+    mergeCalendars: (sourceId: string, targetId: string) =>
+      get().mergeCalendars(sourceId, targetId),
+    setVisibleMonth: (date: Date) => get().setVisibleMonth(date),
+    getVisibleMonth: () => get().getVisibleMonth(),
+    getPlugin: <T = unknown>(name: string) => get().getPlugin<T>(name),
+    hasPlugin: (name: string) => get().hasPlugin(name),
+    getSidebarConfig: () => get().getSidebarConfig(),
+    triggerRender: () => get().triggerRender(),
+    getCalendarRegistry: () => get().getCalendarRegistry(),
+    getUseEventDetailDialog: () => get().getUseEventDetailDialog(),
+    setTheme: (mode: ThemeMode) => get().setTheme(mode),
+    getTheme: () => get().getTheme(),
+    subscribeThemeChange: (callback: (theme: ThemeMode) => void) =>
+      get().subscribeThemeChange(callback),
+    unsubscribeThemeChange: (callback: (theme: ThemeMode) => void) =>
+      get().unsubscribeThemeChange(callback),
   };
 }

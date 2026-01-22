@@ -4,43 +4,43 @@ import React, {
   useMemo,
   useRef,
   useState,
-} from 'react';
-import clsx from 'clsx';
+} from "react";
+import clsx from "clsx";
 import {
   EventDetailContentRenderer,
   EventDetailDialogRenderer,
   UseCalendarAppReturn,
   CalendarSidebarRenderProps,
   CalendarType,
-} from '../types';
-import DefaultCalendarSidebar from '../components/sidebar/DefaultCalendarSidebar';
-import DefaultEventDetailDialog from '../components/common/DefaultEventDetailDialog';
-import CalendarHeader from '../components/common/CalendarHeader';
-import { CreateCalendarDialog } from '../components/common/CreateCalendarDialog';
-import SearchDialog from '../components/common/SearchDialog';
-import { CalendarSearchProps, CalendarSearchEvent } from '../types/search';
-import { normalizeCssWidth } from '../utils/styleUtils';
-import { LocaleProvider } from '../locale/LocaleProvider';
-import { useLocale } from '../locale/useLocale';
-import { LocaleMessages, LocaleCode, Locale } from '../locale/types';
-import { getCalendarColorsForHex } from './calendarRegistry';
-import { generateUniKey } from '../utils/helpers';
-import { temporalToDate } from '../utils/temporal';
-import { createEvent } from '../utils/eventHelpers';
+} from "../types";
+import DefaultCalendarSidebar from "../components/sidebar/DefaultCalendarSidebar";
+import DefaultEventDetailDialog from "../components/common/DefaultEventDetailDialog";
+import CalendarHeader from "../components/common/CalendarHeader";
+import { CreateCalendarDialog } from "../components/common/CreateCalendarDialog";
+import SearchDialog from "../components/common/SearchDialog";
+import { CalendarSearchProps, CalendarSearchEvent } from "../types/search";
+import { normalizeCssWidth } from "../utils/styleUtils";
+import { LocaleProvider } from "../locale/LocaleProvider";
+import { useLocale } from "../locale/useLocale";
+import { LocaleMessages, LocaleCode, Locale } from "../locale/types";
+import { getCalendarColorsForHex } from "./calendarRegistry";
+import { generateUniKey } from "../utils/helpers";
+import { temporalToDate } from "../utils/temporal";
+import { createEvent } from "../utils/eventHelpers";
 
-const DEFAULT_SIDEBAR_WIDTH = '240px';
+const DEFAULT_SIDEBAR_WIDTH = "240px";
 
 const COLORS = [
-  '#ea426b',
-  '#f19a38',
-  '#f7cf46',
-  '#83d754',
-  '#51aaf2',
-  '#b672d0',
-  '#957e5e',
+  "#ea426b",
+  "#f19a38",
+  "#f7cf46",
+  "#83d754",
+  "#51aaf2",
+  "#b672d0",
+  "#957e5e",
 ];
 
-interface DayFlowCalendarProps {
+interface MailyCalendarProps {
   calendar: UseCalendarAppReturn;
   className?: string;
   /** Custom event detail content component (content only, will be wrapped in default panel) */
@@ -73,7 +73,7 @@ const CalendarInternalLocaleProvider: React.FC<{
   );
 };
 
-const CalendarLayout: React.FC<DayFlowCalendarProps> = ({
+const CalendarLayout: React.FC<MailyCalendarProps> = ({
   calendar,
   className,
   customDetailPanelContent,
@@ -88,18 +88,18 @@ const CalendarLayout: React.FC<DayFlowCalendarProps> = ({
   const sidebarEnabled = sidebarConfig?.enabled ?? false;
   const [sidebarVersion, setSidebarVersion] = useState(0);
   const [isCollapsed, setIsCollapsed] = useState(
-    sidebarConfig?.initialCollapsed ?? false
+    sidebarConfig?.initialCollapsed ?? false,
   );
   const { t } = useLocale();
 
   // Create Calendar State
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [editingCalendarId, setEditingCalendarId] = useState<string | null>(
-    null
+    null,
   );
 
   // Search State
-  const [searchKeyword, setSearchKeyword] = useState('');
+  const [searchKeyword, setSearchKeyword] = useState("");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchResults, setSearchResults] = useState<CalendarSearchEvent[]>([]);
@@ -107,13 +107,13 @@ const CalendarLayout: React.FC<DayFlowCalendarProps> = ({
   // Keyboard shortcut for search (⌘K / Ctrl+K)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
         e.preventDefault();
         setIsSearchOpen(true);
       }
     };
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
   }, []);
 
   // Search Logic
@@ -136,10 +136,10 @@ const CalendarLayout: React.FC<DayFlowCalendarProps> = ({
           // If custom search is provided, we might need all events first or just pass empty if it fetches its own
           // The interface says: (params: { keyword, events }) => ...
           // So we should pass current events
-          const currentEvents = app.getEvents().map(e => ({
+          const currentEvents = app.getEvents().map((e) => ({
             ...e,
             color:
-              app.getCalendarRegistry().get(e.calendarId || '')?.colors
+              app.getCalendarRegistry().get(e.calendarId || "")?.colors
                 .lineColor ||
               app.getCalendarRegistry().resolveColors().lineColor,
           }));
@@ -154,17 +154,17 @@ const CalendarLayout: React.FC<DayFlowCalendarProps> = ({
           const keywordLower = searchKeyword.toLowerCase();
           results = app
             .getEvents()
-            .filter(e => {
+            .filter((e) => {
               return (
                 e.title.toLowerCase().includes(keywordLower) ||
                 (e.description &&
                   e.description.toLowerCase().includes(keywordLower))
               );
             })
-            .map(e => ({
+            .map((e) => ({
               ...e,
               color:
-                app.getCalendarRegistry().get(e.calendarId || '')?.colors
+                app.getCalendarRegistry().get(e.calendarId || "")?.colors
                   .lineColor ||
                 app.getCalendarRegistry().resolveColors().lineColor,
             }));
@@ -177,7 +177,7 @@ const CalendarLayout: React.FC<DayFlowCalendarProps> = ({
           results,
         });
       } catch (error) {
-        console.error('Search failed', error);
+        console.error("Search failed", error);
         setSearchResults([]);
       } finally {
         setSearchLoading(false);
@@ -199,7 +199,7 @@ const CalendarLayout: React.FC<DayFlowCalendarProps> = ({
     let date: Date;
     if (event.start instanceof Date) {
       date = event.start;
-    } else if (typeof event.start === 'string') {
+    } else if (typeof event.start === "string") {
       date = new Date(event.start);
     } else {
       date = temporalToDate(event.start as any);
@@ -217,12 +217,12 @@ const CalendarLayout: React.FC<DayFlowCalendarProps> = ({
   }, [sidebarConfig?.initialCollapsed]);
 
   const refreshSidebar = useCallback(() => {
-    setSidebarVersion(prev => prev + 1);
+    setSidebarVersion((prev) => prev + 1);
   }, []);
 
   const calendars = useMemo(
     () => app.getCalendars(),
-    [app, sidebarVersion, calendar]
+    [app, sidebarVersion, calendar],
   );
 
   const handleToggleCalendarVisibility = useCallback(
@@ -230,7 +230,7 @@ const CalendarLayout: React.FC<DayFlowCalendarProps> = ({
       app.setCalendarVisibility(calendarId, visible);
       refreshSidebar();
     },
-    [app, refreshSidebar]
+    [app, refreshSidebar],
   );
 
   const handleToggleAllCalendars = useCallback(
@@ -238,13 +238,13 @@ const CalendarLayout: React.FC<DayFlowCalendarProps> = ({
       app.setAllCalendarsVisibility(visible);
       refreshSidebar();
     },
-    [app, refreshSidebar]
+    [app, refreshSidebar],
   );
 
   const handleCreateCalendar = useCallback(() => {
-    const createMode = sidebarConfig.createCalendarMode || 'inline';
+    const createMode = sidebarConfig.createCalendarMode || "inline";
 
-    if (createMode === 'modal') {
+    if (createMode === "modal") {
       setShowCreateDialog(true);
       return;
     }
@@ -256,7 +256,7 @@ const CalendarLayout: React.FC<DayFlowCalendarProps> = ({
 
     const newCalendar: CalendarType = {
       id: newId,
-      name: t('untitled'),
+      name: t("untitled"),
       colors,
       darkColors,
       isVisible: true,
@@ -274,7 +274,8 @@ const CalendarLayout: React.FC<DayFlowCalendarProps> = ({
     const now = new Date();
 
     // Create event starting at current hour (or next hour if past half)
-    const startHour = now.getMinutes() > 30 ? now.getHours() + 1 : now.getHours();
+    const startHour =
+      now.getMinutes() > 30 ? now.getHours() + 1 : now.getHours();
     const startDate = new Date(currentDate);
     startDate.setHours(startHour, 0, 0, 0);
 
@@ -283,11 +284,11 @@ const CalendarLayout: React.FC<DayFlowCalendarProps> = ({
 
     // Get default calendar
     const calendars = app.getCalendars();
-    const defaultCalendar = calendars.find(c => c.isDefault) || calendars[0];
+    const defaultCalendar = calendars.find((c) => c.isDefault) || calendars[0];
 
     const newEvent = createEvent({
       id: generateUniKey(),
-      title: '',
+      title: "",
       start: startDate,
       end: endDate,
       calendarId: defaultCalendar?.id,
@@ -342,95 +343,100 @@ const CalendarLayout: React.FC<DayFlowCalendarProps> = ({
 
   const sidebarWidth = normalizeCssWidth(
     sidebarConfig?.width,
-    DEFAULT_SIDEBAR_WIDTH
+    DEFAULT_SIDEBAR_WIDTH,
   );
-  const miniSidebarWidth = '50px';
+  const miniSidebarWidth = "50px";
 
   return (
     <div
-      className={clsx('maily-calendar relative flex flex-row h-full overflow-hidden', className)}
+      className={clsx(
+        "maily-calendar relative flex flex-row h-full overflow-hidden",
+        className,
+      )}
     >
-        {sidebarEnabled && (
-          <aside
-            className={`absolute top-0 bottom-0 left-0 z-0 h-full`}
-            style={{
-              width: sidebarWidth,
-            }}
-          >
-            {renderSidebarContent()}
-          </aside>
-        )}
-
-        <div
-          className={clsx(
-              'flex flex-col flex-1 h-full overflow-hidden relative z-10 bg-white dark:bg-gray-900 transition-all duration-250 ease-in-out border-l',
-              isCollapsed ? 'border-gray-200 dark:border-gray-700 shadow-xl' : 'border-transparent'
-            )}
+      {sidebarEnabled && (
+        <aside
+          className={`absolute top-0 bottom-0 left-0 z-0 h-full`}
           style={{
-            marginLeft: sidebarEnabled
-              ? isCollapsed
-                ? miniSidebarWidth
-                : sidebarWidth
-              : 0,
+            width: sidebarWidth,
           }}
         >
-          <CalendarHeader
-            calendar={app}
-            switcherMode={app.state.switcherMode}
-            onCreateEvent={handleCreateEvent}
-            onSearchClick={() => setIsSearchOpen(true)}
-          />
+          {renderSidebarContent()}
+        </aside>
+      )}
 
-          <div className="flex-1 overflow-hidden relative" ref={calendarRef}>
-            <div className="calendar-renderer h-full relative">
-              <div className="h-full overflow-hidden">
-                <ViewComponent {...viewProps} />
-              </div>
+      <div
+        className={clsx(
+          "flex flex-col flex-1 h-full overflow-hidden relative z-10 bg-white dark:bg-gray-900 transition-all duration-250 ease-in-out border-l",
+          isCollapsed
+            ? "border-gray-200 dark:border-gray-700 shadow-xl"
+            : "border-transparent",
+        )}
+        style={{
+          marginLeft: sidebarEnabled
+            ? isCollapsed
+              ? miniSidebarWidth
+              : sidebarWidth
+            : 0,
+        }}
+      >
+        <CalendarHeader
+          calendar={app}
+          switcherMode={app.state.switcherMode}
+          onCreateEvent={handleCreateEvent}
+          onSearchClick={() => setIsSearchOpen(true)}
+        />
+
+        <div className="flex-1 overflow-hidden relative" ref={calendarRef}>
+          <div className="calendar-renderer h-full relative">
+            <div className="h-full overflow-hidden">
+              <ViewComponent {...viewProps} />
             </div>
           </div>
         </div>
+      </div>
 
-        {/* Search Dialog */}
-        <SearchDialog
-          isOpen={isSearchOpen}
-          onClose={() => {
-            setIsSearchOpen(false);
-            setSearchKeyword('');
-            app.highlightEvent(null);
-          }}
-          loading={searchLoading}
-          results={searchResults}
-          keyword={searchKeyword}
-          onKeywordChange={setSearchKeyword}
-          onResultClick={handleSearchResultClick}
-          emptyText={searchConfig?.emptyText}
-        />
+      {/* Search Dialog */}
+      <SearchDialog
+        isOpen={isSearchOpen}
+        onClose={() => {
+          setIsSearchOpen(false);
+          setSearchKeyword("");
+          app.highlightEvent(null);
+        }}
+        loading={searchLoading}
+        results={searchResults}
+        keyword={searchKeyword}
+        onKeywordChange={setSearchKeyword}
+        onResultClick={handleSearchResultClick}
+        emptyText={searchConfig?.emptyText}
+      />
 
-        {showCreateDialog &&
-          (sidebarConfig.renderCreateCalendarDialog ? (
-            sidebarConfig.renderCreateCalendarDialog({
-              onClose: () => setShowCreateDialog(false),
-              onCreate: newCalendar => {
-                app.createCalendar(newCalendar);
-                setShowCreateDialog(false);
-                refreshSidebar();
-              },
-            })
-          ) : (
-            <CreateCalendarDialog
-              onClose={() => setShowCreateDialog(false)}
-              onCreate={newCalendar => {
-                app.createCalendar(newCalendar);
-                setShowCreateDialog(false);
-                refreshSidebar();
-              }}
-            />
-          ))}
+      {showCreateDialog &&
+        (sidebarConfig.renderCreateCalendarDialog ? (
+          sidebarConfig.renderCreateCalendarDialog({
+            onClose: () => setShowCreateDialog(false),
+            onCreate: (newCalendar) => {
+              app.createCalendar(newCalendar);
+              setShowCreateDialog(false);
+              refreshSidebar();
+            },
+          })
+        ) : (
+          <CreateCalendarDialog
+            onClose={() => setShowCreateDialog(false)}
+            onCreate={(newCalendar) => {
+              app.createCalendar(newCalendar);
+              setShowCreateDialog(false);
+              refreshSidebar();
+            }}
+          />
+        ))}
     </div>
   );
 };
 
-export const DayFlowCalendar: React.FC<DayFlowCalendarProps> = props => {
+export const MailyCalendar = (props: MailyCalendarProps) => {
   const { calendar, customMessages } = props;
   const app = calendar.app;
 
@@ -444,4 +450,4 @@ export const DayFlowCalendar: React.FC<DayFlowCalendarProps> = props => {
   );
 };
 
-export default DayFlowCalendar;
+export default MailyCalendar;

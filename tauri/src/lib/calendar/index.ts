@@ -1,64 +1,64 @@
 // Styles
-import './styles/tailwind.css';
+import "./styles/tailwind.css";
 
 // Core exports
-export { useCalendarApp, createCalendarStore } from './core/useCalendarApp';
-export type { CalendarStoreApi, CalendarStore } from './core/calendarStore';
-export { DayFlowCalendar } from './core/DayFlowCalendar';
-export { CalendarRegistry } from './core/calendarRegistry';
+export { useCalendarApp, createCalendarStore } from "./core/useCalendarApp";
+export type { CalendarStoreApi, CalendarStore } from "./core/calendarStore";
+export { MailyCalendar } from "./core/MailyCalendar";
+export { CalendarRegistry } from "./core/calendarRegistry";
 
 // Theme exports (from calendar store)
 export {
   useCalendarStore,
   useCalendarStoreSelector,
   useCalendarTheme,
-} from './core/calendarStoreHooks';
-export type { CalendarTheme } from './core/calendarStoreHooks';
+} from "./core/calendarStoreHooks";
+export type { CalendarTheme } from "./core/calendarStoreHooks";
 
 // View factories
-export { createDayView } from './factories/createDayView';
-export { createWeekView } from './factories/createWeekView';
-export { createMonthView } from './factories/createMonthView';
-export { createYearView } from './factories/createYearView';
+export { createDayView } from "./factories/createDayView";
+export { createWeekView } from "./factories/createWeekView";
+export { createMonthView } from "./factories/createMonthView";
+export { createYearView } from "./factories/createYearView";
 
 // Plugins
-export { createEventsPlugin } from './plugins/eventsPlugin';
-export { createDragPlugin } from './plugins/dragPlugin';
-export { useDragForView } from './plugins/dragPlugin';
+export { createEventsPlugin } from "./plugins/eventsPlugin";
+export { createDragPlugin } from "./plugins/dragPlugin";
+export { useDragForView } from "./plugins/dragPlugin";
 
 // Hooks
-export { useDrag } from './hooks/drag/useDrag';
+export { useDrag } from "./hooks/drag/useDrag";
 export {
   useVirtualScroll,
   useResponsiveConfig,
-} from './hooks/virtualScroll/useVirtualScroll';
+} from "./hooks/virtualScroll/useVirtualScroll";
 export {
   useVirtualMonthScroll,
   useResponsiveMonthConfig,
-} from './hooks/virtualScroll/useVirtualMonthScroll';
+} from "./hooks/virtualScroll/useVirtualMonthScroll";
 
 // Components
-export { default as CalendarEvent } from './components/weekView/CalendarEvent';
-export { default as DefaultEventDetailPanel } from './components/common/DefaultEventDetailPanel';
-export { default as DefaultEventDetailDialog } from './components/common/DefaultEventDetailDialog';
-export { default as EventDetailPanelWithContent } from './components/common/EventDetailPanelWithContent';
-export { default as ViewHeader } from './components/common/ViewHeader';
+export { default as CalendarEvent } from "./components/weekView/CalendarEvent";
+export { default as DefaultEventDetailPanel } from "./components/common/DefaultEventDetailPanel";
+export { default as DefaultEventDetailDialog } from "./components/common/DefaultEventDetailDialog";
+export { default as EventDetailPanelWithContent } from "./components/common/EventDetailPanelWithContent";
+export { default as ViewHeader } from "./components/common/ViewHeader";
 export type {
   ViewHeaderType,
   ViewSwitcherMode,
-} from './components/common/ViewHeader';
-export { default as ColorPicker } from './components/common/ColorPicker';
+} from "./components/common/ViewHeader";
+export { default as ColorPicker } from "./components/common/ColorPicker";
 export type {
   ColorOption,
   ColorPickerProps,
-} from './components/common/ColorPicker';
-export { EventLayoutCalculator } from './components/EventLayout';
+} from "./components/common/ColorPicker";
+export { EventLayoutCalculator } from "./components/EventLayout";
 
 // Utilities
-export * from './utils';
+export * from "./utils";
 
 // Locale exports
-export * from './locale';
+export * from "./locale";
 
 // Type exports
 export type {
@@ -71,11 +71,11 @@ export type {
   CalendarApp,
   CalendarAppConfig,
   CalendarCallbacks,
-} from './types/core';
+} from "./types/core";
 
-export type { Event } from './types/event';
+export type { Event } from "./types/event";
 
-export type { DragConfig } from './types/config';
+export type { DragConfig } from "./types/config";
 
 export type {
   CalendarType,
@@ -83,12 +83,12 @@ export type {
   ThemeConfig,
   CalendarColors,
   CalendarsConfig,
-} from './types/calendarTypes';
+} from "./types/calendarTypes";
 
 export type {
   DragIndicatorProps,
   DragIndicatorRenderer,
-} from './types/dragIndicator';
+} from "./types/dragIndicator";
 
 export type {
   EventsService,
@@ -97,13 +97,13 @@ export type {
   DragPluginConfig,
   DragHookOptions,
   DragHookReturn,
-} from './types/plugin';
+} from "./types/plugin";
 
 export type {
   BaseViewProps,
   ViewFactory,
   ViewAdapterProps,
-} from './types/factory';
+} from "./types/factory";
 
 export type {
   EventDetailPosition,
@@ -113,11 +113,8 @@ export type {
   EventDetailContentRenderer,
   EventDetailDialogProps,
   EventDetailDialogRenderer,
-} from './types/eventDetail';
+} from "./types/eventDetail";
 
-export type {
-  CalendarSearchProps,
-  CalendarSearchEvent,
-} from './types/search';
+export type { CalendarSearchProps, CalendarSearchEvent } from "./types/search";
 
-export { ViewType } from './types';
+export { ViewType } from "./types";

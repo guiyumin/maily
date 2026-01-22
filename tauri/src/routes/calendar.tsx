@@ -9,18 +9,24 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { ArrowLeft, Calendar as CalendarIcon, Loader2, AlertCircle } from "lucide-react";
+import {
+  ArrowLeft,
+  Calendar as CalendarIcon,
+  Loader2,
+  AlertCircle,
+} from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
 import {
   useCalendarApp,
-  DayFlowCalendar,
+  MailyCalendar,
   createMonthView,
   createWeekView,
   createDayView,
+  createDragPlugin,
   createEvent,
   ViewType,
-  type Event as DayFlowEvent,
+  type Event as MailyEvent,
   type CalendarType,
   type CalendarColors,
 } from "@/lib/calendar";
@@ -28,17 +34,20 @@ import { Temporal } from "temporal-polyfill";
 
 // Predefined calendar colors for visual consistency
 const CALENDAR_COLORS = [
-  '#ea426b', // red/pink
-  '#f19a38', // orange
-  '#f7cf46', // yellow
-  '#83d754', // green
-  '#51aaf2', // blue
-  '#b672d0', // purple
-  '#957e5e', // brown
+  "#ea426b", // red/pink
+  "#f19a38", // orange
+  "#f7cf46", // yellow
+  "#83d754", // green
+  "#51aaf2", // blue
+  "#b672d0", // purple
+  "#957e5e", // brown
 ];
 
 // Generate calendar colors from a hex color
-function getCalendarColors(hex: string): { colors: CalendarColors; darkColors: CalendarColors } {
+function getCalendarColors(hex: string): {
+  colors: CalendarColors;
+  darkColors: CalendarColors;
+} {
   return {
     colors: {
       eventColor: `${hex}1A`, // 10% opacity for background
@@ -92,8 +101,8 @@ export const Route = createFileRoute("/calendar")({
   component: CalendarPage,
 });
 
-// Convert Tauri calendar to DayFlow calendar type
-function toDayFlowCalendar(cal: CalendarInfo, index: number): CalendarType {
+// Convert Tauri calendar to Maily calendar type
+function toMailyCalendar(cal: CalendarInfo, index: number): CalendarType {
   // Use predefined colors cycling through the array
   const colorHex = CALENDAR_COLORS[index % CALENDAR_COLORS.length];
   const { colors, darkColors } = getCalendarColors(colorHex);
@@ -108,8 +117,8 @@ function toDayFlowCalendar(cal: CalendarInfo, index: number): CalendarType {
   };
 }
 
-// Convert Tauri event to DayFlow event
-function toDayFlowEvent(event: CalendarEvent): DayFlowEvent {
+// Convert Tauri event to Maily event
+function toMailyEvent(event: CalendarEvent): MailyEvent {
   return createEvent({
     id: event.id,
     title: event.title,
@@ -127,7 +136,10 @@ function toDayFlowEvent(event: CalendarEvent): DayFlowEvent {
 
 // Helper to convert Temporal types to Unix timestamp
 function temporalToTimestamp(
-  temporal: Temporal.PlainDate | Temporal.PlainDateTime | Temporal.ZonedDateTime
+  temporal:
+    | Temporal.PlainDate
+    | Temporal.PlainDateTime
+    | Temporal.ZonedDateTime,
 ): number {
   if (temporal instanceof Temporal.ZonedDateTime) {
     return Math.floor(temporal.epochMilliseconds / 1000);
@@ -143,8 +155,8 @@ function temporalToTimestamp(
   }
 }
 
-// Convert DayFlow event back to Tauri format for creating/updating
-function toTauriEvent(event: DayFlowEvent): NewEvent {
+// Convert Maily event back to Tauri format for creating/updating
+function toTauriEvent(event: MailyEvent): NewEvent {
   return {
     title: event.title,
     start_time: temporalToTimestamp(event.start),
@@ -239,47 +251,55 @@ function CalendarPage() {
     }
   }, []);
 
-  // Convert to DayFlow formats
-  const dayflowCalendars = useMemo(
-    () => calendars.map((cal, index) => toDayFlowCalendar(cal, index)),
-    [calendars]
+  // Convert to Maily formats
+  const mailyCalendars = useMemo(
+    () => calendars.map((cal, index) => toMailyCalendar(cal, index)),
+    [calendars],
   );
-  const dayflowEvents = useMemo(
-    () => events.map(toDayFlowEvent),
-    [events]
-  );
+  const mailyEvents = useMemo(() => events.map(toMailyEvent), [events]);
 
   // Backend search function - searches EventKit for 1 year range
-  const handleSearch = useCallback(async (keyword: string) => {
-    const results = await invoke<CalendarEvent[]>("calendar_search_events", { keyword });
-    return results.map((event) => {
-      // Find the calendar to get its color
-      const calendarIndex = calendars.findIndex(c => c.id === event.calendar);
-      const colorHex = CALENDAR_COLORS[calendarIndex >= 0 ? calendarIndex % CALENDAR_COLORS.length : 0];
-      const dayflowEvent = createEvent({
-        id: event.id,
-        title: event.title,
-        start: new Date(event.start_time * 1000),
-        end: new Date(event.end_time * 1000),
-        calendarId: event.calendar,
-        allDay: event.all_day,
-        meta: {
-          location: event.location,
-          notes: event.notes,
-        },
+  const handleSearch = useCallback(
+    async (keyword: string) => {
+      const results = await invoke<CalendarEvent[]>("calendar_search_events", {
+        keyword,
       });
-      return {
-        ...dayflowEvent,
-        color: colorHex,
-      };
-    });
-  }, [calendars]);
+      return results.map((event) => {
+        // Find the calendar to get its color
+        const calendarIndex = calendars.findIndex(
+          (c) => c.id === event.calendar,
+        );
+        const colorHex =
+          CALENDAR_COLORS[
+            calendarIndex >= 0 ? calendarIndex % CALENDAR_COLORS.length : 0
+          ];
+        const mailyEvent = createEvent({
+          id: event.id,
+          title: event.title,
+          start: new Date(event.start_time * 1000),
+          end: new Date(event.end_time * 1000),
+          calendarId: event.calendar,
+          allDay: event.all_day,
+          meta: {
+            location: event.location,
+            notes: event.notes,
+          },
+        });
+        return {
+          ...mailyEvent,
+          color: colorHex,
+        };
+      });
+    },
+    [calendars],
+  );
 
-  // Create DayFlow calendar app
+  // Create Maily calendar app
   const calendar = useCalendarApp({
     views: [createMonthView(), createWeekView(), createDayView()],
-    events: dayflowEvents,
-    calendars: dayflowCalendars,
+    plugins: [createDragPlugin()],
+    events: mailyEvents,
+    calendars: mailyCalendars,
     defaultView: ViewType.WEEK,
     initialDate: new Date(),
     theme: { mode: "auto" },
@@ -402,9 +422,9 @@ function CalendarPage() {
         </div>
       </header>
 
-      {/* DayFlow Calendar */}
+      {/* Maily Calendar */}
       <main className="flex-1 overflow-hidden">
-        <DayFlowCalendar
+        <MailyCalendar
           calendar={calendar}
           className="maily-calendar"
           search={{

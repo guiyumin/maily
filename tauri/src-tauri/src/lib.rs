@@ -475,28 +475,53 @@ fn calendar_request_access() -> Result<(), String> {
 }
 
 #[tauri::command]
-fn calendar_list_calendars() -> Result<Vec<CalendarInfo>, String> {
-    cal_list_calendars().map_err(|e| e.to_string())
+async fn calendar_list_calendars() -> Result<Vec<CalendarInfo>, String> {
+    // Run on background thread to avoid blocking UI
+    tokio::task::spawn_blocking(|| {
+        cal_list_calendars().map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
-fn calendar_list_events(start_timestamp: i64, end_timestamp: i64) -> Result<Vec<CalendarEvent>, String> {
-    cal_list_events(start_timestamp, end_timestamp).map_err(|e| e.to_string())
+async fn calendar_list_events(start_timestamp: i64, end_timestamp: i64) -> Result<Vec<CalendarEvent>, String> {
+    // Run on background thread to avoid blocking UI
+    tokio::task::spawn_blocking(move || {
+        cal_list_events(start_timestamp, end_timestamp).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
-fn calendar_create_event(event: NewEvent) -> Result<String, String> {
-    cal_create_event(&event).map_err(|e| e.to_string())
+async fn calendar_create_event(event: NewEvent) -> Result<String, String> {
+    // Run on background thread to avoid blocking UI
+    tokio::task::spawn_blocking(move || {
+        cal_create_event(&event).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
-fn calendar_delete_event(event_id: String) -> Result<(), String> {
-    cal_delete_event(&event_id).map_err(|e| e.to_string())
+async fn calendar_delete_event(event_id: String) -> Result<(), String> {
+    // Run on background thread to avoid blocking UI
+    tokio::task::spawn_blocking(move || {
+        cal_delete_event(&event_id).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
-fn calendar_get_default() -> Result<String, String> {
-    cal_default_calendar().map_err(|e| e.to_string())
+async fn calendar_get_default() -> Result<String, String> {
+    // Run on background thread to avoid blocking UI
+    tokio::task::spawn_blocking(|| {
+        cal_default_calendar().map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 // ============ REMINDERS COMMANDS ============

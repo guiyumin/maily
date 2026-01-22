@@ -4,7 +4,7 @@ import {
   EventDetailPanelProps,
   EventDetailContentRenderer,
 } from '../../types/eventDetail';
-import { useCalendarTheme } from '../../core/CalendarStoreContext';
+import { useCalendarTheme } from '../../core/calendarStoreHooks';
 import { resolveAppliedTheme } from '../../utils/themeUtils';
 
 /**

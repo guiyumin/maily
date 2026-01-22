@@ -12,8 +12,8 @@ export {
   useCalendarStore,
   useCalendarStoreSelector,
   useCalendarTheme,
-} from './core/CalendarStoreContext';
-export type { CalendarTheme } from './core/CalendarStoreContext';
+} from './core/calendarStoreHooks';
+export type { CalendarTheme } from './core/calendarStoreHooks';
 
 // View factories
 export { createDayView } from './factories/createDayView';

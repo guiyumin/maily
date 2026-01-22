@@ -3,7 +3,7 @@ import { PhotoshopPicker, ColorResult } from 'react-color';
 import { getCalendarColorsForHex } from '../../core/calendarRegistry';
 import { generateUniKey } from '../../utils/helpers';
 import { CalendarType, CreateCalendarDialogProps } from '../../types';
-import { useCalendarTheme } from '../../core/CalendarStoreContext';
+import { useCalendarTheme } from '../../core/calendarStoreHooks';
 import { useLocale } from '@calendar/locale';
 
 const COLORS = [

@@ -108,3 +108,14 @@ mail.emails: писем
 mail.unread: непрочитанных
 mail.moreEmails: ещё писем
 mail.of: из
+
+# Tags
+tags.manageTags: Управление тегами
+tags.currentTags: Текущие теги
+tags.noTags: Нет тегов
+tags.addTag: Добавить тег
+tags.tagNamePlaceholder: Введите название тега...
+tags.selectExisting: Выбрать существующий тег
+tags.generateWithAI: Сгенерировать теги с ИИ
+tags.filterByTag: Фильтр по тегу
+tags.clearFilter: Очистить фильтр

@@ -108,3 +108,14 @@ mail.emails: 封邮件
 mail.unread: 封未读
 mail.moreEmails: 封更多邮件
 mail.of: /
+
+# Tags
+tags.manageTags: 管理标签
+tags.currentTags: 当前标签
+tags.noTags: 无标签
+tags.addTag: 添加标签
+tags.tagNamePlaceholder: 输入标签名称...
+tags.selectExisting: 选择已有标签
+tags.generateWithAI: 使用 AI 生成标签
+tags.filterByTag: 按标签筛选
+tags.clearFilter: 清除筛选

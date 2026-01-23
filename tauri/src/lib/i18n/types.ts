@@ -100,7 +100,17 @@ export type TranslationKey =
   | 'mail.emails'
   | 'mail.unread'
   | 'mail.moreEmails'
-  | 'mail.of';
+  | 'mail.of'
+  // Tags
+  | 'tags.manageTags'
+  | 'tags.currentTags'
+  | 'tags.noTags'
+  | 'tags.addTag'
+  | 'tags.tagNamePlaceholder'
+  | 'tags.selectExisting'
+  | 'tags.generateWithAI'
+  | 'tags.filterByTag'
+  | 'tags.clearFilter';
 
 export type LocaleMessages = {
   [key in TranslationKey]: string;

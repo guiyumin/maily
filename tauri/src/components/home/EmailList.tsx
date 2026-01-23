@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { useLocale } from "@/lib/i18n";
+import { TagList } from "@/components/tags/TagList";
+import type { EmailTag } from "@/types/tags";
 
 export interface Email {
   uid: number;
@@ -14,6 +16,7 @@ export interface Email {
   snippet: string;
   date: string;
   unread: boolean;
+  tags?: EmailTag[];
 }
 
 interface EmailListProps {
@@ -210,6 +213,10 @@ export function EmailList({
                   <span className="line-clamp-2 block text-xs text-muted-foreground">
                     {sanitizeSnippet(email.snippet) || "\u00A0"}
                   </span>
+
+                  {email.tags && email.tags.length > 0 && (
+                    <TagList tags={email.tags} maxDisplay={4} />
+                  )}
                 </button>
               );
             })}

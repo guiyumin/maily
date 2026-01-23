@@ -108,3 +108,14 @@ mail.emails: e-mails
 mail.unread: ongelezen
 mail.moreEmails: meer e-mails
 mail.of: van
+
+# Tags
+tags.manageTags: Tags beheren
+tags.currentTags: Huidige tags
+tags.noTags: Geen tags
+tags.addTag: Tag toevoegen
+tags.tagNamePlaceholder: Voer tagnaam in...
+tags.selectExisting: Bestaande tag selecteren
+tags.generateWithAI: Tags genereren met AI
+tags.filterByTag: Filteren op tag
+tags.clearFilter: Filter wissen

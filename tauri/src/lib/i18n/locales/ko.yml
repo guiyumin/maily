@@ -108,3 +108,14 @@ mail.emails: 개의 이메일
 mail.unread: 개 읽지 않음
 mail.moreEmails: 개 더 많은 이메일
 mail.of: /
+
+# Tags
+tags.manageTags: 태그 관리
+tags.currentTags: 현재 태그
+tags.noTags: 태그 없음
+tags.addTag: 태그 추가
+tags.tagNamePlaceholder: 태그 이름 입력...
+tags.selectExisting: 기존 태그 선택
+tags.generateWithAI: AI로 태그 생성
+tags.filterByTag: 태그로 필터
+tags.clearFilter: 필터 지우기

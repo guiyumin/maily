@@ -124,6 +124,24 @@ pub struct Draft {
     pub updated_at: i64,
 }
 
+/// Tag for categorizing emails
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Tag {
+    pub id: i64,
+    pub name: String,
+    pub color: String,
+    pub created_at: i64,
+}
+
+/// Tag associated with an email (includes tag details for display)
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct EmailTag {
+    pub tag_id: i64,
+    pub tag_name: String,
+    pub tag_color: String,
+    pub auto_generated: bool,
+}
+
 const SCHEMA: &str = r#"
 CREATE TABLE IF NOT EXISTS mailbox_metadata (
     account TEXT NOT NULL,
@@ -201,6 +219,26 @@ CREATE TABLE IF NOT EXISTS drafts (
 
 CREATE INDEX IF NOT EXISTS idx_drafts_account ON drafts(account);
 CREATE INDEX IF NOT EXISTS idx_drafts_updated ON drafts(updated_at DESC);
+
+CREATE TABLE IF NOT EXISTS tags (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE,
+    color TEXT NOT NULL DEFAULT '#7C3AED',
+    created_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS email_tags (
+    account TEXT NOT NULL,
+    mailbox TEXT NOT NULL,
+    email_uid INTEGER NOT NULL,
+    tag_id INTEGER NOT NULL,
+    auto_generated INTEGER NOT NULL DEFAULT 0,
+    created_at INTEGER NOT NULL,
+    PRIMARY KEY (account, mailbox, email_uid, tag_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_email_tags_email ON email_tags(account, mailbox, email_uid);
+CREATE INDEX IF NOT EXISTS idx_email_tags_tag ON email_tags(tag_id);
 "#;
 
 /// Initialize database eagerly (call on app startup)
@@ -664,6 +702,11 @@ pub fn get_email_with_body(account: &str, mailbox: &str, uid: u32) -> Result<Ema
 
 pub fn delete_email_from_cache(account: &str, mailbox: &str, uid: u32) -> Result<(), Box<dyn std::error::Error>> {
     let conn = DB.lock().unwrap();
+    // Delete email_tags first (no foreign key, manual cleanup)
+    conn.execute(
+        "DELETE FROM email_tags WHERE account = ?1 AND mailbox = ?2 AND email_uid = ?3",
+        params![account, mailbox, uid]
+    )?;
     conn.execute(
         "DELETE FROM emails WHERE account = ?1 AND mailbox = ?2 AND uid = ?3",
         params![account, mailbox, uid]
@@ -1018,6 +1061,11 @@ fn delete_stale_emails(conn: &Connection, account: &str, mailbox: &str, server_u
 
     for uid in cached_uids {
         if !server_uids.contains(&uid) {
+            // Delete email_tags first (no foreign key, manual cleanup)
+            let _ = conn.execute(
+                "DELETE FROM email_tags WHERE account = ?1 AND mailbox = ?2 AND email_uid = ?3",
+                params![account, mailbox, uid]
+            );
             if conn.execute(
                 "DELETE FROM emails WHERE account = ?1 AND mailbox = ?2 AND uid = ?3",
                 params![account, mailbox, uid]
@@ -2073,4 +2121,237 @@ pub fn delete_draft(id: i64) -> Result<(), Box<dyn std::error::Error>> {
     let conn = DB.lock().unwrap();
     conn.execute("DELETE FROM drafts WHERE id = ?1", params![id])?;
     Ok(())
+}
+
+// ============ TAG FUNCTIONS ============
+
+/// Get all tags
+pub fn get_all_tags() -> Result<Vec<Tag>, Box<dyn std::error::Error>> {
+    let conn = DB.lock().unwrap();
+    let mut stmt = conn.prepare(
+        "SELECT id, name, color, created_at FROM tags ORDER BY name"
+    )?;
+
+    let tags = stmt.query_map([], |row| {
+        Ok(Tag {
+            id: row.get(0)?,
+            name: row.get(1)?,
+            color: row.get(2)?,
+            created_at: row.get(3)?,
+        })
+    })?.collect::<Result<Vec<_>, _>>()?;
+
+    Ok(tags)
+}
+
+/// Create a new tag (returns existing if name matches)
+pub fn create_tag(name: &str, color: &str) -> Result<Tag, Box<dyn std::error::Error>> {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let conn = DB.lock().unwrap();
+
+    // Check if tag already exists
+    let existing: Option<Tag> = conn.query_row(
+        "SELECT id, name, color, created_at FROM tags WHERE name = ?1",
+        params![name],
+        |row| Ok(Tag {
+            id: row.get(0)?,
+            name: row.get(1)?,
+            color: row.get(2)?,
+            created_at: row.get(3)?,
+        })
+    ).optional()?;
+
+    if let Some(tag) = existing {
+        return Ok(tag);
+    }
+
+    // Create new tag
+    let now = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs() as i64;
+    conn.execute(
+        "INSERT INTO tags (name, color, created_at) VALUES (?1, ?2, ?3)",
+        params![name, color, now]
+    )?;
+
+    let id = conn.last_insert_rowid();
+    Ok(Tag {
+        id,
+        name: name.to_string(),
+        color: color.to_string(),
+        created_at: now,
+    })
+}
+
+/// Delete a tag and all its email associations
+pub fn delete_tag(tag_id: i64) -> Result<(), Box<dyn std::error::Error>> {
+    let conn = DB.lock().unwrap();
+    // Delete email_tags first (no foreign key, manual cleanup)
+    conn.execute("DELETE FROM email_tags WHERE tag_id = ?1", params![tag_id])?;
+    conn.execute("DELETE FROM tags WHERE id = ?1", params![tag_id])?;
+    Ok(())
+}
+
+/// Get tags for a single email
+pub fn get_email_tags(account: &str, mailbox: &str, uid: u32) -> Result<Vec<EmailTag>, Box<dyn std::error::Error>> {
+    let conn = DB.lock().unwrap();
+    let mut stmt = conn.prepare(
+        "SELECT et.tag_id, t.name, t.color, et.auto_generated
+         FROM email_tags et
+         JOIN tags t ON et.tag_id = t.id
+         WHERE et.account = ?1 AND et.mailbox = ?2 AND et.email_uid = ?3
+         ORDER BY t.name"
+    )?;
+
+    let tags = stmt.query_map(params![account, mailbox, uid], |row| {
+        let auto_gen: i32 = row.get(3)?;
+        Ok(EmailTag {
+            tag_id: row.get(0)?,
+            tag_name: row.get(1)?,
+            tag_color: row.get(2)?,
+            auto_generated: auto_gen == 1,
+        })
+    })?.collect::<Result<Vec<_>, _>>()?;
+
+    Ok(tags)
+}
+
+/// Add a tag to an email
+pub fn add_tag_to_email(
+    account: &str,
+    mailbox: &str,
+    uid: u32,
+    tag_id: i64,
+    auto_generated: bool,
+) -> Result<(), Box<dyn std::error::Error>> {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let conn = DB.lock().unwrap();
+    let now = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs() as i64;
+    let auto_gen = if auto_generated { 1 } else { 0 };
+
+    conn.execute(
+        "INSERT OR IGNORE INTO email_tags (account, mailbox, email_uid, tag_id, auto_generated, created_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+        params![account, mailbox, uid, tag_id, auto_gen, now]
+    )?;
+    Ok(())
+}
+
+/// Remove a tag from an email
+pub fn remove_tag_from_email(
+    account: &str,
+    mailbox: &str,
+    uid: u32,
+    tag_id: i64,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let conn = DB.lock().unwrap();
+    conn.execute(
+        "DELETE FROM email_tags WHERE account = ?1 AND mailbox = ?2 AND email_uid = ?3 AND tag_id = ?4",
+        params![account, mailbox, uid, tag_id]
+    )?;
+    Ok(())
+}
+
+/// Delete all tags for an email (called when email is deleted)
+pub fn delete_email_tags(account: &str, mailbox: &str, uid: u32) -> Result<(), Box<dyn std::error::Error>> {
+    let conn = DB.lock().unwrap();
+    conn.execute(
+        "DELETE FROM email_tags WHERE account = ?1 AND mailbox = ?2 AND email_uid = ?3",
+        params![account, mailbox, uid]
+    )?;
+    Ok(())
+}
+
+/// Get tags for multiple emails (batch query for list view)
+pub fn get_emails_tags_batch(
+    account: &str,
+    mailbox: &str,
+    uids: &[u32],
+) -> Result<std::collections::HashMap<u32, Vec<EmailTag>>, Box<dyn std::error::Error>> {
+    use std::collections::HashMap;
+
+    if uids.is_empty() {
+        return Ok(HashMap::new());
+    }
+
+    let conn = DB.lock().unwrap();
+
+    // Build placeholders for IN clause
+    let placeholders: String = uids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+    let query = format!(
+        "SELECT et.email_uid, et.tag_id, t.name, t.color, et.auto_generated
+         FROM email_tags et
+         JOIN tags t ON et.tag_id = t.id
+         WHERE et.account = ?1 AND et.mailbox = ?2 AND et.email_uid IN ({})
+         ORDER BY et.email_uid, t.name",
+        placeholders
+    );
+
+    let mut stmt = conn.prepare(&query)?;
+
+    // Build params: account, mailbox, then all UIDs
+    let mut params_vec: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
+    params_vec.push(Box::new(account.to_string()));
+    params_vec.push(Box::new(mailbox.to_string()));
+    for uid in uids {
+        params_vec.push(Box::new(*uid));
+    }
+
+    let params_refs: Vec<&dyn rusqlite::ToSql> = params_vec.iter().map(|p| p.as_ref()).collect();
+
+    let mut result: HashMap<u32, Vec<EmailTag>> = HashMap::new();
+
+    let rows = stmt.query_map(params_refs.as_slice(), |row| {
+        let email_uid: u32 = row.get(0)?;
+        let auto_gen: i32 = row.get(4)?;
+        Ok((email_uid, EmailTag {
+            tag_id: row.get(1)?,
+            tag_name: row.get(2)?,
+            tag_color: row.get(3)?,
+            auto_generated: auto_gen == 1,
+        }))
+    })?;
+
+    for row in rows {
+        let (uid, tag) = row?;
+        result.entry(uid).or_insert_with(Vec::new).push(tag);
+    }
+
+    Ok(result)
+}
+
+/// Search emails by tags (returns UIDs that have any of the given tags)
+pub fn search_emails_by_tags(
+    account: &str,
+    mailbox: &str,
+    tag_ids: &[i64],
+) -> Result<Vec<u32>, Box<dyn std::error::Error>> {
+    if tag_ids.is_empty() {
+        return Ok(vec![]);
+    }
+
+    let conn = DB.lock().unwrap();
+
+    let placeholders: String = tag_ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+    let query = format!(
+        "SELECT DISTINCT email_uid FROM email_tags
+         WHERE account = ?1 AND mailbox = ?2 AND tag_id IN ({})
+         ORDER BY email_uid DESC",
+        placeholders
+    );
+
+    let mut stmt = conn.prepare(&query)?;
+
+    let mut params_vec: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
+    params_vec.push(Box::new(account.to_string()));
+    params_vec.push(Box::new(mailbox.to_string()));
+    for tag_id in tag_ids {
+        params_vec.push(Box::new(*tag_id));
+    }
+
+    let params_refs: Vec<&dyn rusqlite::ToSql> = params_vec.iter().map(|p| p.as_ref()).collect();
+
+    let uids = stmt.query_map(params_refs.as_slice(), |row| {
+        row.get::<_, u32>(0)
+    })?.collect::<Result<Vec<_>, _>>()?;
+
+    Ok(uids)
 }

@@ -108,3 +108,14 @@ mail.emails: emaili
 mail.unread: nieprzeczytanych
 mail.moreEmails: więcej emaili
 mail.of: z
+
+# Tags
+tags.manageTags: Zarządzaj tagami
+tags.currentTags: Obecne tagi
+tags.noTags: Brak tagów
+tags.addTag: Dodaj tag
+tags.tagNamePlaceholder: Wprowadź nazwę tagu...
+tags.selectExisting: Wybierz istniejący tag
+tags.generateWithAI: Generuj tagi za pomocą AI
+tags.filterByTag: Filtruj według tagu
+tags.clearFilter: Wyczyść filtr

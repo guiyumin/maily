@@ -19,6 +19,7 @@ import {
   RefreshCw,
   CalendarPlus,
   ListTodo,
+  Tags,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -60,6 +61,10 @@ import { useEmailCache } from "@/stores/emailCache";
 import { Compose } from "@/components/compose/Compose";
 import { toast } from "sonner";
 import { useLocale } from "@/lib/i18n";
+import { TagDialog } from "@/components/tags/TagDialog";
+import { TagList } from "@/components/tags/TagList";
+import { getEmailTags } from "@/lib/tags";
+import type { EmailTag } from "@/types/tags";
 
 interface Attachment {
   part_id: string;
@@ -753,6 +758,10 @@ export function EmailReader({
   const [extractedReminder, setExtractedReminder] = useState<string | null>(null);
   const [extractingReminder, setExtractingReminder] = useState(false);
 
+  // Tags state
+  const [tagDialogOpen, setTagDialogOpen] = useState(false);
+  const [emailTags, setEmailTags] = useState<EmailTag[]>([]);
+
   const cache = useEmailCache();
 
   // Fetch email - shows metadata immediately, loads body in background if needed
@@ -875,6 +884,17 @@ export function EmailReader({
       return;
     }
     fetchEmailBody(emailSummary.uid);
+  }, [emailSummary?.uid, account, mailbox]);
+
+  // Fetch tags when email changes
+  useEffect(() => {
+    if (!emailSummary || !account) {
+      setEmailTags([]);
+      return;
+    }
+    getEmailTags(account, mailbox, emailSummary.uid)
+      .then(setEmailTags)
+      .catch(console.error);
   }, [emailSummary?.uid, account, mailbox]);
 
   const handleDelete = async (permanent = false) => {
@@ -1156,6 +1176,20 @@ export function EmailReader({
             <TooltipContent>Delete</TooltipContent>
           </Tooltip>
 
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setTagDialogOpen(true)}
+                disabled={!emailFull}
+              >
+                <Tags className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{t("tags.manageTags")}</TooltipContent>
+          </Tooltip>
+
           <Separator orientation="vertical" className="mx-1 h-6" />
 
           <Tooltip>
@@ -1274,6 +1308,13 @@ export function EmailReader({
               {new Date(displayEmail.date).toLocaleString()}
             </span>
           </div>
+
+          {/* Tags */}
+          {emailTags.length > 0 && (
+            <div className="mt-3">
+              <TagList tags={emailTags} maxDisplay={10} />
+            </div>
+          )}
 
           <Separator className="my-6" />
 
@@ -1521,6 +1562,33 @@ export function EmailReader({
             message_id: emailFull.message_id,
             date: emailFull.date,
           }}
+        />
+      )}
+
+      {/* Tag management dialog */}
+      {emailSummary && (
+        <TagDialog
+          open={tagDialogOpen}
+          onOpenChange={setTagDialogOpen}
+          account={account}
+          mailbox={mailbox}
+          uid={emailSummary.uid}
+          tags={emailTags}
+          onTagsChange={setEmailTags}
+          emailContext={
+            emailFull
+              ? {
+                  from: emailFull.from,
+                  subject: emailFull.subject,
+                  bodyText: emailFull.body_html
+                    ? new DOMParser().parseFromString(
+                        emailFull.body_html,
+                        "text/html"
+                      ).body.textContent || ""
+                    : "",
+                }
+              : undefined
+          }
         />
       )}
     </div>

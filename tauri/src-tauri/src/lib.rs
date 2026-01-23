@@ -636,6 +636,48 @@ fn reminders_search(query: String, list_id: Option<String>) -> Result<Vec<Remind
     rem_search(&query, list_id.as_deref()).map_err(|e| e.to_string())
 }
 
+// ============ TAG OPERATIONS ============
+
+#[tauri::command]
+fn list_tags() -> Result<Vec<mail::Tag>, String> {
+    mail::get_all_tags().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn create_tag(name: String, color: String) -> Result<mail::Tag, String> {
+    mail::create_tag(&name, &color).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn delete_tag(tag_id: i64) -> Result<(), String> {
+    mail::delete_tag(tag_id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn get_email_tags(account: String, mailbox: String, uid: u32) -> Result<Vec<mail::EmailTag>, String> {
+    mail::get_email_tags(&account, &mailbox, uid).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn add_email_tag(account: String, mailbox: String, uid: u32, tag_id: i64, auto_generated: bool) -> Result<(), String> {
+    mail::add_tag_to_email(&account, &mailbox, uid, tag_id, auto_generated).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn remove_email_tag(account: String, mailbox: String, uid: u32, tag_id: i64) -> Result<(), String> {
+    mail::remove_tag_from_email(&account, &mailbox, uid, tag_id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn get_batch_email_tags(account: String, mailbox: String, uids: Vec<u32>) -> Result<std::collections::HashMap<u32, Vec<mail::EmailTag>>, String> {
+    mail::get_emails_tags_batch(&account, &mailbox, &uids).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn search_emails_by_tags(account: String, mailbox: String, tag_ids: Vec<i64>) -> Result<Vec<u32>, String> {
+    mail::search_emails_by_tags(&account, &mailbox, &tag_ids).map_err(|e| e.to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // Initialize tokio runtime for background tasks
@@ -781,7 +823,16 @@ pub fn run() {
             reminders_complete,
             reminders_uncomplete,
             reminders_get_default_list,
-            reminders_search
+            reminders_search,
+            // Tag operations
+            list_tags,
+            create_tag,
+            delete_tag,
+            get_email_tags,
+            add_email_tag,
+            remove_email_tag,
+            get_batch_email_tags,
+            search_emails_by_tags
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

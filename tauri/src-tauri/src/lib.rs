@@ -11,6 +11,7 @@ use ai::{
     complete as do_ai_complete, init_summaries_table, summarize_email as ai_summarize,
     generate_reply as ai_generate_reply, extract_event as ai_extract_event,
     extract_reminder as ai_extract_reminder, parse_event_nlp as ai_parse_event_nlp,
+    generate_email_tags as ai_generate_tags,
     get_cached_summary, delete_summary, list_available_providers, test_provider as ai_test_provider,
     CompletionRequest, CompletionResponse, EmailSummary,
 };
@@ -678,6 +679,12 @@ fn search_emails_by_tags(account: String, mailbox: String, tag_ids: Vec<i64>) ->
     mail::search_emails_by_tags(&account, &mailbox, &tag_ids).map_err(|e| e.to_string())
 }
 
+/// Generate tags for an email using AI
+#[tauri::command]
+fn generate_ai_tags(from: String, subject: String, body_text: String) -> Result<Vec<String>, String> {
+    ai_generate_tags(&from, &subject, &body_text)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // Initialize tokio runtime for background tasks
@@ -832,7 +839,8 @@ pub fn run() {
             add_email_tag,
             remove_email_tag,
             get_batch_email_tags,
-            search_emails_by_tags
+            search_emails_by_tags,
+            generate_ai_tags
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

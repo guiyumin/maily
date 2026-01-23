@@ -522,6 +522,56 @@ Keep it brief. No preamble, section titles on their own line, content indented w
     response
 }
 
+/// Generate tags for an email using AI
+pub fn generate_email_tags(
+    from: &str,
+    subject: &str,
+    body_text: &str,
+) -> Result<Vec<String>, String> {
+    // Truncate body if too long
+    let body_truncated: String = body_text.chars().take(2000).collect();
+
+    let prompt = format!(
+        r#"Analyze this email and suggest 1-5 short tags to categorize it.
+
+From: {}
+Subject: {}
+
+{}
+
+Return ONLY a comma-separated list of short tags (1-2 words each). Examples: work, urgent, newsletter, receipt, travel, meeting, personal, finance, shipping, social
+
+Tags:"#,
+        from, subject, body_truncated
+    );
+
+    let response = complete(CompletionRequest {
+        prompt,
+        system_prompt: Some("You are a helpful assistant that categorizes emails with short, descriptive tags. Only output comma-separated tags, nothing else.".to_string()),
+        max_tokens: Some(100),
+        provider_name: None,
+    });
+
+    if response.success {
+        if let Some(content) = response.content {
+            // Parse comma-separated tags
+            let tags: Vec<String> = content
+                .split(',')
+                .map(|s| s.trim().to_lowercase())
+                .filter(|s| !s.is_empty() && s.len() <= 30)
+                .take(5)
+                .collect();
+
+            if tags.is_empty() {
+                return Err("AI returned no valid tags".to_string());
+            }
+            return Ok(tags);
+        }
+    }
+
+    Err(response.error.unwrap_or_else(|| "Failed to generate tags".to_string()))
+}
+
 /// Generate smart reply suggestions
 pub fn generate_reply(
     original_from: &str,

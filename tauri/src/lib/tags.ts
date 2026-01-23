@@ -75,3 +75,17 @@ export async function searchEmailsByTags(
     tagIds,
   });
 }
+
+// AI tag generation
+
+export async function generateAITags(
+  from: string,
+  subject: string,
+  bodyText: string
+): Promise<string[]> {
+  return invoke<string[]>("generate_ai_tags", {
+    from,
+    subject,
+    bodyText,
+  });
+}

@@ -14,6 +14,7 @@ import {
   createTag,
   addEmailTag,
   removeEmailTag,
+  generateAITags,
 } from "@/lib/tags";
 import type { Tag, EmailTag } from "@/types/tags";
 import { TAG_COLORS } from "@/types/tags";
@@ -59,7 +60,7 @@ export function TagDialog({
 
   // Get tags not currently assigned to this email
   const availableTags = allTags.filter(
-    (tag) => !tags.some((et) => et.tag_id === tag.id)
+    (tag) => !tags.some((et) => et.tag_id === tag.id),
   );
 
   const handleAddExistingTag = async (tag: Tag) => {
@@ -131,9 +132,46 @@ export function TagDialog({
 
     setAiLoading(true);
     try {
-      // TODO: Call AI auto-tag endpoint when implemented
-      // For now, this is a placeholder
-      console.log("AI tagging not yet implemented");
+      // Get AI-suggested tag names
+      const suggestedNames = await generateAITags(
+        emailContext.from,
+        emailContext.subject,
+        emailContext.bodyText,
+      );
+
+      // Create tags and add to email
+      for (const tagName of suggestedNames) {
+        // Skip if already has this tag
+        if (
+          tags.some((t) => t.tag_name.toLowerCase() === tagName.toLowerCase())
+        ) {
+          continue;
+        }
+
+        // Pick a random color
+        const color = TAG_COLORS[Math.floor(Math.random() * TAG_COLORS.length)];
+
+        // Create or get existing tag
+        const tag = await createTag(tagName, color);
+
+        // Add to email
+        await addEmailTag(account, mailbox, uid, tag.id, true);
+
+        // Update local state
+        const newEmailTag: EmailTag = {
+          tag_id: tag.id,
+          tag_name: tag.name,
+          tag_color: tag.color,
+          auto_generated: true,
+        };
+        onTagsChange([...tags, newEmailTag]);
+
+        // Update allTags list
+        setAllTags((prev) => {
+          if (prev.some((t) => t.id === tag.id)) return prev;
+          return [...prev, tag];
+        });
+      }
     } catch (error) {
       console.error("Failed to generate AI tags:", error);
     } finally {
@@ -154,7 +192,7 @@ export function TagDialog({
             <label className="text-sm font-medium text-muted-foreground">
               {t("tags.currentTags")}
             </label>
-            <div className="mt-2 flex flex-wrap gap-2 min-h-[32px]">
+            <div className="mt-2 flex flex-wrap gap-2 min-h-8">
               {tags.length === 0 ? (
                 <span className="text-sm text-muted-foreground">
                   {t("tags.noTags")}

@@ -2250,16 +2250,6 @@ pub fn remove_tag_from_email(
     Ok(())
 }
 
-/// Delete all tags for an email (called when email is deleted)
-pub fn delete_email_tags(account: &str, mailbox: &str, uid: u32) -> Result<(), Box<dyn std::error::Error>> {
-    let conn = DB.lock().unwrap();
-    conn.execute(
-        "DELETE FROM email_tags WHERE account = ?1 AND mailbox = ?2 AND email_uid = ?3",
-        params![account, mailbox, uid]
-    )?;
-    Ok(())
-}
-
 /// Get tags for multiple emails (batch query for list view)
 pub fn get_emails_tags_batch(
     account: &str,

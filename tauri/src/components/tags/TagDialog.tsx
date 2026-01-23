@@ -5,6 +5,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -260,13 +261,12 @@ export function TagDialog({
               </div>
             </div>
           )}
+        </div>
 
-          <hr className="border-border" />
-
-          {/* AI Generate */}
+        <DialogFooter className="border-t pt-4">
           <Button
-            variant="outline"
-            className="w-full"
+            variant="ghost"
+            size="sm"
             onClick={handleGenerateAITags}
             disabled={aiLoading || !emailContext}
           >
@@ -277,7 +277,7 @@ export function TagDialog({
             )}
             {t("tags.generateWithAI")}
           </Button>
-        </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

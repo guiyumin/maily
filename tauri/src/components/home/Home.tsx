@@ -11,6 +11,8 @@ import { MessageSquare, Calendar } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Link } from "@tanstack/react-router";
+import { getBatchEmailTags } from "@/lib/tags";
+import type { EmailTag } from "@/types/tags";
 
 interface Account {
   name: string;
@@ -77,6 +79,28 @@ function deduplicateEmails(emails: Email[]): Email[] {
   });
 }
 
+// Fetch tags for emails and merge them
+async function fetchAndMergeTags(
+  emails: Email[],
+  account: string,
+  mailbox: string
+): Promise<Email[]> {
+  if (emails.length === 0) return emails;
+
+  try {
+    const uids = emails.map((e) => e.uid);
+    const tagsMap = await getBatchEmailTags(account, mailbox, uids);
+
+    return emails.map((email) => ({
+      ...email,
+      tags: tagsMap[email.uid] || [],
+    }));
+  } catch (err) {
+    console.error("Failed to fetch tags:", err);
+    return emails;
+  }
+}
+
 export function Home() {
   // Initialize with preloaded data if available - INSTANT first render
   const [accounts, setAccounts] = useState<Account[]>(
@@ -124,6 +148,13 @@ export function Home() {
     return () => clearInterval(interval);
   }, [fetchUnreadCounts]);
 
+  // Fetch tags for preloaded emails (they load without tags)
+  useEffect(() => {
+    if (PRELOADED_STATE && selectedAccount && emails.length > 0 && !emails[0].tags) {
+      fetchAndMergeTags(emails, selectedAccount, "INBOX").then(setEmails);
+    }
+  }, []);
+
   // Fetch account order from config
   useEffect(() => {
     invoke<{ account_order?: string[] }>("get_config")
@@ -146,11 +177,17 @@ export function Home() {
     if (PRELOADED_STATE) return; // Already have data
 
     invoke<InitialState>("get_startup_state")
-      .then((state) => {
+      .then(async (state) => {
         setAccounts(state.accounts);
         if (state.selected_account) {
           setSelectedAccount(state.selected_account);
-          setEmails(deduplicateEmails(state.emails.emails));
+          const dedupedEmails = deduplicateEmails(state.emails.emails);
+          const emailsWithTags = await fetchAndMergeTags(
+            dedupedEmails,
+            state.selected_account,
+            "INBOX"
+          );
+          setEmails(emailsWithTags);
           setTotal(state.emails.total);
           setHasMore(state.emails.has_more);
           initialLoadDoneRef.current = true;
@@ -206,7 +243,13 @@ export function Home() {
       limit: INITIAL_LOAD,
     })
       .then(async (result) => {
-        setEmails(deduplicateEmails(result.emails));
+        const dedupedEmails = deduplicateEmails(result.emails);
+        const emailsWithTags = await fetchAndMergeTags(
+          dedupedEmails,
+          selectedAccount,
+          selectedMailbox
+        );
+        setEmails(emailsWithTags);
         setTotal(result.total);
         setHasMore(result.has_more);
         setLoading(false);
@@ -267,7 +310,10 @@ export function Home() {
         // Check if account/mailbox changed while loading
         if (!backgroundLoadingRef.current) break;
 
-        setEmails((prev) => deduplicateEmails([...prev, ...result.emails]));
+        // Fetch tags for new emails
+        const emailsWithTags = await fetchAndMergeTags(result.emails, account, mailbox);
+
+        setEmails((prev) => deduplicateEmails([...prev, ...emailsWithTags]));
         setHasMore(result.has_more);
         offset += result.emails.length;
 
@@ -295,7 +341,14 @@ export function Home() {
         limit: BATCH_SIZE,
       });
 
-      setEmails((prev) => deduplicateEmails([...prev, ...result.emails]));
+      // Fetch tags for new emails
+      const emailsWithTags = await fetchAndMergeTags(
+        result.emails,
+        selectedAccount,
+        selectedMailbox
+      );
+
+      setEmails((prev) => deduplicateEmails([...prev, ...emailsWithTags]));
       setHasMore(result.has_more);
     } catch (err) {
       console.error("Load more error:", err);
@@ -337,7 +390,9 @@ export function Home() {
               offset: 0,
               limit: Math.max(emails.length, INITIAL_LOAD),
             });
-            setEmails(deduplicateEmails(result.emails));
+            const dedupedEmails = deduplicateEmails(result.emails);
+            const emailsWithTags = await fetchAndMergeTags(dedupedEmails, account, mailbox);
+            setEmails(emailsWithTags);
             setTotal(result.total);
             setHasMore(result.has_more);
             setRefreshing(false);
@@ -430,6 +485,12 @@ export function Home() {
   const handleSnippetUpdate = useCallback((uid: number, snippet: string) => {
     setEmails((prev) =>
       prev.map((e) => (e.uid === uid ? { ...e, snippet } : e))
+    );
+  }, []);
+
+  const handleTagsChange = useCallback((uid: number, tags: EmailTag[]) => {
+    setEmails((prev) =>
+      prev.map((e) => (e.uid === uid ? { ...e, tags } : e))
     );
   }, []);
 
@@ -535,6 +596,7 @@ export function Home() {
           onEmailDeleted={handleEmailDeleted}
           onEmailReadChange={handleEmailReadChange}
           onSnippetUpdate={handleSnippetUpdate}
+          onTagsChange={handleTagsChange}
           onNavigate={handleNavigate}
           canNavigatePrev={canNavigatePrev}
           canNavigateNext={canNavigateNext}

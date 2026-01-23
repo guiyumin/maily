@@ -679,10 +679,14 @@ fn search_emails_by_tags(account: String, mailbox: String, tag_ids: Vec<i64>) ->
     mail::search_emails_by_tags(&account, &mailbox, &tag_ids).map_err(|e| e.to_string())
 }
 
-/// Generate tags for an email using AI
+/// Generate tags for an email using AI (async to not block UI)
 #[tauri::command]
-fn generate_ai_tags(from: String, subject: String, body_text: String) -> Result<Vec<String>, String> {
-    ai_generate_tags(&from, &subject, &body_text)
+async fn generate_ai_tags(from: String, subject: String, body_text: String) -> Result<Vec<String>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        ai_generate_tags(&from, &subject, &body_text)
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

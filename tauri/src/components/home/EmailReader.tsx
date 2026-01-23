@@ -97,6 +97,7 @@ interface EmailReaderProps {
   onEmailDeleted: (uid: number) => void;
   onEmailReadChange: (uid: number, unread: boolean) => void;
   onSnippetUpdate: (uid: number, snippet: string) => void;
+  onTagsChange?: (uid: number, tags: EmailTag[]) => void;
   onNavigate: (direction: "prev" | "next") => void;
   canNavigatePrev: boolean;
   canNavigateNext: boolean;
@@ -206,7 +207,9 @@ function ExtractedEventDisplay({
 
     // Check for NO_EVENTS_FOUND response
     if (raw === "NO_EVENTS_FOUND" || raw.includes("NO_EVENTS_FOUND")) {
-      setErrorMessage("No calendar event found in this email. Describe the event below:");
+      setErrorMessage(
+        "No calendar event found in this email. Describe the event below:",
+      );
       return;
     }
 
@@ -348,7 +351,14 @@ function ExtractedEventDisplay({
   }
 
   const handleAddToCalendar = async () => {
-    console.log("handleAddToCalendar called with state:", { title, date, startTime, endTime, location, alarm });
+    console.log("handleAddToCalendar called with state:", {
+      title,
+      date,
+      startTime,
+      endTime,
+      location,
+      alarm,
+    });
 
     if (!title.trim()) {
       toast.error("Title is required");
@@ -376,7 +386,9 @@ function ExtractedEventDisplay({
         await invoke("calendar_request_access");
         const newStatus = await invoke<string>("calendar_get_auth_status");
         if (newStatus !== "authorized") {
-          toast.error("Calendar access denied. Please enable in System Settings → Privacy & Security → Calendars");
+          toast.error(
+            "Calendar access denied. Please enable in System Settings → Privacy & Security → Calendars",
+          );
           setAdding(false);
           return;
         }
@@ -385,7 +397,13 @@ function ExtractedEventDisplay({
       const startDateTime = new Date(`${date}T${startTime}`);
       const endDateTime = new Date(`${date}T${endTime}`);
 
-      console.log("Creating event:", { date, startTime, endTime, startDateTime, endDateTime });
+      console.log("Creating event:", {
+        date,
+        startTime,
+        endTime,
+        startDateTime,
+        endDateTime,
+      });
 
       if (isNaN(startDateTime.getTime()) || isNaN(endDateTime.getTime())) {
         toast.error("Invalid date or time format");
@@ -498,7 +516,10 @@ function ExtractedEventDisplay({
         <Button variant="outline" onClick={onClose}>
           Cancel
         </Button>
-        <Button onClick={handleAddToCalendar} disabled={adding || !title.trim()}>
+        <Button
+          onClick={handleAddToCalendar}
+          disabled={adding || !title.trim()}
+        >
           {adding ? (
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
           ) : (
@@ -597,7 +618,9 @@ function ExtractedReminderDisplay({
         await invoke("reminders_request_access");
         const newStatus = await invoke<string>("reminders_get_auth_status");
         if (newStatus !== "authorized") {
-          toast.error("Reminders access denied. Please enable in System Settings → Privacy & Security → Reminders");
+          toast.error(
+            "Reminders access denied. Please enable in System Settings → Privacy & Security → Reminders",
+          );
           setAdding(false);
           return;
         }
@@ -707,7 +730,10 @@ function ExtractedReminderDisplay({
         <Button variant="outline" onClick={onClose}>
           Cancel
         </Button>
-        <Button onClick={handleAddToReminders} disabled={adding || !title.trim()}>
+        <Button
+          onClick={handleAddToReminders}
+          disabled={adding || !title.trim()}
+        >
           {adding ? (
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
           ) : (
@@ -727,6 +753,7 @@ export function EmailReader({
   onEmailDeleted,
   onEmailReadChange,
   onSnippetUpdate,
+  onTagsChange,
   onNavigate,
   canNavigatePrev,
   canNavigateNext,
@@ -755,34 +782,74 @@ export function EmailReader({
   const [extracting, setExtracting] = useState(false);
 
   const [reminderDialogOpen, setReminderDialogOpen] = useState(false);
-  const [extractedReminder, setExtractedReminder] = useState<string | null>(null);
+  const [extractedReminder, setExtractedReminder] = useState<string | null>(
+    null,
+  );
   const [extractingReminder, setExtractingReminder] = useState(false);
 
   // Tags state
   const [tagDialogOpen, setTagDialogOpen] = useState(false);
   const [emailTags, setEmailTags] = useState<EmailTag[]>([]);
 
+  // Handle tag changes - update local state and propagate to parent
+  const handleTagsChange = useCallback((newTags: EmailTag[]) => {
+    setEmailTags(newTags);
+    if (emailSummary && onTagsChange) {
+      onTagsChange(emailSummary.uid, newTags);
+    }
+  }, [emailSummary, onTagsChange]);
+
   const cache = useEmailCache();
 
   // Fetch email - shows metadata immediately, loads body in background if needed
-  const fetchEmailBody = useCallback(async (uid: number, skipCache = false) => {
-    if (!account) return;
+  const fetchEmailBody = useCallback(
+    async (uid: number, skipCache = false) => {
+      if (!account) return;
 
-    // Check frontend cache first (unless skipping)
-    if (!skipCache) {
-      const cached = cache.get(account, mailbox, uid);
-      if (cached) {
-        setEmailFull(cached);
-        setLoading(false);
-        setError(null);
+      // Check frontend cache first (unless skipping)
+      if (!skipCache) {
+        const cached = cache.get(account, mailbox, uid);
+        if (cached) {
+          setEmailFull(cached);
+          setLoading(false);
+          setError(null);
 
-        // Still mark as read if unread
-        if (cached.unread) {
-          const updated = { ...cached, unread: false };
+          // Still mark as read if unread
+          if (cached.unread) {
+            const updated = { ...cached, unread: false };
+            setEmailFull(updated);
+            cache.set(account, mailbox, updated);
+            onEmailReadChange(uid, false);
+
+            invoke("mark_email_read_async", {
+              account,
+              mailbox,
+              uid,
+              unread: false,
+            }).catch(console.error);
+          }
+          return;
+        }
+      }
+
+      // Step 1: Get email metadata from cache immediately (non-blocking)
+      setError(null);
+
+      try {
+        const metadata = await invoke<EmailFull>("get_email", {
+          account,
+          mailbox,
+          uid,
+        });
+
+        // Show metadata immediately
+        setEmailFull(metadata);
+
+        // Mark as read
+        if (metadata.unread) {
+          const updated = { ...metadata, unread: false };
           setEmailFull(updated);
-          cache.set(account, mailbox, updated);
           onEmailReadChange(uid, false);
-
           invoke("mark_email_read_async", {
             account,
             mailbox,
@@ -790,85 +857,61 @@ export function EmailReader({
             unread: false,
           }).catch(console.error);
         }
-        return;
-      }
-    }
 
-    // Step 1: Get email metadata from cache immediately (non-blocking)
-    setError(null);
+        // Step 2: If body is empty, fetch it in background
+        if (!metadata.body_html) {
+          setLoading(true); // Show loading spinner in body area only
 
-    try {
-      const metadata = await invoke<EmailFull>("get_email", {
-        account,
-        mailbox,
-        uid,
-      });
+          try {
+            const result = await invoke<[string, string] | null>(
+              "fetch_email_body_async",
+              {
+                account,
+                mailbox,
+                uid,
+              },
+            );
 
-      // Show metadata immediately
-      setEmailFull(metadata);
+            if (result) {
+              const [body_html, snippet] = result;
 
-      // Mark as read
-      if (metadata.unread) {
-        const updated = { ...metadata, unread: false };
-        setEmailFull(updated);
-        onEmailReadChange(uid, false);
-        invoke("mark_email_read_async", {
-          account,
-          mailbox,
-          uid,
-          unread: false,
-        }).catch(console.error);
-      }
+              // Update the email state with body
+              setEmailFull((prev) => {
+                if (!prev || prev.uid !== uid) return prev;
+                const updated = { ...prev, body_html, snippet };
+                cache.set(account, mailbox, updated);
+                return updated;
+              });
 
-      // Step 2: If body is empty, fetch it in background
-      if (!metadata.body_html) {
-        setLoading(true); // Show loading spinner in body area only
+              // Update snippet in email list
+              onSnippetUpdate(uid, snippet);
 
-        try {
-          const result = await invoke<[string, string] | null>("fetch_email_body_async", {
-            account,
-            mailbox,
-            uid,
-          });
-
-          if (result) {
-            const [body_html, snippet] = result;
-
-            // Update the email state with body
-            setEmailFull((prev) => {
-              if (!prev || prev.uid !== uid) return prev;
-              const updated = { ...prev, body_html, snippet };
-              cache.set(account, mailbox, updated);
-              return updated;
-            });
-
-            // Update snippet in email list
-            onSnippetUpdate(uid, snippet);
-
-            // Update backend cache
-            invoke("update_email_body_cache", {
-              account,
-              mailbox,
-              uid,
-              bodyHtml: body_html,
-              snippet,
-            }).catch(console.error);
-          } else {
-            setError("Email body not found on server");
+              // Update backend cache
+              invoke("update_email_body_cache", {
+                account,
+                mailbox,
+                uid,
+                bodyHtml: body_html,
+                snippet,
+              }).catch(console.error);
+            } else {
+              setError("Email body not found on server");
+            }
+          } catch (bodyErr) {
+            setError(bodyErr?.toString() || "Failed to load email body");
+          } finally {
+            setLoading(false);
           }
-        } catch (bodyErr) {
-          setError(bodyErr?.toString() || "Failed to load email body");
-        } finally {
-          setLoading(false);
+        } else {
+          // Body already cached
+          cache.set(account, mailbox, metadata);
         }
-      } else {
-        // Body already cached
-        cache.set(account, mailbox, metadata);
+      } catch (err) {
+        setError(err?.toString() || "Failed to load email");
       }
-    } catch (err) {
-      setError(err?.toString() || "Failed to load email");
-    }
-  }, [account, mailbox, cache, onEmailReadChange, onSnippetUpdate]);
+    },
+    [account, mailbox, cache, onEmailReadChange, onSnippetUpdate],
+  );
 
   // Retry loading email body (skips cache, forces fresh IMAP fetch)
   const handleRetryLoad = useCallback(() => {
@@ -1035,7 +1078,8 @@ export function EmailReader({
 
     try {
       const bodyText = emailFull.body_html
-        ? new DOMParser().parseFromString(emailFull.body_html, "text/html").body.textContent || ""
+        ? new DOMParser().parseFromString(emailFull.body_html, "text/html").body
+            .textContent || ""
         : "";
 
       const response = await invoke<CompletionResponse>("extract_reminder", {
@@ -1074,9 +1118,7 @@ export function EmailReader({
       <div className="flex flex-1 flex-col items-center justify-center bg-muted/20 text-muted-foreground">
         <Mail className="mb-4 h-12 w-12" />
         <p className="text-lg font-medium">{t("mail.selectEmail")}</p>
-        <p className="text-sm">
-          {t("mail.selectEmailDescription")}
-        </p>
+        <p className="text-sm">{t("mail.selectEmailDescription")}</p>
       </div>
     );
   }
@@ -1309,14 +1351,14 @@ export function EmailReader({
             </span>
           </div>
 
+          <Separator className="my-3" />
+
           {/* Tags */}
           {emailTags.length > 0 && (
-            <div className="mt-3">
+            <div className="mb-4">
               <TagList tags={emailTags} maxDisplay={10} />
             </div>
           )}
-
-          <Separator className="my-6" />
 
           {/* Attachments */}
           {displayEmail.attachments && displayEmail.attachments.length > 0 && (
@@ -1444,13 +1486,20 @@ export function EmailReader({
                     const lines = section.split("\n");
                     const title = lines[0];
                     const content = lines.slice(1);
-                    const bulletItems = content.filter(l => l.trim().startsWith("- "));
-                    const nonBulletItems = content.filter(l => !l.trim().startsWith("- ") && l.trim());
+                    const bulletItems = content.filter((l) =>
+                      l.trim().startsWith("- "),
+                    );
+                    const nonBulletItems = content.filter(
+                      (l) => !l.trim().startsWith("- ") && l.trim(),
+                    );
                     return (
                       <div key={i}>
                         <div className="font-medium">{title}</div>
                         {nonBulletItems.map((line, j) => (
-                          <div key={`t-${j}`} className="ml-4 text-muted-foreground">
+                          <div
+                            key={`t-${j}`}
+                            className="ml-4 text-muted-foreground"
+                          >
                             {line.trim()}
                           </div>
                         ))}
@@ -1504,7 +1553,10 @@ export function EmailReader({
                 emailSubject={emailFull.subject}
                 emailBody={
                   emailFull.body_html
-                    ? new DOMParser().parseFromString(emailFull.body_html, "text/html").body.textContent || ""
+                    ? new DOMParser().parseFromString(
+                        emailFull.body_html,
+                        "text/html",
+                      ).body.textContent || ""
                     : ""
                 }
                 onClose={() => setEventDialogOpen(false)}
@@ -1555,7 +1607,7 @@ export function EmailReader({
             body_text: emailFull.body_html
               ? new DOMParser().parseFromString(
                   emailFull.body_html,
-                  "text/html"
+                  "text/html",
                 ).body.textContent || ""
               : "",
             body_html: emailFull.body_html,
@@ -1574,7 +1626,7 @@ export function EmailReader({
           mailbox={mailbox}
           uid={emailSummary.uid}
           tags={emailTags}
-          onTagsChange={setEmailTags}
+          onTagsChange={handleTagsChange}
           emailContext={
             emailFull
               ? {
@@ -1583,7 +1635,7 @@ export function EmailReader({
                   bodyText: emailFull.body_html
                     ? new DOMParser().parseFromString(
                         emailFull.body_html,
-                        "text/html"
+                        "text/html",
                       ).body.textContent || ""
                     : "",
                 }

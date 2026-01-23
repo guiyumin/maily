@@ -29,6 +29,7 @@ import {
 import { Plus, Trash2, Zap, CheckCircle, XCircle, Loader2, Pencil, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import type { AIProvider, Config, TestResult } from "./types";
+import { useLocale } from "@/lib/i18n";
 
 interface AIProvidersSettingsProps {
   config: Config;
@@ -38,6 +39,7 @@ interface AIProvidersSettingsProps {
 type DialogMode = "view" | "edit" | "new";
 
 export function AIProvidersSettings({ config, onConfigChange }: AIProvidersSettingsProps) {
+  const { t } = useLocale();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogMode, setDialogMode] = useState<DialogMode>("new");
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
@@ -165,14 +167,14 @@ export function AIProvidersSettings({ config, onConfigChange }: AIProvidersSetti
   return (
     <Card>
       <CardHeader>
-        <CardTitle>AI Providers</CardTitle>
+        <CardTitle>{t("settings.ai.title")}</CardTitle>
         <CardDescription>
-          Configure AI providers for email summarization and composition
+          {t("settings.ai.description")}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {config.ai_providers.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No AI providers configured</p>
+          <p className="text-sm text-muted-foreground">{t("settings.ai.noProviders")}</p>
         ) : (
           <div className="space-y-2">
             {config.ai_providers.map((provider, index) => {
@@ -263,7 +265,7 @@ export function AIProvidersSettings({ config, onConfigChange }: AIProvidersSetti
           <DialogTrigger asChild>
             <Button variant="outline" className="w-full">
               <Plus className="mr-2 h-4 w-4" />
-              Add Provider
+              {t("settings.ai.addProvider")}
             </Button>
           </DialogTrigger>
           <DialogContent>
@@ -282,7 +284,7 @@ export function AIProvidersSettings({ config, onConfigChange }: AIProvidersSetti
 
             <div className="space-y-4 py-4">
               <div className="grid gap-2">
-                <Label>Provider Type</Label>
+                <Label>{t("settings.ai.type")}</Label>
                 <Select
                   key={`provider-type-${editingIndex ?? "new"}-${dialogMode}`}
                   value={providerType}
@@ -290,17 +292,17 @@ export function AIProvidersSettings({ config, onConfigChange }: AIProvidersSetti
                   disabled={isReadOnly}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select type" />
+                    <SelectValue placeholder={t("settings.ai.type")} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="cli">CLI Tool</SelectItem>
-                    <SelectItem value="api">API (OpenAI-compatible)</SelectItem>
+                    <SelectItem value="cli">{t("settings.ai.typeCli")}</SelectItem>
+                    <SelectItem value="api">{t("settings.ai.typeApi")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="provider_name">Name</Label>
+                <Label htmlFor="provider_name">{t("settings.ai.name")}</Label>
                 <Input
                   id="provider_name"
                   placeholder={providerType === "cli" ? "claude, codex, gemini..." : "openai, groq..."}
@@ -311,7 +313,7 @@ export function AIProvidersSettings({ config, onConfigChange }: AIProvidersSetti
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="provider_model">Model</Label>
+                <Label htmlFor="provider_model">{t("settings.ai.model")}</Label>
                 <Input
                   id="provider_model"
                   placeholder={providerType === "cli" ? "haiku, o4-mini, flash..." : "gpt-4o-mini, llama-3.1-8b..."}
@@ -324,7 +326,7 @@ export function AIProvidersSettings({ config, onConfigChange }: AIProvidersSetti
               {providerType === "api" && (
                 <>
                   <div className="grid gap-2">
-                    <Label htmlFor="provider_base_url">Base URL</Label>
+                    <Label htmlFor="provider_base_url">{t("settings.ai.baseUrl")}</Label>
                     <Input
                       id="provider_base_url"
                       placeholder="https://api.openai.com/v1"
@@ -335,7 +337,7 @@ export function AIProvidersSettings({ config, onConfigChange }: AIProvidersSetti
                   </div>
 
                   <div className="grid gap-2">
-                    <Label htmlFor="provider_api_key">API Key</Label>
+                    <Label htmlFor="provider_api_key">{t("settings.ai.apiKey")}</Label>
                     <div className="relative">
                       <Input
                         id="provider_api_key"
@@ -369,11 +371,11 @@ export function AIProvidersSettings({ config, onConfigChange }: AIProvidersSetti
               {isReadOnly ? (
                 <div className="flex gap-2 ml-auto">
                   <Button variant="outline" onClick={() => setDialogOpen(false)}>
-                    Close
+                    {t("common.cancel")}
                   </Button>
                   <Button onClick={() => setDialogMode("edit")}>
                     <Pencil className="mr-2 h-4 w-4" />
-                    Edit
+                    {t("common.edit")}
                   </Button>
                 </div>
               ) : (
@@ -416,10 +418,10 @@ export function AIProvidersSettings({ config, onConfigChange }: AIProvidersSetti
                         });
                       }}
                     >
-                      Cancel
+                      {t("common.cancel")}
                     </Button>
                     <Button onClick={saveProvider} disabled={!name || !model}>
-                      {dialogMode === "edit" ? "Save" : "Add Provider"}
+                      {dialogMode === "edit" ? t("common.save") : t("settings.ai.addProvider")}
                     </Button>
                   </div>
                 </>

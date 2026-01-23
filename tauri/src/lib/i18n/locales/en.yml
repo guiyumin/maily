@@ -1,0 +1,110 @@
+# Navigation
+nav.back: Back
+nav.home: Home
+nav.settings: Settings
+nav.calendar: Calendar
+
+# Settings sections
+settings.general: General
+settings.accounts: Accounts
+settings.aiProviders: AI Providers
+settings.notifications: Notifications
+settings.integrations: Integrations
+
+# General settings
+settings.general.title: General
+settings.general.description: Basic application settings
+settings.general.maxEmails: Max Emails
+settings.general.maxEmailsDescription: Maximum number of emails to load per mailbox
+settings.general.defaultLabel: Default Label
+settings.general.defaultLabelDescription: Default mailbox to open on startup
+settings.general.theme: Theme
+settings.general.themeDefault: Default
+settings.general.themeDark: Dark
+settings.general.themeLight: Light
+settings.general.language: Language
+settings.general.languageAuto: Auto (detect from system)
+
+# Accounts settings
+settings.accounts.title: Accounts
+settings.accounts.description: Manage your email accounts
+settings.accounts.noAccounts: No accounts configured
+settings.accounts.addAccount: Add Account
+settings.accounts.removeAccount: Remove Account
+settings.accounts.confirmRemove: Are you sure you want to remove this account?
+
+# AI Providers settings
+settings.ai.title: AI Providers
+settings.ai.description: Configure AI providers for email assistance
+settings.ai.noProviders: No AI providers configured
+settings.ai.addProvider: Add Provider
+settings.ai.removeProvider: Remove Provider
+settings.ai.name: Name
+settings.ai.model: Model
+settings.ai.baseUrl: Base URL
+settings.ai.apiKey: API Key
+settings.ai.type: Type
+settings.ai.typeCli: CLI
+settings.ai.typeApi: API
+
+# Notifications settings
+settings.notifications.title: Notifications
+settings.notifications.description: Configure notification preferences
+settings.notifications.native: Native Notifications
+settings.notifications.nativeDescription: System notification settings
+settings.notifications.enabled: Enabled
+settings.notifications.newEmail: New Email
+settings.notifications.calendarReminder: Calendar Reminder
+settings.notifications.telegram: Telegram
+settings.notifications.telegramDescription: Receive notifications via Telegram
+settings.notifications.botToken: Bot Token
+settings.notifications.chatId: Chat ID
+settings.notifications.testConnection: Test Connection
+
+# Integrations settings
+settings.integrations.title: Integrations
+settings.integrations.description: Connect with external services
+settings.integrations.github: GitHub
+settings.integrations.githubDescription: GitHub integration for issue tracking
+settings.integrations.githubToken: Personal Access Token
+settings.integrations.githubParseEmails: Parse GitHub emails
+
+# Common actions
+common.save: Save
+common.saving: Saving...
+common.cancel: Cancel
+common.delete: Delete
+common.edit: Edit
+common.add: Add
+common.remove: Remove
+common.confirm: Confirm
+common.unsavedChanges: Unsaved changes
+common.loading: Loading...
+common.error: Error
+common.success: Success
+
+# Calendar page
+calendar.accessRequired: Calendar Access Required
+calendar.accessDescription: Maily needs access to your calendar to show events and create new ones.
+calendar.grantAccess: Grant Calendar Access
+calendar.accessDenied: Access was denied
+calendar.accessDeniedDescription: Please enable calendar access in System Preferences > Privacy & Security > Calendars
+
+# App
+app.name: Maily
+app.desktop: Maily Desktop
+
+# Mail
+mail.inbox: Inbox
+mail.sent: Sent
+mail.drafts: Drafts
+mail.spam: Spam
+mail.trash: Trash
+mail.search: Search emails...
+mail.noEmails: No emails
+mail.selectEmail: Select an email to read
+mail.selectEmailDescription: Choose an email from the list to view its contents
+mail.emails: emails
+mail.unread: unread
+mail.moreEmails: more emails
+mail.of: of

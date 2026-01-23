@@ -577,6 +577,8 @@ const CalendarLayout: React.FC<CalendarLayoutProps> = ({
  * ```
  */
 export const MailyCalendar: React.FC<MailyCalendarProps> = (props) => {
+  console.log("[MailyCalendar] Received locale prop:", props.locale);
+
   const {
     events = [],
     calendars = [],
@@ -679,6 +681,7 @@ export const MailyCalendar: React.FC<MailyCalendarProps> = (props) => {
 
   // Subscribe to locale for re-renders
   const currentLocale = useStore(store, (s) => s.locale);
+  console.log("[MailyCalendar] Store locale:", currentLocale);
 
   return (
     <CalendarInternalLocaleProvider

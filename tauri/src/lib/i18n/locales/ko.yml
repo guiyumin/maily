@@ -1,0 +1,110 @@
+# Navigation
+nav.back: 뒤로
+nav.home: 홈
+nav.settings: 설정
+nav.calendar: 캘린더
+
+# Settings sections
+settings.general: 일반
+settings.accounts: 계정
+settings.aiProviders: AI 제공자
+settings.notifications: 알림
+settings.integrations: 통합
+
+# General settings
+settings.general.title: 일반
+settings.general.description: 기본 애플리케이션 설정
+settings.general.maxEmails: 최대 이메일 수
+settings.general.maxEmailsDescription: 메일함당 로드할 최대 이메일 수
+settings.general.defaultLabel: 기본 라벨
+settings.general.defaultLabelDescription: 시작 시 기본으로 열리는 메일함
+settings.general.theme: 테마
+settings.general.themeDefault: 기본
+settings.general.themeDark: 다크
+settings.general.themeLight: 라이트
+settings.general.language: 언어
+settings.general.languageAuto: 자동 (시스템에서 감지)
+
+# Accounts settings
+settings.accounts.title: 계정
+settings.accounts.description: 이메일 계정 관리
+settings.accounts.noAccounts: 구성된 계정 없음
+settings.accounts.addAccount: 계정 추가
+settings.accounts.removeAccount: 계정 제거
+settings.accounts.confirmRemove: 이 계정을 제거하시겠습니까?
+
+# AI Providers settings
+settings.ai.title: AI 제공자
+settings.ai.description: 이메일 도우미를 위한 AI 제공자 구성
+settings.ai.noProviders: 구성된 AI 제공자 없음
+settings.ai.addProvider: 제공자 추가
+settings.ai.removeProvider: 제공자 제거
+settings.ai.name: 이름
+settings.ai.model: 모델
+settings.ai.baseUrl: 기본 URL
+settings.ai.apiKey: API 키
+settings.ai.type: 유형
+settings.ai.typeCli: CLI
+settings.ai.typeApi: API
+
+# Notifications settings
+settings.notifications.title: 알림
+settings.notifications.description: 알림 설정 구성
+settings.notifications.native: 네이티브 알림
+settings.notifications.nativeDescription: 시스템 알림 설정
+settings.notifications.enabled: 활성화됨
+settings.notifications.newEmail: 새 이메일
+settings.notifications.calendarReminder: 캘린더 알림
+settings.notifications.telegram: 텔레그램
+settings.notifications.telegramDescription: 텔레그램으로 알림 받기
+settings.notifications.botToken: 봇 토큰
+settings.notifications.chatId: 채팅 ID
+settings.notifications.testConnection: 연결 테스트
+
+# Integrations settings
+settings.integrations.title: 통합
+settings.integrations.description: 외부 서비스 연결
+settings.integrations.github: GitHub
+settings.integrations.githubDescription: 이슈 추적을 위한 GitHub 통합
+settings.integrations.githubToken: 개인 액세스 토큰
+settings.integrations.githubParseEmails: GitHub 이메일 파싱
+
+# Common actions
+common.save: 저장
+common.saving: 저장 중...
+common.cancel: 취소
+common.delete: 삭제
+common.edit: 편집
+common.add: 추가
+common.remove: 제거
+common.confirm: 확인
+common.unsavedChanges: 저장되지 않은 변경사항
+common.loading: 로딩 중...
+common.error: 오류
+common.success: 성공
+
+# Calendar page
+calendar.accessRequired: 캘린더 접근 권한 필요
+calendar.accessDescription: Maily가 이벤트를 표시하고 새 이벤트를 생성하려면 캘린더에 접근해야 합니다.
+calendar.grantAccess: 캘린더 접근 권한 부여
+calendar.accessDenied: 접근이 거부됨
+calendar.accessDeniedDescription: 시스템 환경설정 > 개인 정보 보호 및 보안 > 캘린더에서 캘린더 접근을 활성화하세요
+
+# App
+app.name: Maily
+app.desktop: Maily 데스크톱
+
+# Mail
+mail.inbox: 받은 편지함
+mail.sent: 보낸 편지함
+mail.drafts: 임시 보관함
+mail.spam: 스팸
+mail.trash: 휴지통
+mail.search: 이메일 검색...
+mail.noEmails: 이메일 없음
+mail.selectEmail: 읽을 이메일을 선택하세요
+mail.selectEmailDescription: 목록에서 이메일을 선택하여 내용을 확인하세요
+mail.emails: 개의 이메일
+mail.unread: 개 읽지 않음
+mail.moreEmails: 개 더 많은 이메일
+mail.of: /

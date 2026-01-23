@@ -11,18 +11,21 @@ import { NotificationSettings } from "./NotificationSettings";
 import { IntegrationsSettings } from "./IntegrationsSettings";
 import type { Account, Config } from "./types";
 import { cn } from "@/lib/utils";
+import { useLocale } from "@/lib/i18n";
+import type { TranslationKey } from "@/lib/i18n";
 
 type SettingsSection = "general" | "ai" | "accounts" | "notifications" | "integrations";
 
-const sections: { id: SettingsSection; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
-  { id: "general", label: "General", icon: Settings },
-  { id: "accounts", label: "Accounts", icon: Users },
-  { id: "ai", label: "AI Providers", icon: Bot },
-  { id: "notifications", label: "Notifications", icon: Bell },
-  { id: "integrations", label: "Integrations", icon: Plug },
+const sectionKeys: { id: SettingsSection; labelKey: TranslationKey; icon: React.ComponentType<{ className?: string }> }[] = [
+  { id: "general", labelKey: "settings.general", icon: Settings },
+  { id: "accounts", labelKey: "settings.accounts", icon: Users },
+  { id: "ai", labelKey: "settings.aiProviders", icon: Bot },
+  { id: "notifications", labelKey: "settings.notifications", icon: Bell },
+  { id: "integrations", labelKey: "settings.integrations", icon: Plug },
 ];
 
 export function SettingsPage() {
+  const { t } = useLocale();
   const [config, setConfig] = useState<Config | null>(null);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
@@ -72,7 +75,7 @@ export function SettingsPage() {
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center">
-        <p className="text-muted-foreground">Loading settings...</p>
+        <p className="text-muted-foreground">{t("common.loading")}</p>
       </div>
     );
   }
@@ -80,7 +83,7 @@ export function SettingsPage() {
   if (!config) {
     return (
       <div className="flex h-screen items-center justify-center">
-        <p className="text-destructive">Failed to load settings</p>
+        <p className="text-destructive">{t("common.error")}</p>
       </div>
     );
   }
@@ -112,13 +115,13 @@ export function SettingsPage() {
             className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />
-            <span className="text-sm font-medium">Back</span>
+            <span className="text-sm font-medium">{t("nav.back")}</span>
           </Link>
         </div>
 
         <nav className="flex-1 p-2">
           <ul className="space-y-1">
-            {sections.map((section) => {
+            {sectionKeys.map((section) => {
               const Icon = section.icon;
               return (
                 <li key={section.id}>
@@ -132,7 +135,7 @@ export function SettingsPage() {
                     )}
                   >
                     <Icon className="h-4 w-4" />
-                    {section.label}
+                    {t(section.labelKey)}
                   </button>
                 </li>
               );
@@ -142,7 +145,7 @@ export function SettingsPage() {
 
         <div className="p-4 border-t">
           <p className="text-xs text-muted-foreground">
-            Maily Desktop
+            {t("app.desktop")}
           </p>
         </div>
       </aside>
@@ -151,14 +154,14 @@ export function SettingsPage() {
       <main className="flex-1 flex flex-col min-w-0">
         <header className="h-14 border-b flex items-center justify-between px-6 shrink-0">
           <h1 className="text-lg font-semibold">
-            {sections.find((s) => s.id === activeSection)?.label}
+            {t(sectionKeys.find((s) => s.id === activeSection)?.labelKey ?? "settings.general")}
           </h1>
           <div className="flex items-center gap-3">
             {dirty && (
-              <span className="text-sm text-muted-foreground">Unsaved changes</span>
+              <span className="text-sm text-muted-foreground">{t("common.unsavedChanges")}</span>
             )}
             <Button onClick={saveConfig} disabled={!dirty || saving} size="sm">
-              {saving ? "Saving..." : "Save"}
+              {saving ? t("common.saving") : t("common.save")}
             </Button>
           </div>
         </header>

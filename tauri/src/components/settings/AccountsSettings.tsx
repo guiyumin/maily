@@ -29,6 +29,7 @@ import {
 import { Plus, Trash2, Zap, CheckCircle, XCircle, Loader2, Pencil, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import type { Account } from "./types";
+import { useLocale } from "@/lib/i18n";
 
 interface AccountsSettingsProps {
   accounts: Account[];
@@ -42,6 +43,7 @@ const PROVIDER_DEFAULTS = {
 };
 
 export function AccountsSettings({ accounts, onAccountsChange }: AccountsSettingsProps) {
+  const { t } = useLocale();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingName, setEditingName] = useState<string | null>(null);
   const [provider, setProvider] = useState<"gmail" | "yahoo" | "imap">("gmail");
@@ -169,12 +171,12 @@ export function AccountsSettings({ accounts, onAccountsChange }: AccountsSetting
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Accounts</CardTitle>
-        <CardDescription>Manage your email accounts</CardDescription>
+        <CardTitle>{t("settings.accounts.title")}</CardTitle>
+        <CardDescription>{t("settings.accounts.description")}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {accounts.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No email accounts configured</p>
+          <p className="text-sm text-muted-foreground">{t("settings.accounts.noAccounts")}</p>
         ) : (
           <div className="space-y-2">
             {accounts.map((account) => (
@@ -221,7 +223,7 @@ export function AccountsSettings({ accounts, onAccountsChange }: AccountsSetting
           <DialogTrigger asChild>
             <Button variant="outline" className="w-full">
               <Plus className="mr-2 h-4 w-4" />
-              Add Account
+              {t("settings.accounts.addAccount")}
             </Button>
           </DialogTrigger>
           <DialogContent>
@@ -386,10 +388,10 @@ export function AccountsSettings({ accounts, onAccountsChange }: AccountsSetting
               </div>
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => setDialogOpen(false)}>
-                  Cancel
+                  {t("common.cancel")}
                 </Button>
                 <Button onClick={saveAccount} disabled={!name || !email || !password}>
-                  {editingName ? "Save" : "Add Account"}
+                  {editingName ? t("common.save") : t("settings.accounts.addAccount")}
                 </Button>
               </div>
             </DialogFooter>

@@ -1,0 +1,110 @@
+# Navigation
+nav.back: 戻る
+nav.home: ホーム
+nav.settings: 設定
+nav.calendar: カレンダー
+
+# Settings sections
+settings.general: 一般
+settings.accounts: アカウント
+settings.aiProviders: AIプロバイダー
+settings.notifications: 通知
+settings.integrations: 連携
+
+# General settings
+settings.general.title: 一般
+settings.general.description: 基本的なアプリケーション設定
+settings.general.maxEmails: 最大メール数
+settings.general.maxEmailsDescription: メールボックスごとに読み込む最大メール数
+settings.general.defaultLabel: デフォルトラベル
+settings.general.defaultLabelDescription: 起動時に開くデフォルトのメールボックス
+settings.general.theme: テーマ
+settings.general.themeDefault: デフォルト
+settings.general.themeDark: ダーク
+settings.general.themeLight: ライト
+settings.general.language: 言語
+settings.general.languageAuto: 自動（システムから検出）
+
+# Accounts settings
+settings.accounts.title: アカウント
+settings.accounts.description: メールアカウントを管理
+settings.accounts.noAccounts: アカウントが設定されていません
+settings.accounts.addAccount: アカウントを追加
+settings.accounts.removeAccount: アカウントを削除
+settings.accounts.confirmRemove: このアカウントを削除してもよろしいですか？
+
+# AI Providers settings
+settings.ai.title: AIプロバイダー
+settings.ai.description: メールアシスタント用のAIプロバイダーを設定
+settings.ai.noProviders: AIプロバイダーが設定されていません
+settings.ai.addProvider: プロバイダーを追加
+settings.ai.removeProvider: プロバイダーを削除
+settings.ai.name: 名前
+settings.ai.model: モデル
+settings.ai.baseUrl: ベースURL
+settings.ai.apiKey: APIキー
+settings.ai.type: タイプ
+settings.ai.typeCli: CLI
+settings.ai.typeApi: API
+
+# Notifications settings
+settings.notifications.title: 通知
+settings.notifications.description: 通知設定を構成
+settings.notifications.native: ネイティブ通知
+settings.notifications.nativeDescription: システム通知設定
+settings.notifications.enabled: 有効
+settings.notifications.newEmail: 新着メール
+settings.notifications.calendarReminder: カレンダーリマインダー
+settings.notifications.telegram: Telegram
+settings.notifications.telegramDescription: Telegramで通知を受け取る
+settings.notifications.botToken: ボットトークン
+settings.notifications.chatId: チャットID
+settings.notifications.testConnection: 接続テスト
+
+# Integrations settings
+settings.integrations.title: 連携
+settings.integrations.description: 外部サービスと接続
+settings.integrations.github: GitHub
+settings.integrations.githubDescription: 課題追跡のためのGitHub連携
+settings.integrations.githubToken: 個人アクセストークン
+settings.integrations.githubParseEmails: GitHubメールを解析
+
+# Common actions
+common.save: 保存
+common.saving: 保存中...
+common.cancel: キャンセル
+common.delete: 削除
+common.edit: 編集
+common.add: 追加
+common.remove: 削除
+common.confirm: 確認
+common.unsavedChanges: 未保存の変更
+common.loading: 読み込み中...
+common.error: エラー
+common.success: 成功
+
+# Calendar page
+calendar.accessRequired: カレンダーへのアクセスが必要です
+calendar.accessDescription: Mailyがイベントを表示し、新しいイベントを作成するにはカレンダーへのアクセスが必要です。
+calendar.grantAccess: カレンダーへのアクセスを許可
+calendar.accessDenied: アクセスが拒否されました
+calendar.accessDeniedDescription: システム環境設定 > プライバシーとセキュリティ > カレンダーでカレンダーへのアクセスを有効にしてください
+
+# App
+app.name: Maily
+app.desktop: Maily デスクトップ
+
+# Mail
+mail.inbox: 受信トレイ
+mail.sent: 送信済み
+mail.drafts: 下書き
+mail.spam: 迷惑メール
+mail.trash: ゴミ箱
+mail.search: メールを検索...
+mail.noEmails: メールがありません
+mail.selectEmail: 読むメールを選択
+mail.selectEmailDescription: リストからメールを選択して内容を表示
+mail.emails: 件のメール
+mail.unread: 件の未読
+mail.moreEmails: 件の追加メール
+mail.of: /

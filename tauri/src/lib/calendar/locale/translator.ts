@@ -10,10 +10,19 @@ import type { TranslationKey, LocaleCode } from './types';
  * 3. Fall back to English dictionary.
  * 4. Fall back to the key itself.
  */
+// Track if we've logged to avoid spam
+let hasLoggedTranslator = false;
+
 export function t(
   key: TranslationKey,
   locale: LocaleCode = 'en-US'
 ): string {
+  // Log once to debug
+  if (!hasLoggedTranslator && (key === 'today' || key === 'calendars')) {
+    console.log(`[Translator] t("${key}", "${locale}") -> normalized: "${normalizeLocale(locale)}"`);
+    hasLoggedTranslator = true;
+  }
+
   // 1. Try Intl API for specific keys
   if (['today', 'day', 'week', 'month', 'year'].includes(key)) {
     const intl = getIntlLabel(key as any, locale);

@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { useLocale } from "@/lib/i18n";
 
 export interface Email {
   uid: number;
@@ -89,6 +90,7 @@ export function EmailList({
   loadingMore,
   onLoadMore,
 }: EmailListProps) {
+  const { t } = useLocale();
   const unreadCount = emails.filter((e) => e.unread).length;
   const loadMoreRef = useRef<HTMLDivElement>(null);
 
@@ -121,9 +123,9 @@ export function EmailList({
             <h2 className="text-xl font-bold">{mailboxName}</h2>
             <span className="text-sm text-muted-foreground">
               {emails.length === total
-                ? `${emails.length} emails`
-                : `${emails.length} of ${total} emails`}
-              {unreadCount > 0 && ` · ${unreadCount} unread`}
+                ? `${emails.length} ${t("mail.emails")}`
+                : `${emails.length} ${t("mail.of")} ${total} ${t("mail.emails")}`}
+              {unreadCount > 0 && ` · ${unreadCount} ${t("mail.unread")}`}
             </span>
           </div>
           <Button
@@ -140,7 +142,7 @@ export function EmailList({
 
         <div className="relative">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input placeholder="Search emails..." className="pl-9" />
+          <Input placeholder={t("mail.search")} className="pl-9" />
         </div>
       </div>
 
@@ -158,7 +160,7 @@ export function EmailList({
           </div>
         ) : emails.length === 0 ? (
           <div className="flex h-64 flex-col items-center justify-center gap-2 text-muted-foreground">
-            <p>No emails</p>
+            <p>{t("mail.noEmails")}</p>
           </div>
         ) : (
           <div className="EmailList flex min-w-0 flex-col">
@@ -221,10 +223,10 @@ export function EmailList({
                 {loadingMore ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Loading...
+                    {t("common.loading")}
                   </>
                 ) : (
-                  <span>{total - emails.length} more emails</span>
+                  <span>{total - emails.length} {t("mail.moreEmails")}</span>
                 )}
               </div>
             )}

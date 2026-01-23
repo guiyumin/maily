@@ -199,9 +199,14 @@ function CalendarPage() {
   useEffect(() => {
     invoke<Config>("get_config")
       .then((config) => {
+        console.log("[Calendar] Config loaded:", config);
+        console.log("[Calendar] Config language:", config.language);
         if (config.language) {
-          setLocale(LOCALE_MAP[config.language] || config.language);
+          const mappedLocale = LOCALE_MAP[config.language] || config.language;
+          console.log("[Calendar] Mapped locale:", mappedLocale);
+          setLocale(mappedLocale);
         } else {
+          console.log("[Calendar] No language in config, using system:", navigator.language);
           setLocale(navigator.language || "en-US");
         }
       })

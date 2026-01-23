@@ -1,0 +1,110 @@
+# Navigation
+nav.back: 返回
+nav.home: 首页
+nav.settings: 设置
+nav.calendar: 日历
+
+# Settings sections
+settings.general: 通用
+settings.accounts: 账户
+settings.aiProviders: AI 提供商
+settings.notifications: 通知
+settings.integrations: 集成
+
+# General settings
+settings.general.title: 通用
+settings.general.description: 基本应用程序设置
+settings.general.maxEmails: 最大邮件数
+settings.general.maxEmailsDescription: 每个邮箱加载的最大邮件数
+settings.general.defaultLabel: 默认标签
+settings.general.defaultLabelDescription: 启动时默认打开的邮箱
+settings.general.theme: 主题
+settings.general.themeDefault: 默认
+settings.general.themeDark: 深色
+settings.general.themeLight: 浅色
+settings.general.language: 语言
+settings.general.languageAuto: 自动（从系统检测）
+
+# Accounts settings
+settings.accounts.title: 账户
+settings.accounts.description: 管理您的邮箱账户
+settings.accounts.noAccounts: 未配置账户
+settings.accounts.addAccount: 添加账户
+settings.accounts.removeAccount: 移除账户
+settings.accounts.confirmRemove: 确定要移除此账户吗？
+
+# AI Providers settings
+settings.ai.title: AI 提供商
+settings.ai.description: 配置邮件助手的 AI 提供商
+settings.ai.noProviders: 未配置 AI 提供商
+settings.ai.addProvider: 添加提供商
+settings.ai.removeProvider: 移除提供商
+settings.ai.name: 名称
+settings.ai.model: 模型
+settings.ai.baseUrl: 基础 URL
+settings.ai.apiKey: API 密钥
+settings.ai.type: 类型
+settings.ai.typeCli: 命令行
+settings.ai.typeApi: API
+
+# Notifications settings
+settings.notifications.title: 通知
+settings.notifications.description: 配置通知偏好
+settings.notifications.native: 原生通知
+settings.notifications.nativeDescription: 系统通知设置
+settings.notifications.enabled: 已启用
+settings.notifications.newEmail: 新邮件
+settings.notifications.calendarReminder: 日历提醒
+settings.notifications.telegram: Telegram
+settings.notifications.telegramDescription: 通过 Telegram 接收通知
+settings.notifications.botToken: 机器人令牌
+settings.notifications.chatId: 聊天 ID
+settings.notifications.testConnection: 测试连接
+
+# Integrations settings
+settings.integrations.title: 集成
+settings.integrations.description: 连接外部服务
+settings.integrations.github: GitHub
+settings.integrations.githubDescription: GitHub 问题跟踪集成
+settings.integrations.githubToken: 个人访问令牌
+settings.integrations.githubParseEmails: 解析 GitHub 邮件
+
+# Common actions
+common.save: 保存
+common.saving: 保存中...
+common.cancel: 取消
+common.delete: 删除
+common.edit: 编辑
+common.add: 添加
+common.remove: 移除
+common.confirm: 确认
+common.unsavedChanges: 未保存的更改
+common.loading: 加载中...
+common.error: 错误
+common.success: 成功
+
+# Calendar page
+calendar.accessRequired: 需要日历访问权限
+calendar.accessDescription: Maily 需要访问您的日历以显示事件和创建新事件。
+calendar.grantAccess: 授予日历访问权限
+calendar.accessDenied: 访问被拒绝
+calendar.accessDeniedDescription: 请在系统偏好设置 > 隐私与安全 > 日历中启用日历访问权限
+
+# App
+app.name: Maily
+app.desktop: Maily 桌面版
+
+# Mail
+mail.inbox: 收件箱
+mail.sent: 已发送
+mail.drafts: 草稿箱
+mail.spam: 垃圾邮件
+mail.trash: 废纸篓
+mail.search: 搜索邮件...
+mail.noEmails: 没有邮件
+mail.selectEmail: 选择一封邮件阅读
+mail.selectEmailDescription: 从列表中选择一封邮件查看内容
+mail.emails: 封邮件
+mail.unread: 封未读
+mail.moreEmails: 封更多邮件
+mail.of: /

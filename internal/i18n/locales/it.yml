@@ -1,264 +1,345 @@
-common.loading: Caricamento...
-common.error: Errore
-common.success: Successo
-common.cancel: Annulla
-common.confirm: Conferma
-common.save: Salva
-common.discard: Scarta
-common.quit: Esci
-common.back: Indietro
-common.yes: Sì
-common.no: 'No'
-common.ok: OK
-common.close: Chiudi
-common.done: Fatto
-common.edit: Modifica
-common.delete: Elimina
-common.add: Aggiungi
+# Maily - Traduzione italiana
+# Italian Translation
+
+# ============================================
+# Elementi UI comuni
+# ============================================
+common.loading: "Caricamento..."
+common.error: "Errore"
+common.success: "Successo"
+common.cancel: "Annulla"
+common.confirm: "Conferma"
+common.save: "Salva"
+common.discard: "Scarta"
+common.quit: "Esci"
+common.back: "Indietro"
+common.yes: "Sì"
+common.no: "No"
+common.ok: "OK"
+common.close: "Chiudi"
+common.done: "Fatto"
+common.edit: "Modifica"
+common.delete: "Elimina"
+common.add: "Aggiungi"
+
+# ============================================
+# Operazioni email
+# ============================================
 email.count:
-  one: '{{.Count}} email'
-  other: '{{.Count}} email'
+  one: "{{.Count}} email"
+  other: "{{.Count}} email"
+
 email.deleted:
-  one: '{{.Count}} email eliminata con successo'
-  other: '{{.Count}} email eliminate con successo'
+  one: "{{.Count}} email eliminata con successo"
+  other: "{{.Count}} email eliminate con successo"
+
 email.moved:
-  one: '{{.Count}} email spostata in {{.Label}}'
-  other: '{{.Count}} email spostate in {{.Label}}'
-email.searching: Ricerca...
-email.refreshing: Aggiornamento...
-email.loading: Caricamento di {{.Count}} email...
-email.no_results: Nessun risultato per '{{.Query}}'
-email.results_count: '{{.Count}} risultati per ''{{.Query}}'''
-email.folder_count: '{{.Label}}: {{.Count}} email'
+  one: "{{.Count}} email spostata in {{.Label}}"
+  other: "{{.Count}} email spostate in {{.Label}}"
+
+email.searching: "Ricerca..."
+email.refreshing: "Aggiornamento..."
+email.loading: "Caricamento di {{.Count}} email..."
+email.no_results: "Nessun risultato per '{{.Query}}'"
+email.results_count: "{{.Count}} risultati per '{{.Query}}'"
+email.folder_count: "{{.Label}}: {{.Count}} email"
+
 email.selected:
-  one: '{{.Count}} selezionata'
-  other: '{{.Count}} selezionate'
-email.auto_refreshing: Aggiornamento automatico...
-email.parse_error: Errore di analisi
-email.send_success: Email inviata!
-email.send_failed: 'Invio fallito: {{.Error}}'
-email.reply_success: Risposta inviata!
-email.draft_saved: Bozza salvata
-email.draft_failed: 'Salvataggio bozza fallito: {{.Error}}'
-email.load_more: Carica altre email
-email.no_emails: Nessuna email
+  one: "{{.Count}} selezionata"
+  other: "{{.Count}} selezionate"
+
+email.auto_refreshing: "Aggiornamento automatico..."
+email.parse_error: "Errore di analisi"
+email.send_success: "Email inviata!"
+email.send_failed: "Invio fallito: {{.Error}}"
+email.reply_success: "Risposta inviata!"
+email.draft_saved: "Bozza salvata"
+email.draft_failed: "Salvataggio bozza fallito: {{.Error}}"
+email.load_more: "Carica altre email"
+email.no_emails: "Nessuna email"
+
 email.attachment_count:
-  one: '{{.Count}} allegato'
-  other: '{{.Count}} allegati'
-compose.title: Scrivi
-compose.reply: Rispondi
-compose.forward: Inoltra
-compose.send: Invia
-compose.save_draft: Salva bozza
-compose.attach: Allega
-compose.placeholder.to: destinatario@esempio.it
-compose.placeholder.cc: cc@esempio.it
-compose.placeholder.subject: Oggetto
-compose.placeholder.body: Scrivi il tuo messaggio...
-compose.placeholder.reply_body: Scrivi la tua risposta...
-compose.hint: 'Tab: campo successivo · Ctrl+S: invia · Esc: annulla'
-compose.reply_hint: 'Tab: campo successivo · Ctrl+S: invia · Esc: annulla'
-dialog.delete.title: Eliminare l'email?
-dialog.delete.title_plural: Eliminare {{.Count}} email?
-dialog.delete.move_trash: Sposta nel cestino
-dialog.delete.permanent: Elimina definitivamente
-dialog.delete.hint: ← → seleziona, Invio conferma, Esc annulla
-dialog.ai_setup.title: Nessun provider AI trovato
-dialog.ai_setup.message: 'Vuoi configurare un provider AI?
+  one: "{{.Count}} allegato"
+  other: "{{.Count}} allegati"
 
+# ============================================
+# Scrivi / Rispondi
+# ============================================
+compose.title: "Scrivi"
+compose.reply: "Rispondi"
+compose.forward: "Inoltra"
+compose.send: "Invia"
+compose.save_draft: "Salva bozza"
+compose.attach: "Allega"
+compose.placeholder.to: "destinatario@esempio.it"
+compose.placeholder.cc: "cc@esempio.it"
+compose.placeholder.subject: "Oggetto"
+compose.placeholder.body: "Scrivi il tuo messaggio..."
+compose.placeholder.reply_body: "Scrivi la tua risposta..."
+compose.hint: "Tab: campo successivo · Ctrl+S: invia · Esc: annulla"
+compose.reply_hint: "Tab: campo successivo · Ctrl+S: invia · Esc: annulla"
 
-  Puoi aggiungere strumenti CLI (claude, codex, gemini) o chiavi API.'
-dialog.ai_setup.hint: Invio configura, Esc salta
-dialog.ai_setup.configure: Configura
-dialog.ai_setup.skip: Salta
-dialog.search.title: Cerca
-dialog.search.placeholder: Cerca email...
-dialog.search.hint: Invio cerca, Esc annulla
-dialog.quit.title: Modifiche non salvate
-dialog.quit.message: Hai modifiche non salvate. Cosa vuoi fare?
-dialog.quit.save_quit: Salva ed esci
-dialog.quit.discard: Scarta
-dialog.quit.cancel: Annulla
-label.inbox: Posta in arrivo
-label.starred: Speciali
-label.sent: Inviati
-label.drafts: Bozze
-label.spam: Spam
-label.trash: Cestino
-label.all_mail: Tutta la posta
-label.archive: Archivio
-label.important: Importanti
-label.folders: Cartelle
-label.labels: Etichette
-label.select: Seleziona etichetta
-help.navigate: naviga
-help.open: apri
-help.new_email: nuova email
-help.reply: rispondi
-help.refresh: aggiorna
-help.search: cerca
-help.quit: esci
-help.delete: elimina
-help.load_more: carica altro
-help.folders: cartelle
-help.commands: comandi
-help.select: seleziona
-help.select_all: tutti
-help.mark_read: segna come letto
-help.attachments: allegati
-help.summarize: riassumi
-help.extract: estrai
-help.switch_account: cambia
-help.next_field: campo successivo
-help.send: invia
-help.cancel: annulla
-help.close: chiudi
-help.confirm: conferma
-help.back: indietro
-help.add_event: aggiungi evento
-help.edit: modifica
-help.toggle: alterna
-help.download: scarica
-login.gmail.title: Accesso Gmail
-login.yahoo.title: Accesso Yahoo Mail
-login.imap.title: Accesso IMAP
-login.email_label: 'Email:'
-login.password_label: 'Password app:'
-login.server_label: 'Server IMAP:'
-login.port_label: 'Porta:'
-login.verifying: Verifica credenziali...
-login.success: Accesso effettuato come {{.Email}}
-login.failed: 'Accesso fallito: {{.Error}}'
-login.gmail.hint: 'Hai bisogno di una password per le app per continuare.
+# ============================================
+# Dialoghi
+# ============================================
+dialog.delete.title: "Eliminare l'email?"
+dialog.delete.title_plural: "Eliminare {{.Count}} email?"
+dialog.delete.move_trash: "Sposta nel cestino"
+dialog.delete.permanent: "Elimina definitivamente"
+dialog.delete.hint: "← → seleziona, Invio conferma, Esc annulla"
 
+dialog.ai_setup.title: "Nessun provider AI trovato"
+dialog.ai_setup.message: "Vuoi configurare un provider AI?\n\nPuoi aggiungere strumenti CLI (claude, codex, gemini) o chiavi API."
+dialog.ai_setup.hint: "Invio configura, Esc salta"
+dialog.ai_setup.configure: "Configura"
+dialog.ai_setup.skip: "Salta"
+
+dialog.search.title: "Cerca"
+dialog.search.placeholder: "Cerca email..."
+dialog.search.hint: "Invio cerca, Esc annulla"
+
+dialog.quit.title: "Modifiche non salvate"
+dialog.quit.message: "Hai modifiche non salvate. Cosa vuoi fare?"
+dialog.quit.save_quit: "Salva ed esci"
+dialog.quit.discard: "Scarta"
+dialog.quit.cancel: "Annulla"
+
+# ============================================
+# Nomi cartelle / etichette
+# ============================================
+label.inbox: "Posta in arrivo"
+label.starred: "Speciali"
+label.sent: "Inviati"
+label.drafts: "Bozze"
+label.spam: "Spam"
+label.trash: "Cestino"
+label.all_mail: "Tutta la posta"
+label.archive: "Archivio"
+label.important: "Importanti"
+label.folders: "Cartelle"
+label.labels: "Etichette"
+label.select: "Seleziona etichetta"
+
+# ============================================
+# Testo di aiuto / scorciatoie da tastiera
+# ============================================
+help.navigate: "naviga"
+help.open: "apri"
+help.new_email: "nuova email"
+help.reply: "rispondi"
+help.refresh: "aggiorna"
+help.search: "cerca"
+help.quit: "esci"
+help.delete: "elimina"
+help.load_more: "carica altro"
+help.folders: "cartelle"
+help.commands: "comandi"
+help.select: "seleziona"
+help.select_all: "tutti"
+help.mark_read: "segna come letto"
+help.attachments: "allegati"
+help.summarize: "riassumi"
+help.extract: "estrai"
+help.switch_account: "cambia"
+help.next_field: "campo successivo"
+help.send: "invia"
+help.cancel: "annulla"
+help.close: "chiudi"
+help.confirm: "conferma"
+help.back: "indietro"
+help.add_event: "aggiungi evento"
+help.edit: "modifica"
+help.toggle: "alterna"
+help.download: "scarica"
+
+# ============================================
+# Accesso
+# ============================================
+login.gmail.title: "Accesso Gmail"
+login.yahoo.title: "Accesso Yahoo Mail"
+login.imap.title: "Accesso IMAP"
+login.email_label: "Email:"
+login.password_label: "Password app:"
+login.server_label: "Server IMAP:"
+login.port_label: "Porta:"
+login.verifying: "Verifica credenziali..."
+login.success: "Accesso effettuato come {{.Email}}"
+login.failed: "Accesso fallito: {{.Error}}"
+
+login.gmail.hint: |
+  Hai bisogno di una password per le app per continuare.
 
   1. Attiva la verifica in 2 passaggi
-
   2. Vai su: myaccount.google.com/apppasswords
+  3. Digita un nome e clicca Crea
 
-  3. Digita un nome e clicca Crea'
-login.yahoo.hint: 'Hai bisogno di una password per le app per continuare.
-
+login.yahoo.hint: |
+  Hai bisogno di una password per le app per continuare.
 
   1. Vai su: login.yahoo.com/account/security
+  2. Clicca su 'Genera password app'
+  3. Seleziona 'Altra app' e genera
 
-  2. Clicca su ''Genera password app''
-
-  3. Seleziona ''Altra app'' e genera'
-login.qq.title: Accesso QQ Mail
-login.qq.password_label: 'Codice di autorizzazione:'
-login.qq.hint: 'Hai bisogno di un codice di autorizzazione (授权码) per continuare.
-
+login.qq.title: "Accesso QQ Mail"
+login.qq.password_label: "Codice di autorizzazione:"
+login.qq.hint: |
+  Hai bisogno di un codice di autorizzazione (授权码) per continuare.
 
   1. Vai su: mail.qq.com → Impostazioni → Account
-
   2. Abilita il servizio IMAP/SMTP
+  3. Genera il codice di autorizzazione
 
-  3. Genera il codice di autorizzazione'
-login.qq.error_hint: 'Assicurati di:
-
+login.qq.error_hint: |
+  Assicurati di:
   • Aver usato un codice di autorizzazione (non la tua password QQ)
+  • Aver abilitato il servizio IMAP/SMTP nelle impostazioni di QQ Mail
 
-  • Aver abilitato il servizio IMAP/SMTP nelle impostazioni di QQ Mail'
-login.hint_fields: Tab cambia campo · Invio invia · Esc annulla
-login.hint_exit: Premi Invio per uscire.
-provider.select_title: Seleziona provider email
-provider.hint: ↑↓ muovi · Invio seleziona · Esc annulla
-provider.gmail: Gmail
-provider.gmail_desc: Google Mail
-provider.yahoo: Yahoo Mail
-provider.yahoo_desc: Yahoo Mail
-provider.imap: IMAP
-provider.imap_desc: Server IMAP personalizzato
-provider.qq: QQ Mail
-provider.qq_desc: Tencent QQ Mail
-config.title: Impostazioni Maily
-config.section.general: Generale
-config.section.ai_providers: Provider AI
-config.section.actions: Azioni
-config.max_emails: Max email
-config.default_label: Etichetta predefinita
-config.theme: Tema
-config.language: Lingua
-config.add_cli_provider: Aggiungi provider CLI (claude, codex, gemini...)
-config.add_api_provider: Aggiungi provider API (OpenAI, ecc.)
-config.edit_provider: Modifica
-config.delete_provider: Elimina
-config.unsaved_changes: Modifiche non salvate
-config.save_quit: Salva ed esci
-config.hint: ↑↓ naviga · Invio modifica · s salva · q esci
-config.saved: Modifiche salvate
-config.no_providers: Nessun provider AI configurato
-config.select_language: Seleziona lingua
-command.new: Nuova email
-command.reply: Rispondi a questa email
-command.delete: Elimina questa email
-command.search: Cerca email
-command.refresh: Aggiorna posta in arrivo
-command.labels: Cambia etichetta/cartella
-command.summarize: Riassumi questa email (AI)
-command.event: Crea evento da questa email (AI)
-command.add: Aggiungi evento al calendario
-command.palette.title: Comandi
-command.palette.placeholder: Digita un comando...
-command.no_matching: Nessun comando corrispondente
-summary.title: Riepilogo
-summary.via: via {{.Provider}}
-summary.close_hint: Premi Esc per chiudere
-summary.generating: Generazione riepilogo...
-summary.error: 'Generazione riepilogo fallita: {{.Error}}'
-extract.title: Evento estratto
-extract.no_event: Nessun evento trovato
-extract.input_hint: 'Digita i dettagli dell''evento da aggiungere al calendario:'
-extract.field.title: 'Titolo:'
-extract.field.date: 'Data:'
-extract.field.time: 'Ora:'
-extract.field.location: 'Luogo:'
-extract.field.reminder: 'Promemoria:'
-extract.no_reminder: Nessun promemoria
-extract.hint: 'Invio: aggiungi · e: modifica · Esc: chiudi'
-extract.edit.title: Modifica evento
-extract.edit.hint: 'Tab: successivo · Invio: seleziona · Esc: indietro'
-extract.added: Evento aggiunto al calendario
-extract.failed: 'Aggiunta evento fallita: {{.Error}}'
-extract.parse_hint: Invio analizza · Esc annulla
-extract.parsing: Analisi con {{.Provider}}...
-attachment.title: Scarica allegati
-attachment.download_all: Scarica tutti ({{.Count}} file, {{.Size}})
-attachment.hint: 'Tab: seleziona · Invio: scarica · Esc: annulla'
-attachment.downloaded: '{{.Filename}} scaricato in ~/Downloads/maily'
-attachment.download_failed: 'Download fallito: {{.Error}}'
-attachment.no_attachments: Nessun allegato
-attachment.total: 'Allegati ({{.Count}}, {{.Size}}):'
-calendar.title: Calendario
-calendar.today: Oggi
-calendar.no_events: Nessun evento
+login.hint_fields: "Tab cambia campo · Invio invia · Esc annulla"
+login.hint_exit: "Premi Invio per uscire."
+
+# ============================================
+# Selezione provider
+# ============================================
+provider.select_title: "Seleziona provider email"
+provider.hint: "↑↓ muovi · Invio seleziona · Esc annulla"
+provider.gmail: "Gmail"
+provider.gmail_desc: "Google Mail"
+provider.yahoo: "Yahoo Mail"
+provider.yahoo_desc: "Yahoo Mail"
+provider.imap: "IMAP"
+provider.imap_desc: "Server IMAP personalizzato"
+provider.qq: "QQ Mail"
+provider.qq_desc: "Tencent QQ Mail"
+
+# ============================================
+# Impostazioni TUI
+# ============================================
+config.title: "Impostazioni Maily"
+config.section.general: "Generale"
+config.section.ai_providers: "Provider AI"
+config.section.actions: "Azioni"
+config.max_emails: "Max email"
+config.default_label: "Etichetta predefinita"
+config.theme: "Tema"
+config.language: "Lingua"
+config.add_cli_provider: "Aggiungi provider CLI (claude, codex, gemini...)"
+config.add_api_provider: "Aggiungi provider API (OpenAI, ecc.)"
+config.edit_provider: "Modifica"
+config.delete_provider: "Elimina"
+config.unsaved_changes: "Modifiche non salvate"
+config.save_quit: "Salva ed esci"
+config.hint: "↑↓ naviga · Invio modifica · s salva · q esci"
+config.saved: "Modifiche salvate"
+config.no_providers: "Nessun provider AI configurato"
+config.select_language: "Seleziona lingua"
+
+# ============================================
+# Tavolozza comandi
+# ============================================
+command.new: "Nuova email"
+command.reply: "Rispondi a questa email"
+command.delete: "Elimina questa email"
+command.search: "Cerca email"
+command.refresh: "Aggiorna posta in arrivo"
+command.labels: "Cambia etichetta/cartella"
+command.summarize: "Riassumi questa email (AI)"
+command.event: "Crea evento da questa email (AI)"
+command.add: "Aggiungi evento al calendario"
+command.palette.title: "Comandi"
+command.palette.placeholder: "Digita un comando..."
+command.no_matching: "Nessun comando corrispondente"
+
+# ============================================
+# Riepilogo AI
+# ============================================
+summary.title: "Riepilogo"
+summary.via: "via {{.Provider}}"
+summary.close_hint: "Premi Esc per chiudere"
+summary.generating: "Generazione riepilogo..."
+summary.error: "Generazione riepilogo fallita: {{.Error}}"
+
+# ============================================
+# Estrazione eventi (AI)
+# ============================================
+extract.title: "Evento estratto"
+extract.no_event: "Nessun evento trovato"
+extract.input_hint: "Digita i dettagli dell'evento da aggiungere al calendario:"
+extract.field.title: "Titolo:"
+extract.field.date: "Data:"
+extract.field.time: "Ora:"
+extract.field.location: "Luogo:"
+extract.field.reminder: "Promemoria:"
+extract.no_reminder: "Nessun promemoria"
+extract.hint: "Invio: aggiungi · e: modifica · Esc: chiudi"
+extract.edit.title: "Modifica evento"
+extract.edit.hint: "Tab: successivo · Invio: seleziona · Esc: indietro"
+extract.added: "Evento aggiunto al calendario"
+extract.failed: "Aggiunta evento fallita: {{.Error}}"
+extract.parse_hint: "Invio analizza · Esc annulla"
+extract.parsing: "Analisi con {{.Provider}}..."
+
+# ============================================
+# Allegati
+# ============================================
+attachment.title: "Scarica allegati"
+attachment.download_all: "Scarica tutti ({{.Count}} file, {{.Size}})"
+attachment.hint: "Tab: seleziona · Invio: scarica · Esc: annulla"
+attachment.downloaded: "{{.Filename}} scaricato in ~/Downloads/maily"
+attachment.download_failed: "Download fallito: {{.Error}}"
+attachment.no_attachments: "Nessun allegato"
+attachment.total: "Allegati ({{.Count}}, {{.Size}}):"
+
+# ============================================
+# Calendario
+# ============================================
+calendar.title: "Calendario"
+calendar.today: "Oggi"
+calendar.no_events: "Nessun evento"
+
 calendar.event_count:
-  one: '{{.Count}} evento'
-  other: '{{.Count}} eventi'
-calendar.not_available: Calendario non disponibile
-calendar.adding: Aggiunta al calendario...
-calendar.extracting: Estrazione evento...
-today.title: Oggi
-today.emails: Email
-today.events: Eventi
-cli.no_accounts: 'Nessun account configurato. Esegui:'
-cli.login_hint: '  maily login'
-cli.error_loading_accounts: 'Errore caricamento account: {{.Error}}'
-cli.error_loading_config: 'Errore caricamento configurazione: {{.Error}}'
-cli.error_running: 'Errore esecuzione: {{.Error}}'
-cli.unknown_provider: 'Provider sconosciuto: {{.Provider}}'
-cli.available_providers: 'Provider disponibili:'
-cli.logged_out: '{{.Email}} disconnesso'
-cli.logout_failed: 'Disconnessione fallita: {{.Error}}'
-cli.account_not_found: 'Account non trovato: {{.Email}}'
-error.auth_hint: 'Per risolvere: Genera una nuova password app
+  one: "{{.Count}} evento"
+  other: "{{.Count}} eventi"
 
-  Poi esegui: maily login'
-error.connection: 'Errore di connessione: {{.Error}}'
-error.timeout: Timeout scaduto
-error.unknown: Si è verificato un errore sconosciuto
-error.invalid_input: 'Input non valido: {{.Error}}'
-status.moving_to_trash: Spostamento nel cestino...
-status.deleting_permanently: Eliminazione definitiva...
-status.changes_saved: Modifiche salvate
+calendar.not_available: "Calendario non disponibile"
+calendar.adding: "Aggiunta al calendario..."
+calendar.extracting: "Estrazione evento..."
+
+# ============================================
+# Vista Oggi
+# ============================================
+today.title: "Oggi"
+today.emails: "Email"
+today.events: "Eventi"
+
+# ============================================
+# Messaggi CLI
+# ============================================
+cli.no_accounts: "Nessun account configurato. Esegui:"
+cli.login_hint: "  maily login"
+cli.error_loading_accounts: "Errore caricamento account: {{.Error}}"
+cli.error_loading_config: "Errore caricamento configurazione: {{.Error}}"
+cli.error_running: "Errore esecuzione: {{.Error}}"
+cli.unknown_provider: "Provider sconosciuto: {{.Provider}}"
+cli.available_providers: "Provider disponibili:"
+cli.logged_out: "{{.Email}} disconnesso"
+cli.logout_failed: "Disconnessione fallita: {{.Error}}"
+cli.account_not_found: "Account non trovato: {{.Email}}"
+
+# ============================================
+# Messaggi di errore
+# ============================================
+error.auth_hint: |
+  Per risolvere: Genera una nuova password app
+  Poi esegui: maily login
+
+error.connection: "Errore di connessione: {{.Error}}"
+error.timeout: "Timeout scaduto"
+error.unknown: "Si è verificato un errore sconosciuto"
+error.invalid_input: "Input non valido: {{.Error}}"
+
+# ============================================
+# Messaggi di stato
+# ============================================
+status.moving_to_trash: "Spostamento nel cestino..."
+status.deleting_permanently: "Eliminazione definitiva..."
+status.changes_saved: "Modifiche salvate"

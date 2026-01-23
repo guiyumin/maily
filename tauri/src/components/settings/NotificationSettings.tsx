@@ -14,6 +14,7 @@ import {
 import { Bell, Send, Loader2, CheckCircle, XCircle, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import type { Config, NotificationConfig, TelegramConfig } from "./types";
+import { useLocale } from "@/lib/i18n";
 
 interface NotificationSettingsProps {
   config: Config;
@@ -21,6 +22,7 @@ interface NotificationSettingsProps {
 }
 
 export function NotificationSettings({ config, onUpdate }: NotificationSettingsProps) {
+  const { t } = useLocale();
   const [testingTelegram, setTestingTelegram] = useState(false);
   const [telegramTestResult, setTelegramTestResult] = useState<boolean | null>(null);
   const [showBotToken, setShowBotToken] = useState(false);
@@ -84,18 +86,18 @@ export function NotificationSettings({ config, onUpdate }: NotificationSettingsP
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Bell className="h-5 w-5" />
-            Native Notifications
+            {t("settings.notifications.native")}
           </CardTitle>
           <CardDescription>
-            System notifications on macOS
+            {t("settings.notifications.nativeDescription")}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
-              <Label>Enable Notifications</Label>
+              <Label>{t("settings.notifications.enabled")}</Label>
               <p className="text-sm text-muted-foreground">
-                Show native macOS notifications
+                {t("settings.notifications.nativeDescription")}
               </p>
             </div>
             <Switch
@@ -108,9 +110,9 @@ export function NotificationSettings({ config, onUpdate }: NotificationSettingsP
             <>
               <div className="flex items-center justify-between pl-4 border-l-2 border-muted">
                 <div className="space-y-0.5">
-                  <Label>New Email</Label>
+                  <Label>{t("settings.notifications.newEmail")}</Label>
                   <p className="text-sm text-muted-foreground">
-                    Notify when new emails arrive
+                    {t("settings.notifications.newEmail")}
                   </p>
                 </div>
                 <Switch
@@ -121,9 +123,9 @@ export function NotificationSettings({ config, onUpdate }: NotificationSettingsP
 
               <div className="flex items-center justify-between pl-4 border-l-2 border-muted">
                 <div className="space-y-0.5">
-                  <Label>Calendar Reminders</Label>
+                  <Label>{t("settings.notifications.calendarReminder")}</Label>
                   <p className="text-sm text-muted-foreground">
-                    Notify for upcoming calendar events
+                    {t("settings.notifications.calendarReminder")}
                   </p>
                 </div>
                 <Switch
@@ -141,18 +143,18 @@ export function NotificationSettings({ config, onUpdate }: NotificationSettingsP
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Send className="h-5 w-5" />
-            Telegram
+            {t("settings.notifications.telegram")}
           </CardTitle>
           <CardDescription>
-            Send notifications to a Telegram chat
+            {t("settings.notifications.telegramDescription")}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
-              <Label>Enable Telegram</Label>
+              <Label>{t("settings.notifications.enabled")}</Label>
               <p className="text-sm text-muted-foreground">
-                Send notifications via Telegram bot
+                {t("settings.notifications.telegramDescription")}
               </p>
             </div>
             <Switch
@@ -164,7 +166,7 @@ export function NotificationSettings({ config, onUpdate }: NotificationSettingsP
           {notifications.telegram?.enabled && (
             <>
               <div className="grid gap-2">
-                <Label htmlFor="bot_token">Bot Token</Label>
+                <Label htmlFor="bot_token">{t("settings.notifications.botToken")}</Label>
                 <div className="relative">
                   <Input
                     id="bot_token"
@@ -202,7 +204,7 @@ export function NotificationSettings({ config, onUpdate }: NotificationSettingsP
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="chat_id">Chat ID</Label>
+                <Label htmlFor="chat_id">{t("settings.notifications.chatId")}</Label>
                 <Input
                   id="chat_id"
                   placeholder="-1001234567890"
@@ -210,7 +212,7 @@ export function NotificationSettings({ config, onUpdate }: NotificationSettingsP
                   onChange={(e) => updateTelegram({ chat_id: e.target.value })}
                 />
                 <p className="text-sm text-muted-foreground">
-                  Your user ID or group chat ID (starts with -)
+                  {t("settings.notifications.chatId")}
                 </p>
               </div>
 
@@ -226,7 +228,7 @@ export function NotificationSettings({ config, onUpdate }: NotificationSettingsP
                   ) : (
                     <Send className="mr-2 h-4 w-4" />
                   )}
-                  Send Test Message
+                  {t("settings.notifications.testConnection")}
                 </Button>
                 {telegramTestResult !== null && (
                   telegramTestResult ? (

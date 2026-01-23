@@ -1,0 +1,110 @@
+# Navigation
+nav.back: Retour
+nav.home: Accueil
+nav.settings: Paramètres
+nav.calendar: Calendrier
+
+# Settings sections
+settings.general: Général
+settings.accounts: Comptes
+settings.aiProviders: Fournisseurs IA
+settings.notifications: Notifications
+settings.integrations: Intégrations
+
+# General settings
+settings.general.title: Général
+settings.general.description: Paramètres de base de l'application
+settings.general.maxEmails: Emails maximum
+settings.general.maxEmailsDescription: Nombre maximum d'emails à charger par boîte
+settings.general.defaultLabel: Libellé par défaut
+settings.general.defaultLabelDescription: Boîte mail à ouvrir au démarrage
+settings.general.theme: Thème
+settings.general.themeDefault: Par défaut
+settings.general.themeDark: Sombre
+settings.general.themeLight: Clair
+settings.general.language: Langue
+settings.general.languageAuto: Automatique (détecter du système)
+
+# Accounts settings
+settings.accounts.title: Comptes
+settings.accounts.description: Gérer vos comptes email
+settings.accounts.noAccounts: Aucun compte configuré
+settings.accounts.addAccount: Ajouter un compte
+settings.accounts.removeAccount: Supprimer le compte
+settings.accounts.confirmRemove: Êtes-vous sûr de vouloir supprimer ce compte ?
+
+# AI Providers settings
+settings.ai.title: Fournisseurs IA
+settings.ai.description: Configurer les fournisseurs IA pour l'assistance email
+settings.ai.noProviders: Aucun fournisseur IA configuré
+settings.ai.addProvider: Ajouter un fournisseur
+settings.ai.removeProvider: Supprimer le fournisseur
+settings.ai.name: Nom
+settings.ai.model: Modèle
+settings.ai.baseUrl: URL de base
+settings.ai.apiKey: Clé API
+settings.ai.type: Type
+settings.ai.typeCli: CLI
+settings.ai.typeApi: API
+
+# Notifications settings
+settings.notifications.title: Notifications
+settings.notifications.description: Configurer les préférences de notification
+settings.notifications.native: Notifications natives
+settings.notifications.nativeDescription: Paramètres de notification système
+settings.notifications.enabled: Activé
+settings.notifications.newEmail: Nouvel email
+settings.notifications.calendarReminder: Rappel de calendrier
+settings.notifications.telegram: Telegram
+settings.notifications.telegramDescription: Recevoir des notifications via Telegram
+settings.notifications.botToken: Token du bot
+settings.notifications.chatId: ID de chat
+settings.notifications.testConnection: Tester la connexion
+
+# Integrations settings
+settings.integrations.title: Intégrations
+settings.integrations.description: Connecter des services externes
+settings.integrations.github: GitHub
+settings.integrations.githubDescription: Intégration GitHub pour le suivi des issues
+settings.integrations.githubToken: Token d'accès personnel
+settings.integrations.githubParseEmails: Analyser les emails GitHub
+
+# Common actions
+common.save: Enregistrer
+common.saving: Enregistrement...
+common.cancel: Annuler
+common.delete: Supprimer
+common.edit: Modifier
+common.add: Ajouter
+common.remove: Supprimer
+common.confirm: Confirmer
+common.unsavedChanges: Modifications non enregistrées
+common.loading: Chargement...
+common.error: Erreur
+common.success: Succès
+
+# Calendar page
+calendar.accessRequired: Accès au calendrier requis
+calendar.accessDescription: Maily a besoin d'accéder à votre calendrier pour afficher les événements et en créer de nouveaux.
+calendar.grantAccess: Accorder l'accès au calendrier
+calendar.accessDenied: Accès refusé
+calendar.accessDeniedDescription: Veuillez activer l'accès au calendrier dans Préférences Système > Confidentialité et sécurité > Calendriers
+
+# App
+app.name: Maily
+app.desktop: Maily Bureau
+
+# Mail
+mail.inbox: Boîte de réception
+mail.sent: Envoyés
+mail.drafts: Brouillons
+mail.spam: Spam
+mail.trash: Corbeille
+mail.search: Rechercher des emails...
+mail.noEmails: Aucun email
+mail.selectEmail: Sélectionnez un email à lire
+mail.selectEmailDescription: Choisissez un email dans la liste pour voir son contenu
+mail.emails: emails
+mail.unread: non lus
+mail.moreEmails: emails supplémentaires
+mail.of: sur

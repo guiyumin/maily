@@ -1,0 +1,110 @@
+# Navigation
+nav.back: Indietro
+nav.home: Home
+nav.settings: Impostazioni
+nav.calendar: Calendario
+
+# Settings sections
+settings.general: Generale
+settings.accounts: Account
+settings.aiProviders: Provider IA
+settings.notifications: Notifiche
+settings.integrations: Integrazioni
+
+# General settings
+settings.general.title: Generale
+settings.general.description: Impostazioni di base dell'applicazione
+settings.general.maxEmails: Email massime
+settings.general.maxEmailsDescription: Numero massimo di email da caricare per casella
+settings.general.defaultLabel: Etichetta predefinita
+settings.general.defaultLabelDescription: Casella di posta predefinita all'avvio
+settings.general.theme: Tema
+settings.general.themeDefault: Predefinito
+settings.general.themeDark: Scuro
+settings.general.themeLight: Chiaro
+settings.general.language: Lingua
+settings.general.languageAuto: Automatico (rileva dal sistema)
+
+# Accounts settings
+settings.accounts.title: Account
+settings.accounts.description: Gestisci i tuoi account email
+settings.accounts.noAccounts: Nessun account configurato
+settings.accounts.addAccount: Aggiungi account
+settings.accounts.removeAccount: Rimuovi account
+settings.accounts.confirmRemove: Sei sicuro di voler rimuovere questo account?
+
+# AI Providers settings
+settings.ai.title: Provider IA
+settings.ai.description: Configura i provider IA per l'assistenza email
+settings.ai.noProviders: Nessun provider IA configurato
+settings.ai.addProvider: Aggiungi provider
+settings.ai.removeProvider: Rimuovi provider
+settings.ai.name: Nome
+settings.ai.model: Modello
+settings.ai.baseUrl: URL base
+settings.ai.apiKey: Chiave API
+settings.ai.type: Tipo
+settings.ai.typeCli: CLI
+settings.ai.typeApi: API
+
+# Notifications settings
+settings.notifications.title: Notifiche
+settings.notifications.description: Configura le preferenze di notifica
+settings.notifications.native: Notifiche native
+settings.notifications.nativeDescription: Impostazioni notifiche di sistema
+settings.notifications.enabled: Abilitato
+settings.notifications.newEmail: Nuova email
+settings.notifications.calendarReminder: Promemoria calendario
+settings.notifications.telegram: Telegram
+settings.notifications.telegramDescription: Ricevi notifiche tramite Telegram
+settings.notifications.botToken: Token bot
+settings.notifications.chatId: ID chat
+settings.notifications.testConnection: Testa connessione
+
+# Integrations settings
+settings.integrations.title: Integrazioni
+settings.integrations.description: Connetti servizi esterni
+settings.integrations.github: GitHub
+settings.integrations.githubDescription: Integrazione GitHub per il tracciamento delle issue
+settings.integrations.githubToken: Token di accesso personale
+settings.integrations.githubParseEmails: Analizza email GitHub
+
+# Common actions
+common.save: Salva
+common.saving: Salvataggio...
+common.cancel: Annulla
+common.delete: Elimina
+common.edit: Modifica
+common.add: Aggiungi
+common.remove: Rimuovi
+common.confirm: Conferma
+common.unsavedChanges: Modifiche non salvate
+common.loading: Caricamento...
+common.error: Errore
+common.success: Successo
+
+# Calendar page
+calendar.accessRequired: Accesso al calendario richiesto
+calendar.accessDescription: Maily ha bisogno di accedere al tuo calendario per mostrare eventi e crearne di nuovi.
+calendar.grantAccess: Concedi accesso al calendario
+calendar.accessDenied: Accesso negato
+calendar.accessDeniedDescription: Abilita l'accesso al calendario in Preferenze di Sistema > Privacy e Sicurezza > Calendari
+
+# App
+app.name: Maily
+app.desktop: Maily Desktop
+
+# Mail
+mail.inbox: Posta in arrivo
+mail.sent: Posta inviata
+mail.drafts: Bozze
+mail.spam: Spam
+mail.trash: Cestino
+mail.search: Cerca email...
+mail.noEmails: Nessuna email
+mail.selectEmail: Seleziona un'email da leggere
+mail.selectEmailDescription: Scegli un'email dalla lista per visualizzarne il contenuto
+mail.emails: email
+mail.unread: non lette
+mail.moreEmails: altre email
+mail.of: di

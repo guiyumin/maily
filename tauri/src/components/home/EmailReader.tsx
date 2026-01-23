@@ -59,6 +59,7 @@ import { IsolatedHtml } from "./IsolatedHtml";
 import { useEmailCache } from "@/stores/emailCache";
 import { Compose } from "@/components/compose/Compose";
 import { toast } from "sonner";
+import { useLocale } from "@/lib/i18n";
 
 interface Attachment {
   part_id: string;
@@ -725,6 +726,7 @@ export function EmailReader({
   canNavigatePrev,
   canNavigateNext,
 }: EmailReaderProps) {
+  const { t } = useLocale();
   const [emailFull, setEmailFull] = useState<EmailFull | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -1051,9 +1053,9 @@ export function EmailReader({
     return (
       <div className="flex flex-1 flex-col items-center justify-center bg-muted/20 text-muted-foreground">
         <Mail className="mb-4 h-12 w-12" />
-        <p className="text-lg font-medium">Select an email to read</p>
+        <p className="text-lg font-medium">{t("mail.selectEmail")}</p>
         <p className="text-sm">
-          Choose an email from the list to view its contents
+          {t("mail.selectEmailDescription")}
         </p>
       </div>
     );

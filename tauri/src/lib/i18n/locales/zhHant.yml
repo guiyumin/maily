@@ -1,0 +1,110 @@
+# Navigation
+nav.back: 返回
+nav.home: 首頁
+nav.settings: 設定
+nav.calendar: 日曆
+
+# Settings sections
+settings.general: 一般
+settings.accounts: 帳戶
+settings.aiProviders: AI 提供者
+settings.notifications: 通知
+settings.integrations: 整合
+
+# General settings
+settings.general.title: 一般
+settings.general.description: 基本應用程式設定
+settings.general.maxEmails: 最大郵件數
+settings.general.maxEmailsDescription: 每個信箱載入的最大郵件數
+settings.general.defaultLabel: 預設標籤
+settings.general.defaultLabelDescription: 啟動時預設開啟的信箱
+settings.general.theme: 主題
+settings.general.themeDefault: 預設
+settings.general.themeDark: 深色
+settings.general.themeLight: 淺色
+settings.general.language: 語言
+settings.general.languageAuto: 自動（從系統偵測）
+
+# Accounts settings
+settings.accounts.title: 帳戶
+settings.accounts.description: 管理您的郵箱帳戶
+settings.accounts.noAccounts: 未設定帳戶
+settings.accounts.addAccount: 新增帳戶
+settings.accounts.removeAccount: 移除帳戶
+settings.accounts.confirmRemove: 確定要移除此帳戶嗎？
+
+# AI Providers settings
+settings.ai.title: AI 提供者
+settings.ai.description: 設定郵件助手的 AI 提供者
+settings.ai.noProviders: 未設定 AI 提供者
+settings.ai.addProvider: 新增提供者
+settings.ai.removeProvider: 移除提供者
+settings.ai.name: 名稱
+settings.ai.model: 模型
+settings.ai.baseUrl: 基礎 URL
+settings.ai.apiKey: API 金鑰
+settings.ai.type: 類型
+settings.ai.typeCli: 命令列
+settings.ai.typeApi: API
+
+# Notifications settings
+settings.notifications.title: 通知
+settings.notifications.description: 設定通知偏好
+settings.notifications.native: 原生通知
+settings.notifications.nativeDescription: 系統通知設定
+settings.notifications.enabled: 已啟用
+settings.notifications.newEmail: 新郵件
+settings.notifications.calendarReminder: 日曆提醒
+settings.notifications.telegram: Telegram
+settings.notifications.telegramDescription: 透過 Telegram 接收通知
+settings.notifications.botToken: 機器人令牌
+settings.notifications.chatId: 聊天 ID
+settings.notifications.testConnection: 測試連線
+
+# Integrations settings
+settings.integrations.title: 整合
+settings.integrations.description: 連接外部服務
+settings.integrations.github: GitHub
+settings.integrations.githubDescription: GitHub 問題追蹤整合
+settings.integrations.githubToken: 個人存取令牌
+settings.integrations.githubParseEmails: 解析 GitHub 郵件
+
+# Common actions
+common.save: 儲存
+common.saving: 儲存中...
+common.cancel: 取消
+common.delete: 刪除
+common.edit: 編輯
+common.add: 新增
+common.remove: 移除
+common.confirm: 確認
+common.unsavedChanges: 未儲存的變更
+common.loading: 載入中...
+common.error: 錯誤
+common.success: 成功
+
+# Calendar page
+calendar.accessRequired: 需要日曆存取權限
+calendar.accessDescription: Maily 需要存取您的日曆以顯示事件和建立新事件。
+calendar.grantAccess: 授予日曆存取權限
+calendar.accessDenied: 存取被拒絕
+calendar.accessDeniedDescription: 請在系統偏好設定 > 隱私權與安全性 > 日曆中啟用日曆存取權限
+
+# App
+app.name: Maily
+app.desktop: Maily 桌面版
+
+# Mail
+mail.inbox: 收件匣
+mail.sent: 寄件備份
+mail.drafts: 草稿
+mail.spam: 垃圾郵件
+mail.trash: 垃圾桶
+mail.search: 搜尋郵件...
+mail.noEmails: 沒有郵件
+mail.selectEmail: 選擇一封郵件閱讀
+mail.selectEmailDescription: 從列表中選擇一封郵件查看內容
+mail.emails: 封郵件
+mail.unread: 封未讀
+mail.moreEmails: 封更多郵件
+mail.of: /

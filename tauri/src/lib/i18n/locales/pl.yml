@@ -1,0 +1,110 @@
+# Navigation
+nav.back: Wstecz
+nav.home: Strona główna
+nav.settings: Ustawienia
+nav.calendar: Kalendarz
+
+# Settings sections
+settings.general: Ogólne
+settings.accounts: Konta
+settings.aiProviders: Dostawcy AI
+settings.notifications: Powiadomienia
+settings.integrations: Integracje
+
+# General settings
+settings.general.title: Ogólne
+settings.general.description: Podstawowe ustawienia aplikacji
+settings.general.maxEmails: Maksymalna liczba emaili
+settings.general.maxEmailsDescription: Maksymalna liczba emaili do załadowania na skrzynkę
+settings.general.defaultLabel: Domyślna etykieta
+settings.general.defaultLabelDescription: Domyślna skrzynka przy uruchomieniu
+settings.general.theme: Motyw
+settings.general.themeDefault: Domyślny
+settings.general.themeDark: Ciemny
+settings.general.themeLight: Jasny
+settings.general.language: Język
+settings.general.languageAuto: Automatycznie (wykryj z systemu)
+
+# Accounts settings
+settings.accounts.title: Konta
+settings.accounts.description: Zarządzaj kontami email
+settings.accounts.noAccounts: Brak skonfigurowanych kont
+settings.accounts.addAccount: Dodaj konto
+settings.accounts.removeAccount: Usuń konto
+settings.accounts.confirmRemove: Czy na pewno chcesz usunąć to konto?
+
+# AI Providers settings
+settings.ai.title: Dostawcy AI
+settings.ai.description: Skonfiguruj dostawców AI dla asystenta email
+settings.ai.noProviders: Brak skonfigurowanych dostawców AI
+settings.ai.addProvider: Dodaj dostawcę
+settings.ai.removeProvider: Usuń dostawcę
+settings.ai.name: Nazwa
+settings.ai.model: Model
+settings.ai.baseUrl: Bazowy URL
+settings.ai.apiKey: Klucz API
+settings.ai.type: Typ
+settings.ai.typeCli: CLI
+settings.ai.typeApi: API
+
+# Notifications settings
+settings.notifications.title: Powiadomienia
+settings.notifications.description: Skonfiguruj preferencje powiadomień
+settings.notifications.native: Powiadomienia natywne
+settings.notifications.nativeDescription: Ustawienia powiadomień systemowych
+settings.notifications.enabled: Włączone
+settings.notifications.newEmail: Nowy email
+settings.notifications.calendarReminder: Przypomnienie kalendarza
+settings.notifications.telegram: Telegram
+settings.notifications.telegramDescription: Otrzymuj powiadomienia przez Telegram
+settings.notifications.botToken: Token bota
+settings.notifications.chatId: ID czatu
+settings.notifications.testConnection: Testuj połączenie
+
+# Integrations settings
+settings.integrations.title: Integracje
+settings.integrations.description: Połącz z zewnętrznymi usługami
+settings.integrations.github: GitHub
+settings.integrations.githubDescription: Integracja GitHub do śledzenia zgłoszeń
+settings.integrations.githubToken: Osobisty token dostępu
+settings.integrations.githubParseEmails: Parsuj emaile GitHub
+
+# Common actions
+common.save: Zapisz
+common.saving: Zapisywanie...
+common.cancel: Anuluj
+common.delete: Usuń
+common.edit: Edytuj
+common.add: Dodaj
+common.remove: Usuń
+common.confirm: Potwierdź
+common.unsavedChanges: Niezapisane zmiany
+common.loading: Ładowanie...
+common.error: Błąd
+common.success: Sukces
+
+# Calendar page
+calendar.accessRequired: Wymagany dostęp do kalendarza
+calendar.accessDescription: Maily potrzebuje dostępu do kalendarza, aby wyświetlać wydarzenia i tworzyć nowe.
+calendar.grantAccess: Przyznaj dostęp do kalendarza
+calendar.accessDenied: Odmowa dostępu
+calendar.accessDeniedDescription: Włącz dostęp do kalendarza w Preferencje systemowe > Prywatność i bezpieczeństwo > Kalendarze
+
+# App
+app.name: Maily
+app.desktop: Maily Desktop
+
+# Mail
+mail.inbox: Odebrane
+mail.sent: Wysłane
+mail.drafts: Wersje robocze
+mail.spam: Spam
+mail.trash: Kosz
+mail.search: Szukaj emaili...
+mail.noEmails: Brak emaili
+mail.selectEmail: Wybierz email do przeczytania
+mail.selectEmailDescription: Wybierz email z listy, aby zobaczyć jego treść
+mail.emails: emaili
+mail.unread: nieprzeczytanych
+mail.moreEmails: więcej emaili
+mail.of: z

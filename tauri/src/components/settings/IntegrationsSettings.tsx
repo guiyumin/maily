@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/card";
 import { Github, Eye, EyeOff } from "lucide-react";
 import type { Config, IntegrationsConfig, GitHubConfig } from "./types";
+import { useLocale } from "@/lib/i18n";
 
 interface IntegrationsSettingsProps {
   config: Config;
@@ -18,6 +19,7 @@ interface IntegrationsSettingsProps {
 }
 
 export function IntegrationsSettings({ config, onUpdate }: IntegrationsSettingsProps) {
+  const { t } = useLocale();
   const [showGitHubToken, setShowGitHubToken] = useState(false);
 
   const integrations = config.integrations ?? {};
@@ -46,18 +48,18 @@ export function IntegrationsSettings({ config, onUpdate }: IntegrationsSettingsP
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Github className="h-5 w-5" />
-            GitHub
+            {t("settings.integrations.github")}
           </CardTitle>
           <CardDescription>
-            Enhanced GitHub notifications and PR actions
+            {t("settings.integrations.githubDescription")}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="space-y-0.5">
-              <Label>Enable GitHub Integration</Label>
+              <Label>{t("settings.integrations.github")}</Label>
               <p className="text-sm text-muted-foreground">
-                Parse GitHub emails and show PR status
+                {t("settings.integrations.githubDescription")}
               </p>
             </div>
             <Switch
@@ -69,7 +71,7 @@ export function IntegrationsSettings({ config, onUpdate }: IntegrationsSettingsP
           {integrations.github?.enabled && (
             <>
               <div className="grid gap-2">
-                <Label htmlFor="github_token">Personal Access Token</Label>
+                <Label htmlFor="github_token">{t("settings.integrations.githubToken")}</Label>
                 <div className="relative">
                   <Input
                     id="github_token"
@@ -107,9 +109,9 @@ export function IntegrationsSettings({ config, onUpdate }: IntegrationsSettingsP
 
               <div className="flex items-center justify-between pl-4 border-l-2 border-muted">
                 <div className="space-y-0.5">
-                  <Label>Parse GitHub Emails</Label>
+                  <Label>{t("settings.integrations.githubParseEmails")}</Label>
                   <p className="text-sm text-muted-foreground">
-                    Auto-detect PR/issue emails and show status
+                    {t("settings.integrations.githubParseEmails")}
                   </p>
                 </div>
                 <Switch

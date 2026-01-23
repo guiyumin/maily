@@ -1,0 +1,110 @@
+# Navigation
+nav.back: Terug
+nav.home: Start
+nav.settings: Instellingen
+nav.calendar: Agenda
+
+# Settings sections
+settings.general: Algemeen
+settings.accounts: Accounts
+settings.aiProviders: AI-providers
+settings.notifications: Meldingen
+settings.integrations: Integraties
+
+# General settings
+settings.general.title: Algemeen
+settings.general.description: Basis applicatie-instellingen
+settings.general.maxEmails: Maximale e-mails
+settings.general.maxEmailsDescription: Maximaal aantal e-mails per mailbox
+settings.general.defaultLabel: Standaard label
+settings.general.defaultLabelDescription: Standaard mailbox bij opstarten
+settings.general.theme: Thema
+settings.general.themeDefault: Standaard
+settings.general.themeDark: Donker
+settings.general.themeLight: Licht
+settings.general.language: Taal
+settings.general.languageAuto: Automatisch (detecteren van systeem)
+
+# Accounts settings
+settings.accounts.title: Accounts
+settings.accounts.description: Beheer uw e-mailaccounts
+settings.accounts.noAccounts: Geen accounts geconfigureerd
+settings.accounts.addAccount: Account toevoegen
+settings.accounts.removeAccount: Account verwijderen
+settings.accounts.confirmRemove: Weet u zeker dat u dit account wilt verwijderen?
+
+# AI Providers settings
+settings.ai.title: AI-providers
+settings.ai.description: Configureer AI-providers voor e-mailassistentie
+settings.ai.noProviders: Geen AI-providers geconfigureerd
+settings.ai.addProvider: Provider toevoegen
+settings.ai.removeProvider: Provider verwijderen
+settings.ai.name: Naam
+settings.ai.model: Model
+settings.ai.baseUrl: Basis-URL
+settings.ai.apiKey: API-sleutel
+settings.ai.type: Type
+settings.ai.typeCli: CLI
+settings.ai.typeApi: API
+
+# Notifications settings
+settings.notifications.title: Meldingen
+settings.notifications.description: Configureer meldingsvoorkeuren
+settings.notifications.native: Systeemmeldingen
+settings.notifications.nativeDescription: Systeemmeldingsinstellingen
+settings.notifications.enabled: Ingeschakeld
+settings.notifications.newEmail: Nieuwe e-mail
+settings.notifications.calendarReminder: Agendaherinnering
+settings.notifications.telegram: Telegram
+settings.notifications.telegramDescription: Ontvang meldingen via Telegram
+settings.notifications.botToken: Bot-token
+settings.notifications.chatId: Chat-ID
+settings.notifications.testConnection: Verbinding testen
+
+# Integrations settings
+settings.integrations.title: Integraties
+settings.integrations.description: Verbind met externe diensten
+settings.integrations.github: GitHub
+settings.integrations.githubDescription: GitHub-integratie voor issue-tracking
+settings.integrations.githubToken: Persoonlijk toegangstoken
+settings.integrations.githubParseEmails: GitHub-e-mails verwerken
+
+# Common actions
+common.save: Opslaan
+common.saving: Opslaan...
+common.cancel: Annuleren
+common.delete: Verwijderen
+common.edit: Bewerken
+common.add: Toevoegen
+common.remove: Verwijderen
+common.confirm: Bevestigen
+common.unsavedChanges: Niet-opgeslagen wijzigingen
+common.loading: Laden...
+common.error: Fout
+common.success: Succes
+
+# Calendar page
+calendar.accessRequired: Agendatoegang vereist
+calendar.accessDescription: Maily heeft toegang tot uw agenda nodig om evenementen te tonen en nieuwe aan te maken.
+calendar.grantAccess: Agendatoegang verlenen
+calendar.accessDenied: Toegang geweigerd
+calendar.accessDeniedDescription: Schakel agendatoegang in via Systeemvoorkeuren > Privacy en beveiliging > Agenda's
+
+# App
+app.name: Maily
+app.desktop: Maily Desktop
+
+# Mail
+mail.inbox: Postvak IN
+mail.sent: Verzonden
+mail.drafts: Concepten
+mail.spam: Spam
+mail.trash: Prullenbak
+mail.search: E-mails zoeken...
+mail.noEmails: Geen e-mails
+mail.selectEmail: Selecteer een e-mail om te lezen
+mail.selectEmailDescription: Kies een e-mail uit de lijst om de inhoud te bekijken
+mail.emails: e-mails
+mail.unread: ongelezen
+mail.moreEmails: meer e-mails
+mail.of: van

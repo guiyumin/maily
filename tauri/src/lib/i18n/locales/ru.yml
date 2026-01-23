@@ -1,0 +1,110 @@
+# Navigation
+nav.back: Назад
+nav.home: Главная
+nav.settings: Настройки
+nav.calendar: Календарь
+
+# Settings sections
+settings.general: Общие
+settings.accounts: Аккаунты
+settings.aiProviders: Провайдеры ИИ
+settings.notifications: Уведомления
+settings.integrations: Интеграции
+
+# General settings
+settings.general.title: Общие
+settings.general.description: Основные настройки приложения
+settings.general.maxEmails: Максимум писем
+settings.general.maxEmailsDescription: Максимальное количество писем на почтовый ящик
+settings.general.defaultLabel: Метка по умолчанию
+settings.general.defaultLabelDescription: Почтовый ящик по умолчанию при запуске
+settings.general.theme: Тема
+settings.general.themeDefault: По умолчанию
+settings.general.themeDark: Тёмная
+settings.general.themeLight: Светлая
+settings.general.language: Язык
+settings.general.languageAuto: Автоматически (определить из системы)
+
+# Accounts settings
+settings.accounts.title: Аккаунты
+settings.accounts.description: Управление почтовыми аккаунтами
+settings.accounts.noAccounts: Нет настроенных аккаунтов
+settings.accounts.addAccount: Добавить аккаунт
+settings.accounts.removeAccount: Удалить аккаунт
+settings.accounts.confirmRemove: Вы уверены, что хотите удалить этот аккаунт?
+
+# AI Providers settings
+settings.ai.title: Провайдеры ИИ
+settings.ai.description: Настройка провайдеров ИИ для помощи с почтой
+settings.ai.noProviders: Нет настроенных провайдеров ИИ
+settings.ai.addProvider: Добавить провайдера
+settings.ai.removeProvider: Удалить провайдера
+settings.ai.name: Имя
+settings.ai.model: Модель
+settings.ai.baseUrl: Базовый URL
+settings.ai.apiKey: API-ключ
+settings.ai.type: Тип
+settings.ai.typeCli: CLI
+settings.ai.typeApi: API
+
+# Notifications settings
+settings.notifications.title: Уведомления
+settings.notifications.description: Настройка параметров уведомлений
+settings.notifications.native: Системные уведомления
+settings.notifications.nativeDescription: Настройки системных уведомлений
+settings.notifications.enabled: Включено
+settings.notifications.newEmail: Новое письмо
+settings.notifications.calendarReminder: Напоминание календаря
+settings.notifications.telegram: Telegram
+settings.notifications.telegramDescription: Получать уведомления через Telegram
+settings.notifications.botToken: Токен бота
+settings.notifications.chatId: ID чата
+settings.notifications.testConnection: Проверить соединение
+
+# Integrations settings
+settings.integrations.title: Интеграции
+settings.integrations.description: Подключение внешних сервисов
+settings.integrations.github: GitHub
+settings.integrations.githubDescription: Интеграция GitHub для отслеживания задач
+settings.integrations.githubToken: Персональный токен доступа
+settings.integrations.githubParseEmails: Обрабатывать письма GitHub
+
+# Common actions
+common.save: Сохранить
+common.saving: Сохранение...
+common.cancel: Отмена
+common.delete: Удалить
+common.edit: Редактировать
+common.add: Добавить
+common.remove: Удалить
+common.confirm: Подтвердить
+common.unsavedChanges: Несохранённые изменения
+common.loading: Загрузка...
+common.error: Ошибка
+common.success: Успешно
+
+# Calendar page
+calendar.accessRequired: Требуется доступ к календарю
+calendar.accessDescription: Maily требуется доступ к вашему календарю для отображения событий и создания новых.
+calendar.grantAccess: Предоставить доступ к календарю
+calendar.accessDenied: Доступ запрещён
+calendar.accessDeniedDescription: Пожалуйста, включите доступ к календарю в Системных настройках > Конфиденциальность и безопасность > Календари
+
+# App
+app.name: Maily
+app.desktop: Maily Desktop
+
+# Mail
+mail.inbox: Входящие
+mail.sent: Отправленные
+mail.drafts: Черновики
+mail.spam: Спам
+mail.trash: Корзина
+mail.search: Поиск писем...
+mail.noEmails: Нет писем
+mail.selectEmail: Выберите письмо для чтения
+mail.selectEmailDescription: Выберите письмо из списка для просмотра содержимого
+mail.emails: писем
+mail.unread: непрочитанных
+mail.moreEmails: ещё писем
+mail.of: из

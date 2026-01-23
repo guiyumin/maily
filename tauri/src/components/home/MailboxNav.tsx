@@ -2,6 +2,8 @@ import { Inbox, Send, FileText, Trash2, Mail, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { useLocale } from "@/lib/i18n";
+import type { TranslationKey } from "@/lib/i18n";
 
 interface MailboxNavProps {
   selectedMailbox: string;
@@ -17,25 +19,25 @@ function getMailboxes(provider?: string) {
   const isYahoo = provider === "yahoo";
 
   return [
-    { id: "INBOX", label: "Inbox", icon: Inbox },
+    { id: "INBOX", labelKey: "mail.inbox" as TranslationKey, icon: Inbox },
     {
       id: isGmail ? "[Gmail]/Sent Mail" : isYahoo ? "Sent" : "Sent",
-      label: "Sent",
+      labelKey: "mail.sent" as TranslationKey,
       icon: Send
     },
     {
       id: isGmail ? "[Gmail]/Drafts" : isYahoo ? "Draft" : "Drafts",
-      label: "Drafts",
+      labelKey: "mail.drafts" as TranslationKey,
       icon: FileText
     },
     {
       id: isGmail ? "[Gmail]/Spam" : isYahoo ? "Bulk Mail" : "Spam",
-      label: "Spam",
+      labelKey: "mail.spam" as TranslationKey,
       icon: AlertCircle
     },
     {
       id: isGmail ? "[Gmail]/Trash" : isYahoo ? "Trash" : "Trash",
-      label: "Trash",
+      labelKey: "mail.trash" as TranslationKey,
       icon: Trash2
     },
   ];
@@ -48,6 +50,7 @@ export function MailboxNav({
   provider,
   selectedAccount,
 }: MailboxNavProps) {
+  const { t } = useLocale();
   const mailboxes = getMailboxes(provider);
 
   return (
@@ -55,7 +58,7 @@ export function MailboxNav({
       <div className="flex h-14 items-center gap-2 px-4 overflow-hidden">
         <Mail className="h-5 w-5 shrink-0" />
         <span className="text-sm font-medium truncate" title={selectedAccount}>
-          {selectedAccount || "Mail"}
+          {selectedAccount || t("app.name")}
         </span>
       </div>
 
@@ -76,7 +79,7 @@ export function MailboxNav({
                 onClick={() => onSelectMailbox(mailbox.id)}
               >
                 <Icon className="mr-2 h-4 w-4" />
-                {mailbox.label}
+                {t(mailbox.labelKey)}
                 {showBadge && (
                   <span className="ml-auto text-xs font-medium">
                     {unreadCount}

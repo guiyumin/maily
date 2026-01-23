@@ -16,17 +16,22 @@ export const LocaleProvider: React.FC<LocaleProviderProps> = ({
   messages,
   children,
 }) => {
+  console.log("[LocaleProvider] Received locale:", locale);
+
   const resolvedLocale = useMemo(() => {
     if (typeof locale === 'string') {
       const code = isValidLocale(locale) ? locale : 'en-US';
+      console.log("[LocaleProvider] String locale, isValid:", isValidLocale(locale), "resolved code:", code);
       return { code, messages: undefined };
     }
-    
+
     // If it's a Locale object, ensure its code is valid
     if (locale && !isValidLocale(locale.code)) {
+      console.log("[LocaleProvider] Locale object with invalid code, using en-US");
       return { ...locale, code: 'en-US' };
     }
-    
+
+    console.log("[LocaleProvider] Locale object, code:", locale?.code);
     return locale || { code: 'en-US' };
   }, [locale]);
 

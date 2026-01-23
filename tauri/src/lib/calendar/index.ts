@@ -5,6 +5,7 @@ import "./styles/tailwind.css";
 export { useCalendarApp, createCalendarStore } from "./core/useCalendarApp";
 export type { CalendarStoreApi, CalendarStore } from "./core/calendarStore";
 export { MailyCalendar } from "./core/MailyCalendar";
+export type { MailyCalendarProps } from "./core/MailyCalendar";
 export { CalendarRegistry } from "./core/calendarRegistry";
 
 // Theme exports (from calendar store)

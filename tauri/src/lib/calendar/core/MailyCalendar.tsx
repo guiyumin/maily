@@ -6,14 +6,22 @@ import React, {
   useState,
 } from "react";
 import clsx from "clsx";
+import { useStore } from "zustand";
 import {
   EventDetailContentRenderer,
   EventDetailDialogRenderer,
-  UseCalendarAppReturn,
   CalendarSidebarRenderProps,
   CalendarType,
   CalendarEvent,
+  CalendarPlugin,
+  CalendarView,
+  CalendarCallbacks,
+  SidebarConfig,
+  ViewType,
+  CalendarApp,
 } from "../types";
+import { ThemeConfig } from "../types/calendarTypes";
+import { ViewSwitcherMode } from "../components/common/ViewHeader";
 import DefaultCalendarSidebar from "../components/sidebar/DefaultCalendarSidebar";
 import DefaultEventDetailDialog from "../components/common/DefaultEventDetailDialog";
 import CalendarHeader from "../components/common/CalendarHeader";
@@ -28,6 +36,7 @@ import { getCalendarColorsForHex } from "./calendarRegistry";
 import { generateUniKey } from "../utils/helpers";
 import { temporalToDate } from "../utils/temporal";
 import { createEvent } from "../utils/eventHelpers";
+import { createCalendarStore, CalendarStoreApi, CalendarStoreSingleton } from "./calendarStore";
 
 const DEFAULT_SIDEBAR_WIDTH = "240px";
 
@@ -41,18 +50,132 @@ const COLORS = [
   "#957e5e",
 ];
 
-interface MailyCalendarProps {
-  calendar: UseCalendarAppReturn;
+/**
+ * MailyCalendar Props - simplified API
+ * Users can pass all configuration as props directly
+ */
+export interface MailyCalendarProps {
+  /** Calendar events to display */
+  events?: CalendarEvent[];
+  /** Calendar definitions (for multi-calendar support) */
+  calendars?: CalendarType[];
+  /** Default calendar ID for new events */
+  defaultCalendar?: string;
+  /** Views to enable */
+  views?: CalendarView[];
+  /** Plugins to use */
+  plugins?: CalendarPlugin[];
+  /** Default view to show */
+  defaultView?: ViewType;
+  /** Initial date to display */
+  initialDate?: Date;
+  /** Locale for i18n (e.g., "en-US", "zh-CN", "ko-KR") */
+  locale?: string | Locale;
+  /** Theme configuration */
+  theme?: ThemeConfig;
+  /** View switcher mode */
+  switcherMode?: ViewSwitcherMode;
+  /** Sidebar configuration */
+  sidebar?: boolean | SidebarConfig;
+  /** Whether to use event detail dialog (vs panel) */
+  useEventDetailDialog?: boolean;
+
+  // Event callbacks
+  /** Called when an event is created */
+  onEventCreate?: (event: CalendarEvent) => void | Promise<void>;
+  /** Called when an event is updated */
+  onEventUpdate?: (event: CalendarEvent) => void | Promise<void>;
+  /** Called when an event is deleted */
+  onEventDelete?: (eventId: string) => void | Promise<void>;
+  /** Called when the view changes */
+  onViewChange?: (view: ViewType) => void | Promise<void>;
+  /** Called when the date changes */
+  onDateChange?: (date: Date) => void | Promise<void>;
+  /** Called when the visible month changes */
+  onVisibleMonthChange?: (date: Date) => void | Promise<void>;
+  /** Called when a calendar is created */
+  onCalendarCreate?: (calendar: CalendarType) => void | Promise<void>;
+  /** Called when a calendar is updated */
+  onCalendarUpdate?: (calendar: CalendarType) => void | Promise<void>;
+  /** Called when a calendar is deleted */
+  onCalendarDelete?: (calendarId: string) => void | Promise<void>;
+  /** Called when calendars are merged */
+  onCalendarMerge?: (sourceId: string, targetId: string) => void | Promise<void>;
+
+  // UI customization
   className?: string;
-  /** Custom event detail content component (content only, will be wrapped in default panel) */
+  /** Custom event detail content component */
   customDetailPanelContent?: EventDetailContentRenderer;
-  /** Custom event detail dialog component (Dialog mode) */
+  /** Custom event detail dialog component */
   customEventDetailDialog?: EventDetailDialogRenderer;
-  meta?: Record<string, any>; // Additional metadata
-  /** Custom localization messages to override defaults */
+  /** Additional metadata */
+  meta?: Record<string, any>;
+  /** Custom localization messages */
   customMessages?: LocaleMessages;
   /** Search configuration */
   search?: CalendarSearchProps;
+}
+
+// Internal helper to create CalendarApp interface from store
+function createAppFromStore(store: CalendarStoreApi): CalendarApp {
+  const getState = () => store.getState();
+
+  const stateProxy = {
+    get currentView() { return getState().currentView; },
+    get currentDate() { return getState().currentDate; },
+    get calendarEvents() { return getState().calendarEvents; },
+    get plugins() { return getState()._plugins; },
+    get views() { return getState()._views; },
+    get switcherMode() { return getState().switcherMode; },
+    get sidebar() { return getState()._sidebarConfig; },
+    get locale() { return getState().locale; },
+    get highlightedEventId() { return getState().highlightedEventId; },
+  };
+
+  return {
+    state: stateProxy,
+    changeView: (view: ViewType) => getState().changeView(view),
+    getCurrentView: () => getState().getCurrentView(),
+    setCurrentDate: (date: Date) => getState().setCurrentDate(date),
+    getCurrentDate: () => getState().getCurrentDate(),
+    goToToday: () => getState().goToToday(),
+    goToPrevious: () => getState().goToPrevious(),
+    goToNext: () => getState().goToNext(),
+    selectDate: (date: Date) => getState().selectDate(date),
+    setVisibleMonth: (date: Date) => getState().setVisibleMonth(date),
+    getVisibleMonth: () => getState().getVisibleMonth(),
+    addEvent: (event: CalendarEvent) => getState().addEvent(event),
+    updateEvent: (id: string, event: Partial<CalendarEvent>, isPending?: boolean) =>
+      getState().updateEvent(id, event, isPending),
+    deleteEvent: (id: string) => getState().deleteEvent(id),
+    getEvents: () => getState().getEvents(),
+    getAllEvents: () => getState().getAllEvents(),
+    highlightEvent: (eventId: string | null) => getState().highlightEvent(eventId),
+    getCalendars: () => getState().getCalendars(),
+    reorderCalendars: (fromIndex: number, toIndex: number) =>
+      getState().reorderCalendars(fromIndex, toIndex),
+    setCalendarVisibility: (calendarId: string, visible: boolean) =>
+      getState().setCalendarVisibility(calendarId, visible),
+    setAllCalendarsVisibility: (visible: boolean) =>
+      getState().setAllCalendarsVisibility(visible),
+    updateCalendar: (id: string, updates: Partial<CalendarType>) =>
+      getState().updateCalendar(id, updates),
+    createCalendar: (calendar: CalendarType) => getState().createCalendar(calendar),
+    deleteCalendar: (id: string) => getState().deleteCalendar(id),
+    mergeCalendars: (sourceId: string, targetId: string) =>
+      getState().mergeCalendars(sourceId, targetId),
+    getPlugin: <T = unknown>(name: string) => getState().getPlugin<T>(name),
+    hasPlugin: (name: string) => getState().hasPlugin(name),
+    render: () => React.createElement('div'),
+    getSidebarConfig: () => getState().getSidebarConfig(),
+    triggerRender: () => getState().triggerRender(),
+    getCalendarRegistry: () => getState().getCalendarRegistry(),
+    getUseEventDetailDialog: () => getState().getUseEventDetailDialog(),
+    setTheme: (mode) => getState().setTheme(mode),
+    getTheme: () => getState().getTheme(),
+    subscribeThemeChange: (callback) => getState().subscribeThemeChange(callback),
+    unsubscribeThemeChange: (callback) => getState().unsubscribeThemeChange(callback),
+  };
 }
 
 const CalendarInternalLocaleProvider: React.FC<{
@@ -62,7 +185,6 @@ const CalendarInternalLocaleProvider: React.FC<{
 }> = ({ locale, messages, children }) => {
   const context = useLocale();
 
-  // If already wrapped by an external LocaleProvider, don't wrap again
   if (!context.isDefault) {
     return <>{children}</>;
   }
@@ -74,17 +196,29 @@ const CalendarInternalLocaleProvider: React.FC<{
   );
 };
 
-const CalendarLayout: React.FC<MailyCalendarProps> = ({
-  calendar,
+interface CalendarLayoutProps {
+  store: CalendarStoreApi;
+  app: CalendarApp;
+  className?: string;
+  customDetailPanelContent?: EventDetailContentRenderer;
+  customEventDetailDialog?: EventDetailDialogRenderer;
+  meta?: Record<string, any>;
+  search?: CalendarSearchProps;
+}
+
+const CalendarLayout: React.FC<CalendarLayoutProps> = ({
+  store,
+  app,
   className,
   customDetailPanelContent,
   customEventDetailDialog,
   meta,
   search: searchConfig,
 }) => {
-  const app = calendar.app;
-  const currentView = app.getCurrentView();
-  const ViewComponent = currentView.component;
+  // Subscribe to view changes for re-renders
+  useStore(store, (s) => s.currentView);
+  const currentViewObj = app.getCurrentView();
+  const ViewComponent = currentViewObj.component;
   const sidebarConfig = app.getSidebarConfig();
   const sidebarEnabled = sidebarConfig?.enabled ?? false;
   const [sidebarVersion, setSidebarVersion] = useState(0);
@@ -93,19 +227,12 @@ const CalendarLayout: React.FC<MailyCalendarProps> = ({
   );
   const { t } = useLocale();
 
-  // Create Calendar State
   const [showCreateDialog, setShowCreateDialog] = useState(false);
-  const [editingCalendarId, setEditingCalendarId] = useState<string | null>(
-    null,
-  );
-
-  // Search State
+  const [editingCalendarId, setEditingCalendarId] = useState<string | null>(null);
   const [searchKeyword, setSearchKeyword] = useState("");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchResults, setSearchResults] = useState<CalendarSearchEvent[]>([]);
-
-  // New Event Dialog State
   const [pendingNewEvent, setPendingNewEvent] = useState<CalendarEvent | null>(null);
 
   // Keyboard shortcut for search (⌘K / Ctrl+K)
@@ -132,19 +259,14 @@ const CalendarLayout: React.FC<MailyCalendarProps> = ({
 
     const performSearch = async () => {
       setSearchLoading(true);
-
       try {
         let results: CalendarSearchEvent[] = [];
 
         if (searchConfig?.customSearch) {
-          // If custom search is provided, we might need all events first or just pass empty if it fetches its own
-          // The interface says: (params: { keyword, events }) => ...
-          // So we should pass current events
           const currentEvents = app.getEvents().map((e) => ({
             ...e,
             color:
-              app.getCalendarRegistry().get(e.calendarId || "")?.colors
-                .lineColor ||
+              app.getCalendarRegistry().get(e.calendarId || "")?.colors.lineColor ||
               app.getCalendarRegistry().resolveColors().lineColor,
           }));
           results = searchConfig.customSearch({
@@ -154,22 +276,17 @@ const CalendarLayout: React.FC<MailyCalendarProps> = ({
         } else if (searchConfig?.onSearch) {
           results = await searchConfig.onSearch(searchKeyword);
         } else {
-          // Default search: title or description
           const keywordLower = searchKeyword.toLowerCase();
           results = app
             .getEvents()
-            .filter((e) => {
-              return (
-                e.title.toLowerCase().includes(keywordLower) ||
-                (e.description &&
-                  e.description.toLowerCase().includes(keywordLower))
-              );
-            })
+            .filter((e) =>
+              e.title.toLowerCase().includes(keywordLower) ||
+              (e.description && e.description.toLowerCase().includes(keywordLower))
+            )
             .map((e) => ({
               ...e,
               color:
-                app.getCalendarRegistry().get(e.calendarId || "")?.colors
-                  .lineColor ||
+                app.getCalendarRegistry().get(e.calendarId || "")?.colors.lineColor ||
                 app.getCalendarRegistry().resolveColors().lineColor,
             }));
         }
@@ -199,7 +316,6 @@ const CalendarLayout: React.FC<MailyCalendarProps> = ({
   }, [isSearchOpen, app]);
 
   const handleSearchResultClick = (event: CalendarSearchEvent) => {
-    // Navigate to event date
     let date: Date;
     if (event.start instanceof Date) {
       date = event.start;
@@ -209,11 +325,7 @@ const CalendarLayout: React.FC<MailyCalendarProps> = ({
       date = temporalToDate(event.start as any);
     }
     app.setCurrentDate(date);
-
-    // Highlight the event
     app.highlightEvent(event.id);
-
-    // TODO(mobile view)
   };
 
   useEffect(() => {
@@ -224,9 +336,10 @@ const CalendarLayout: React.FC<MailyCalendarProps> = ({
     setSidebarVersion((prev) => prev + 1);
   }, []);
 
+  const calendarVersion = useStore(store, (s) => s._calendarVersion);
   const calendars = useMemo(
     () => app.getCalendars(),
-    [app, sidebarVersion, calendar],
+    [app, sidebarVersion, calendarVersion],
   );
 
   const handleToggleCalendarVisibility = useCallback(
@@ -245,7 +358,8 @@ const CalendarLayout: React.FC<MailyCalendarProps> = ({
     [app, refreshSidebar],
   );
 
-  const handleCreateCalendar = useCallback(() => {
+  // Used by sidebar for creating new calendars
+  const _handleCreateCalendar = useCallback(() => {
     const createMode = sidebarConfig.createCalendarMode || "inline";
 
     if (createMode === "modal") {
@@ -253,7 +367,6 @@ const CalendarLayout: React.FC<MailyCalendarProps> = ({
       return;
     }
 
-    // Inline mode
     const randomColor = COLORS[Math.floor(Math.random() * COLORS.length)];
     const { colors, darkColors } = getCalendarColorsForHex(randomColor);
     const newId = generateUniKey();
@@ -269,24 +382,20 @@ const CalendarLayout: React.FC<MailyCalendarProps> = ({
 
     app.createCalendar(newCalendar);
     setEditingCalendarId(newId);
-    refreshSidebar(); // Refresh sidebar to show new calendar
+    refreshSidebar();
   }, [app, sidebarConfig.createCalendarMode, t, refreshSidebar]);
+  void _handleCreateCalendar; // Suppress unused warning - available for sidebar
 
-  // Handle creating a new event from the header button
   const handleCreateEvent = useCallback(() => {
     const currentDate = app.getCurrentDate();
     const now = new Date();
-
-    // Create event starting at current hour (or next hour if past half)
-    const startHour =
-      now.getMinutes() > 30 ? now.getHours() + 1 : now.getHours();
+    const startHour = now.getMinutes() > 30 ? now.getHours() + 1 : now.getHours();
     const startDate = new Date(currentDate);
     startDate.setHours(startHour, 0, 0, 0);
 
     const endDate = new Date(startDate);
     endDate.setHours(startHour + 1);
 
-    // Get default calendar
     const calendars = app.getCalendars();
     const defaultCalendar = calendars.find((c) => c.isDefault) || calendars[0];
 
@@ -298,11 +407,9 @@ const CalendarLayout: React.FC<MailyCalendarProps> = ({
       calendarId: defaultCalendar?.id,
     });
 
-    // Show dialog instead of immediately adding the event
     setPendingNewEvent(newEvent);
   }, [app]);
 
-  // Handle saving the new event from the dialog
   const handleSaveNewEvent = useCallback(
     (calendarEvent: CalendarEvent) => {
       app.addEvent(calendarEvent);
@@ -311,24 +418,19 @@ const CalendarLayout: React.FC<MailyCalendarProps> = ({
     [app],
   );
 
-  // Handle closing the new event dialog without saving
   const handleCloseNewEventDialog = useCallback(() => {
     setPendingNewEvent(null);
   }, []);
 
-  // DOM reference for the entire calendar
   const calendarRef = useRef<HTMLDivElement>(null!);
 
-  // Determine which event detail dialog to use
-  // Priority: customEventDetailDialog > useEventDetailDialog (built-in) > undefined (use panel)
   const effectiveEventDetailDialog: EventDetailDialogRenderer | undefined =
     customEventDetailDialog ||
     (app.getUseEventDetailDialog() ? DefaultEventDetailDialog : undefined);
 
-  // Prepare props to pass to view component
   const viewProps = {
     app: app,
-    config: currentView.config || {},
+    config: currentViewObj.config || {},
     customDetailPanelContent,
     customEventDetailDialog: effectiveEventDetailDialog,
     switcherMode: app.state.switcherMode,
@@ -352,18 +454,13 @@ const CalendarLayout: React.FC<MailyCalendarProps> = ({
 
   const renderSidebarContent = () => {
     if (!sidebarEnabled) return null;
-
     if (sidebarConfig.render) {
       return sidebarConfig.render(sidebarProps);
     }
-
     return <DefaultCalendarSidebar {...sidebarProps} />;
   };
 
-  const sidebarWidth = normalizeCssWidth(
-    sidebarConfig?.width,
-    DEFAULT_SIDEBAR_WIDTH,
-  );
+  const sidebarWidth = normalizeCssWidth(sidebarConfig?.width, DEFAULT_SIDEBAR_WIDTH);
   const miniSidebarWidth = "50px";
 
   return (
@@ -375,10 +472,8 @@ const CalendarLayout: React.FC<MailyCalendarProps> = ({
     >
       {sidebarEnabled && (
         <aside
-          className={`absolute top-0 bottom-0 left-0 z-0 h-full`}
-          style={{
-            width: sidebarWidth,
-          }}
+          className="absolute top-0 bottom-0 left-0 z-0 h-full"
+          style={{ width: sidebarWidth }}
         >
           {renderSidebarContent()}
         </aside>
@@ -415,7 +510,6 @@ const CalendarLayout: React.FC<MailyCalendarProps> = ({
         </div>
       </div>
 
-      {/* Search Dialog */}
       <SearchDialog
         isOpen={isSearchOpen}
         onClose={() => {
@@ -452,7 +546,6 @@ const CalendarLayout: React.FC<MailyCalendarProps> = ({
           />
         ))}
 
-      {/* New Event Dialog */}
       {pendingNewEvent && (
         <DefaultEventDetailDialog
           calendarEvent={pendingNewEvent}
@@ -468,15 +561,139 @@ const CalendarLayout: React.FC<MailyCalendarProps> = ({
   );
 };
 
-export const MailyCalendar = (props: MailyCalendarProps) => {
-  const { calendar, customMessages } = props;
+/**
+ * MailyCalendar - A full-featured calendar component
+ *
+ * Simple usage:
+ * ```tsx
+ * <MailyCalendar
+ *   events={events}
+ *   calendars={calendars}
+ *   locale="zh-CN"
+ *   onEventCreate={(event) => saveEvent(event)}
+ *   onEventUpdate={(event) => updateEvent(event)}
+ *   onEventDelete={(id) => deleteEvent(id)}
+ * />
+ * ```
+ */
+export const MailyCalendar: React.FC<MailyCalendarProps> = (props) => {
+  const {
+    events = [],
+    calendars = [],
+    defaultCalendar,
+    views = [],
+    plugins = [],
+    defaultView = ViewType.WEEK,
+    initialDate,
+    locale = "en-US",
+    theme,
+    switcherMode,
+    sidebar,
+    useEventDetailDialog,
+    onEventCreate,
+    onEventUpdate,
+    onEventDelete,
+    onViewChange,
+    onDateChange,
+    onVisibleMonthChange,
+    onCalendarCreate,
+    onCalendarUpdate,
+    onCalendarDelete,
+    onCalendarMerge,
+    className,
+    customDetailPanelContent,
+    customEventDetailDialog,
+    meta,
+    customMessages,
+    search,
+  } = props;
+
+  // Build callbacks object
+  const callbacks: CalendarCallbacks = useMemo(() => ({
+    onEventCreate,
+    onEventUpdate,
+    onEventDelete,
+    onViewChange,
+    onDateChange,
+    onVisibleMonthChange,
+    onCalendarCreate,
+    onCalendarUpdate,
+    onCalendarDelete,
+    onCalendarMerge,
+  }), [
+    onEventCreate, onEventUpdate, onEventDelete, onViewChange,
+    onDateChange, onVisibleMonthChange, onCalendarCreate,
+    onCalendarUpdate, onCalendarDelete, onCalendarMerge,
+  ]);
+
+  // Create store once
+  const store = useMemo(() => {
+    const newStore = createCalendarStore({
+      views,
+      plugins,
+      calendarEvents: events,
+      calendars,
+      defaultCalendar,
+      defaultView,
+      initialDate,
+      locale,
+      theme,
+      switcherMode,
+      useSidebar: sidebar,
+      useEventDetailDialog,
+      callbacks,
+    });
+    CalendarStoreSingleton.set(newStore);
+    return newStore;
+  }, []); // Empty deps - store created once
+
+  // Create app interface
+  const app = useMemo(() => createAppFromStore(store), [store]);
+
+  // Track previous values for sync
+  const prevEventsRef = useRef<CalendarEvent[] | undefined>(undefined);
+  const prevCalendarsRef = useRef<CalendarType[] | undefined>(undefined);
+
+  // Sync events when they change
+  useEffect(() => {
+    if (events && events !== prevEventsRef.current) {
+      prevEventsRef.current = events;
+      store.getState().setEvents(events);
+    }
+  }, [events, store]);
+
+  // Sync calendars when they change
+  useEffect(() => {
+    if (calendars && calendars !== prevCalendarsRef.current) {
+      prevCalendarsRef.current = calendars;
+      store.getState().setCalendars(calendars);
+    }
+  }, [calendars, store]);
+
+  // Sync locale when it changes
+  useEffect(() => {
+    if (locale) {
+      store.getState().setLocale(locale);
+    }
+  }, [locale, store]);
+
+  // Subscribe to locale for re-renders
+  const currentLocale = useStore(store, (s) => s.locale);
 
   return (
     <CalendarInternalLocaleProvider
-      locale={calendar.locale}
+      locale={currentLocale}
       messages={customMessages}
     >
-      <CalendarLayout {...props} />
+      <CalendarLayout
+        store={store}
+        app={app}
+        className={className}
+        customDetailPanelContent={customDetailPanelContent}
+        customEventDetailDialog={customEventDetailDialog}
+        meta={meta}
+        search={search}
+      />
     </CalendarInternalLocaleProvider>
   );
 };

@@ -18,7 +18,6 @@ import {
 import { Link } from "@tanstack/react-router";
 import { toast } from "sonner";
 import {
-  useCalendarApp,
   MailyCalendar,
   createMonthView,
   createWeekView,
@@ -107,7 +106,6 @@ export const Route = createFileRoute("/calendar")({
 
 // Convert Tauri calendar to Maily calendar type
 function toMailyCalendar(cal: CalendarInfo, index: number): CalendarType {
-  // Use predefined colors cycling through the array
   const colorHex = CALENDAR_COLORS[index % CALENDAR_COLORS.length];
   const { colors, darkColors } = getCalendarColors(colorHex);
   return {
@@ -148,11 +146,9 @@ function temporalToTimestamp(
   if (temporal instanceof Temporal.ZonedDateTime) {
     return Math.floor(temporal.epochMilliseconds / 1000);
   } else if (temporal instanceof Temporal.PlainDateTime) {
-    // Convert PlainDateTime to ZonedDateTime using system timezone
     const zoned = temporal.toZonedDateTime(Temporal.Now.timeZoneId());
     return Math.floor(zoned.epochMilliseconds / 1000);
   } else {
-    // PlainDate - treat as start of day
     const dateTime = temporal.toPlainDateTime({ hour: 0, minute: 0 });
     const zoned = dateTime.toZonedDateTime(Temporal.Now.timeZoneId());
     return Math.floor(zoned.epochMilliseconds / 1000);
@@ -191,143 +187,6 @@ const LOCALE_MAP: Record<string, string> = {
   ru: "ru-RU",
 };
 
-// Calendar content component - only rendered after config is loaded
-// This ensures useCalendarApp receives the correct locale from the start
-interface CalendarContentProps {
-  locale: string;
-  calendars: CalendarInfo[];
-  events: CalendarEvent[];
-  loadEvents: () => Promise<void>;
-}
-
-function CalendarContent({ locale, calendars, events, loadEvents }: CalendarContentProps) {
-  // Convert to Maily formats
-  const mailyCalendars = useMemo(
-    () => calendars.map((cal, index) => toMailyCalendar(cal, index)),
-    [calendars],
-  );
-  const mailyEvents = useMemo(() => events.map(toMailyEvent), [events]);
-
-  // Backend search function - searches EventKit for 1 year range
-  const handleSearch = useCallback(
-    async (keyword: string) => {
-      const results = await invoke<CalendarEvent[]>("calendar_search_events", {
-        keyword,
-      });
-      return results.map((event) => {
-        // Find the calendar to get its color
-        const calendarIndex = calendars.findIndex(
-          (c) => c.id === event.calendar,
-        );
-        const colorHex =
-          CALENDAR_COLORS[
-            calendarIndex >= 0 ? calendarIndex % CALENDAR_COLORS.length : 0
-          ];
-        const mailyEvent = createEvent({
-          id: event.id,
-          title: event.title,
-          start: new Date(event.start_time * 1000),
-          end: new Date(event.end_time * 1000),
-          calendarId: event.calendar,
-          allDay: event.all_day,
-          meta: {
-            location: event.location,
-            notes: event.notes,
-          },
-        });
-        return {
-          ...mailyEvent,
-          color: colorHex,
-        };
-      });
-    },
-    [calendars],
-  );
-
-  // Create Maily calendar app with the correct locale
-  const calendar = useCalendarApp({
-    views: [createMonthView(), createWeekView(), createDayView()],
-    plugins: [createDragPlugin()],
-    calendarEvents: mailyEvents,
-    calendars: mailyCalendars,
-    defaultView: ViewType.WEEK,
-    initialDate: new Date(),
-    theme: { mode: "auto" },
-    locale: locale,
-    useSidebar: {
-      enabled: true,
-      width: 240,
-      initialCollapsed: false,
-    },
-    callbacks: {
-      onEventCreate: async (event) => {
-        try {
-          const newEvent = toTauriEvent(event);
-          await invoke("calendar_create_event", { event: newEvent });
-          toast.success("Event created");
-          loadEvents();
-        } catch (err) {
-          toast.error(`Failed to create event: ${err}`);
-        }
-      },
-      onEventUpdate: async (event) => {
-        try {
-          const updatedEvent = toTauriEvent(event);
-          await invoke("calendar_update_event", {
-            eventId: event.id,
-            event: updatedEvent,
-          });
-          toast.success("Event updated");
-          loadEvents();
-        } catch (err) {
-          toast.error(`Failed to update event: ${err}`);
-        }
-      },
-      onEventDelete: async (eventId) => {
-        try {
-          await invoke("calendar_delete_event", { eventId });
-          toast.success("Event deleted");
-          loadEvents();
-        } catch (err) {
-          toast.error(`Failed to delete event: ${err}`);
-        }
-      },
-      onVisibleMonthChange: async () => {
-        // Reload events when navigating to different months
-        loadEvents();
-      },
-    },
-  });
-
-  return (
-    <div className="flex h-screen flex-col bg-background">
-      {/* Minimal header */}
-      <header className="shrink-0 border-b bg-background/95 backdrop-blur">
-        <div className="flex h-12 items-center gap-4 px-4">
-          <Link
-            to="/"
-            className="flex items-center gap-2 text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            <span className="text-sm">Back</span>
-          </Link>
-        </div>
-      </header>
-
-      {/* Maily Calendar */}
-      <main className="flex-1 overflow-hidden">
-        <MailyCalendar
-          calendar={calendar}
-          className="maily-calendar"
-          search={{
-            onSearch: handleSearch,
-          }}
-        />
-      </main>
-    </div>
-  );
-}
-
 function CalendarPage() {
   const [authStatus, setAuthStatus] = useState<AuthStatus | null>(null);
   const [calendars, setCalendars] = useState<CalendarInfo[]>([]);
@@ -343,13 +202,11 @@ function CalendarPage() {
         if (config.language) {
           setLocale(LOCALE_MAP[config.language] || config.language);
         } else {
-          // Auto-detect from system
           setLocale(navigator.language || "en-US");
         }
       })
       .catch((err) => {
         console.error("Failed to load config:", err);
-        // Fallback to system locale on error
         setLocale(navigator.language || "en-US");
       })
       .finally(() => setConfigLoaded(true));
@@ -390,9 +247,7 @@ function CalendarPage() {
   const loadCalendarData = async () => {
     setLoading(true);
     try {
-      console.log("Loading calendars...");
       const cals = await invoke<CalendarInfo[]>("calendar_list_calendars");
-      console.log("Calendars loaded:", cals);
       setCalendars(cals);
       await loadEvents();
     } catch (err) {
@@ -404,7 +259,6 @@ function CalendarPage() {
   };
 
   const loadEvents = useCallback(async () => {
-    // Load events for a 3-month range (past month to 2 months ahead)
     const start = new Date();
     start.setMonth(start.getMonth() - 1);
     start.setDate(1);
@@ -416,17 +270,95 @@ function CalendarPage() {
     end.setHours(23, 59, 59, 999);
 
     try {
-      console.log("Loading events from", start, "to", end);
       const evts = await invoke<CalendarEvent[]>("calendar_list_events", {
         startTimestamp: Math.floor(start.getTime() / 1000),
         endTimestamp: Math.floor(end.getTime() / 1000),
       });
-      console.log("Events loaded:", evts);
       setEvents(evts);
     } catch (err) {
       console.error("Failed to load events:", err);
     }
   }, []);
+
+  // Convert to Maily formats
+  const mailyCalendars = useMemo(
+    () => calendars.map((cal, index) => toMailyCalendar(cal, index)),
+    [calendars],
+  );
+  const mailyEvents = useMemo(() => events.map(toMailyEvent), [events]);
+
+  // Backend search function
+  const handleSearch = useCallback(
+    async (keyword: string) => {
+      const results = await invoke<CalendarEvent[]>("calendar_search_events", {
+        keyword,
+      });
+      return results.map((event) => {
+        const calendarIndex = calendars.findIndex((c) => c.id === event.calendar);
+        const colorHex =
+          CALENDAR_COLORS[calendarIndex >= 0 ? calendarIndex % CALENDAR_COLORS.length : 0];
+        const mailyEvent = createEvent({
+          id: event.id,
+          title: event.title,
+          start: new Date(event.start_time * 1000),
+          end: new Date(event.end_time * 1000),
+          calendarId: event.calendar,
+          allDay: event.all_day,
+          meta: {
+            location: event.location,
+            notes: event.notes,
+          },
+        });
+        return { ...mailyEvent, color: colorHex };
+      });
+    },
+    [calendars],
+  );
+
+  // Event handlers
+  const handleEventCreate = useCallback(
+    async (event: MailyEvent) => {
+      try {
+        const newEvent = toTauriEvent(event);
+        await invoke("calendar_create_event", { event: newEvent });
+        toast.success("Event created");
+        loadEvents();
+      } catch (err) {
+        toast.error(`Failed to create event: ${err}`);
+      }
+    },
+    [loadEvents],
+  );
+
+  const handleEventUpdate = useCallback(
+    async (event: MailyEvent) => {
+      try {
+        const updatedEvent = toTauriEvent(event);
+        await invoke("calendar_update_event", {
+          eventId: event.id,
+          event: updatedEvent,
+        });
+        toast.success("Event updated");
+        loadEvents();
+      } catch (err) {
+        toast.error(`Failed to update event: ${err}`);
+      }
+    },
+    [loadEvents],
+  );
+
+  const handleEventDelete = useCallback(
+    async (eventId: string) => {
+      try {
+        await invoke("calendar_delete_event", { eventId });
+        toast.success("Event deleted");
+        loadEvents();
+      } catch (err) {
+        toast.error(`Failed to delete event: ${err}`);
+      }
+    },
+    [loadEvents],
+  );
 
   // Not authorized view
   if (authStatus !== "authorized" && !loading && configLoaded) {
@@ -479,7 +411,7 @@ function CalendarPage() {
     );
   }
 
-  // Show loading until both config and calendar data are loaded
+  // Loading state
   if (loading || !configLoaded || !locale) {
     return (
       <div className="flex h-screen items-center justify-center">
@@ -488,13 +420,39 @@ function CalendarPage() {
     );
   }
 
-  // Render calendar only after locale is known
+  // Main calendar view - simplified API!
   return (
-    <CalendarContent
-      locale={locale}
-      calendars={calendars}
-      events={events}
-      loadEvents={loadEvents}
-    />
+    <div className="flex h-screen flex-col bg-background">
+      <header className="shrink-0 border-b bg-background/95 backdrop-blur">
+        <div className="flex h-12 items-center gap-4 px-4">
+          <Link
+            to="/"
+            className="flex items-center gap-2 text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            <span className="text-sm">Back</span>
+          </Link>
+        </div>
+      </header>
+
+      <main className="flex-1 overflow-hidden">
+        <MailyCalendar
+          events={mailyEvents}
+          calendars={mailyCalendars}
+          views={[createMonthView(), createWeekView(), createDayView()]}
+          plugins={[createDragPlugin()]}
+          defaultView={ViewType.WEEK}
+          locale={locale}
+          theme={{ mode: "auto" }}
+          sidebar={{ enabled: true, width: 240, initialCollapsed: false }}
+          onEventCreate={handleEventCreate}
+          onEventUpdate={handleEventUpdate}
+          onEventDelete={handleEventDelete}
+          onVisibleMonthChange={loadEvents}
+          search={{ onSearch: handleSearch }}
+          className="maily-calendar"
+        />
+      </main>
+    </div>
   );
 }

@@ -181,6 +181,13 @@ export function useCalendarApp(config: CalendarAppConfig): UseCalendarAppReturn 
     }
   }, [config.calendars, store]);
 
+  // Sync locale from config when it changes
+  useEffect(() => {
+    if (config.locale) {
+      store.getState().setLocale(config.locale);
+    }
+  }, [config.locale, store]);
+
   return {
     app,
     currentView,

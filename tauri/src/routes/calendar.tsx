@@ -26,7 +26,7 @@ import {
   createDragPlugin,
   createEvent,
   ViewType,
-  type Event as MailyEvent,
+  type CalendarEvent as MailyEvent,
   type CalendarType,
   type CalendarColors,
 } from "@/lib/calendar";
@@ -93,6 +93,10 @@ interface NewEvent {
   calendar_id: string;
   all_day: boolean;
   alarm_minutes_before: number;
+}
+
+interface Config {
+  language?: string;
 }
 
 type AuthStatus = "not_determined" | "restricted" | "denied" | "authorized";
@@ -174,9 +178,39 @@ function CalendarPage() {
   const [calendars, setCalendars] = useState<CalendarInfo[]>([]);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [locale, setLocale] = useState<string>("en-US");
 
-  // Check auth status on mount
+  // Load config and check auth status on mount
   useEffect(() => {
+    // Load config to get language setting
+    invoke<Config>("get_config")
+      .then((config) => {
+        if (config.language) {
+          // Map Go CLI language codes to BCP 47 locale codes
+          const localeMap: Record<string, string> = {
+            en: "en-US",
+            ko: "ko-KR",
+            ja: "ja-JP",
+            "zh-Hans": "zh-CN",
+            "zh-Hant": "zh-TW",
+            zh: "zh-CN",
+            es: "es-ES",
+            de: "de-DE",
+            fr: "fr-FR",
+            "pt-BR": "pt-BR",
+            pl: "pl-PL",
+            nl: "nl-NL",
+            it: "it-IT",
+            ru: "ru-RU",
+          };
+          setLocale(localeMap[config.language] || config.language);
+        } else {
+          // Auto-detect from system
+          setLocale(navigator.language || "en-US");
+        }
+      })
+      .catch(console.error);
+
     checkAuthStatus();
   }, []);
 
@@ -298,11 +332,12 @@ function CalendarPage() {
   const calendar = useCalendarApp({
     views: [createMonthView(), createWeekView(), createDayView()],
     plugins: [createDragPlugin()],
-    events: mailyEvents,
+    calendarEvents: mailyEvents,
     calendars: mailyCalendars,
     defaultView: ViewType.WEEK,
     initialDate: new Date(),
     theme: { mode: "auto" },
+    locale: locale,
     useSidebar: {
       enabled: true,
       width: 240,

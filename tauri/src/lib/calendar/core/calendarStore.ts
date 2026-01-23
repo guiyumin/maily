@@ -181,6 +181,9 @@ export interface CalendarStoreActions {
   subscribeThemeChange: (callback: (theme: ThemeMode) => void) => () => void;
   unsubscribeThemeChange: (callback: (theme: ThemeMode) => void) => void;
 
+  // Locale management
+  setLocale: (locale: string | Locale) => void;
+
   // Plugin management
   getPlugin: <T = unknown>(name: string) => T | undefined;
   hasPlugin: (name: string) => boolean;
@@ -575,6 +578,11 @@ export function createCalendarStore(
 
         unsubscribeThemeChange: (callback: (theme: ThemeMode) => void) => {
           get()._themeChangeListeners.delete(callback);
+        },
+
+        // ============ Locale Management ============
+        setLocale: (locale: string | Locale) => {
+          set({ locale: resolveLocale(locale) });
         },
 
         // ============ Plugin Management ============

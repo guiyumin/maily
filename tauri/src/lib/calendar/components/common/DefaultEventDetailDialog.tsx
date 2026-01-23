@@ -267,14 +267,14 @@ const DefaultEventDetailDialog: React.FC<DefaultEventDetailDialogProps> = ({
           <div className="flex space-x-2">
             {!editedEvent.allDay ? (
               <button
-                className="px-3 py-2 bg-secondary/10 text-secondary rounded-lg hover:bg-secondary/20 text-sm font-medium transition"
+                className="px-3 py-2 bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/80 text-sm font-medium transition"
                 onClick={convertToAllDay}
               >
                 {t('setAsAllDay')}
               </button>
             ) : (
               <button
-                className="px-3 py-2 bg-secondary/10 text-secondary rounded-lg hover:bg-secondary/20 text-sm font-medium transition"
+                className="px-3 py-2 bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/80 text-sm font-medium transition"
                 onClick={convertToRegular}
               >
                 {t('setAsTimed')}

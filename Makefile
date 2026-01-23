@@ -8,13 +8,14 @@ VERSION_FILE := internal/version/version.go
 VERSION := $(shell grep 'Version = ' $(VERSION_FILE) | sed 's/.*"\(.*\)"/\1/')
 COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 DATE := $(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
+BUILD_TS := $(shell date +%s)
 
 # Current version from version.go
 CURRENT_VERSION := $(VERSION)
 
-# For dev builds, append commit info if dirty
+# For dev builds, append commit info and timestamp if dirty (ensures server restart on rebuild)
 GIT_STATE := $(shell git diff --quiet 2>/dev/null || echo "-dirty")
-BUILD_VERSION := $(VERSION)$(if $(GIT_STATE),+$(COMMIT)$(GIT_STATE),)
+BUILD_VERSION := $(VERSION)$(if $(GIT_STATE),+$(COMMIT)$(GIT_STATE)-$(BUILD_TS),)
 
 LDFLAGS := -s -w \
 	-X maily/internal/version.Version=$(BUILD_VERSION) \

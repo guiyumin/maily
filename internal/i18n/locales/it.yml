@@ -293,7 +293,7 @@ attachment.total: "Allegati ({{.Count}}, {{.Size}}):"
 # Calendario
 # ============================================
 calendar.title: "Calendario"
-calendar.today: "Oggi"
+calendar.today: "oggi"
 calendar.no_events: "Nessun evento"
 
 calendar.event_count:
@@ -304,12 +304,122 @@ calendar.not_available: "Calendario non disponibile"
 calendar.adding: "Aggiunta al calendario..."
 calendar.extracting: "Estrazione evento..."
 
+# Giorni della settimana (abbreviati)
+calendar.weekday.sun: "Dom"
+calendar.weekday.mon: "Lun"
+calendar.weekday.tue: "Mar"
+calendar.weekday.wed: "Mer"
+calendar.weekday.thu: "Gio"
+calendar.weekday.fri: "Ven"
+calendar.weekday.sat: "Sab"
+
+# Mesi (abbreviati)
+calendar.month.jan: "Gen"
+calendar.month.feb: "Feb"
+calendar.month.mar: "Mar"
+calendar.month.apr: "Apr"
+calendar.month.may: "Mag"
+calendar.month.jun: "Giu"
+calendar.month.jul: "Lug"
+calendar.month.aug: "Ago"
+calendar.month.sep: "Set"
+calendar.month.oct: "Ott"
+calendar.month.nov: "Nov"
+calendar.month.dec: "Dic"
+
+# Tempo
+calendar.time.am: "AM"
+calendar.time.pm: "PM"
+calendar.all_day: "Tutto il giorno"
+
+# Navigazione calendario
+calendar.nav.day: "giorno"
+calendar.nav.week: "settimana"
+calendar.nav.event: "evento"
+calendar.nav.month: "mese"
+calendar.nav.year: "anno"
+calendar.mode.month: "MODALITÀ MESE"
+calendar.mode.year: "MODALITÀ ANNO"
+calendar.exit_mode: "esci modalità"
+
+# Azioni calendario
+calendar.action.view: "visualizza"
+calendar.action.new: "nuovo"
+calendar.create: "crea"
+calendar.cycle: "ciclo"
+calendar.next: "avanti"
+calendar.next_step: "passo successivo"
+
+# Campi del modulo
+calendar.field.title: "Titolo:"
+calendar.field.date: "Data:"
+calendar.field.time: "Ora:"
+calendar.field.start: "Inizio:"
+calendar.field.end: "Fine:"
+calendar.field.location: "Luogo:"
+calendar.field.notes: "Note:"
+calendar.field.calendar: "Calendario:"
+calendar.field.reminder: "Promemoria:"
+calendar.picker_hint: "(↑↓ scorri, ←→ cambia)"
+
+# Moduli evento
+calendar.new_event: "Nuovo Evento"
+calendar.edit_event: "Modifica Evento"
+calendar.event: "Evento"
+calendar.what_event: "Qual è l'evento?"
+calendar.when_event: "Quando è?"
+calendar.step: "Passo {{.Current}} di {{.Total}}"
+calendar.select_calendar: "Seleziona Calendario"
+calendar.select_hint: "↑/k su • ↓/j giù • Enter seleziona • Esc annulla"
+calendar.default: "Predefinito"
+
+# Calendario NLP
+calendar.quick_add: "Aggiunta Rapida"
+calendar.parsing: "Analisi..."
+calendar.parsing_input: "Analisi IA: \"{{.Input}}\""
+calendar.edit_parsed: "Modifica Evento Analizzato"
+calendar.parsed_event: "Evento Analizzato"
+calendar.confirm_event: "Conferma Evento"
+
+# Promemoria calendario
+calendar.reminder: "Promemoria"
+calendar.reminder.none: "Nessun promemoria"
+calendar.reminder.5min: "5 minuti prima"
+calendar.reminder.10min: "10 minuti prima"
+calendar.reminder.15min: "15 minuti prima"
+calendar.reminder.30min: "30 minuti prima"
+calendar.reminder.1hour: "1 ora prima"
+calendar.reminder.minutes: "{{.Minutes}} minuti prima"
+
+# Elimina calendario
+calendar.delete_event: "Eliminare Evento?"
+calendar.delete_confirm: "Sei sicuro di voler eliminare \"{{.Title}}\"?"
+
 # ============================================
 # Vista Oggi
 # ============================================
 today.title: "Oggi"
 today.emails: "Email"
 today.events: "Eventi"
+today.loading: "Caricamento dashboard di oggi..."
+today.emails_today: "Email di Oggi"
+today.no_emails: "Nessuna email oggi"
+today.no_events: "Nessun evento oggi"
+today.no_subject: "(nessun oggetto)"
+today.no_content: "(nessun contenuto)"
+today.switch: "cambia"
+today.scroll: "scorri"
+
+# Intestazioni email
+today.from: "Da: "
+today.to: "A: "
+today.subject: "Oggetto: "
+today.date: "Data: "
+
+# Conferma eliminazione
+today.delete_confirm: "Eliminare?"
+today.delete_email: "Eliminare email: \"{{.Subject}}\"?"
+today.delete_event: "Eliminare evento: \"{{.Title}}\"?"
 
 # ============================================
 # Messaggi CLI

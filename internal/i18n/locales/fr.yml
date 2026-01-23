@@ -293,7 +293,7 @@ attachment.total: "Pièces jointes ({{.Count}}, {{.Size}}) :"
 # Calendrier
 # ============================================
 calendar.title: "Calendrier"
-calendar.today: "Aujourd'hui"
+calendar.today: "aujourd'hui"
 calendar.no_events: "Aucun événement"
 
 calendar.event_count:
@@ -304,12 +304,122 @@ calendar.not_available: "Calendrier non disponible"
 calendar.adding: "Ajout au calendrier..."
 calendar.extracting: "Extraction de l'événement..."
 
+# Jours de la semaine (abrégé)
+calendar.weekday.sun: "Dim"
+calendar.weekday.mon: "Lun"
+calendar.weekday.tue: "Mar"
+calendar.weekday.wed: "Mer"
+calendar.weekday.thu: "Jeu"
+calendar.weekday.fri: "Ven"
+calendar.weekday.sat: "Sam"
+
+# Mois (abrégé)
+calendar.month.jan: "Jan"
+calendar.month.feb: "Fév"
+calendar.month.mar: "Mar"
+calendar.month.apr: "Avr"
+calendar.month.may: "Mai"
+calendar.month.jun: "Jun"
+calendar.month.jul: "Jul"
+calendar.month.aug: "Aoû"
+calendar.month.sep: "Sep"
+calendar.month.oct: "Oct"
+calendar.month.nov: "Nov"
+calendar.month.dec: "Déc"
+
+# Temps
+calendar.time.am: "AM"
+calendar.time.pm: "PM"
+calendar.all_day: "Toute la journée"
+
+# Navigation du calendrier
+calendar.nav.day: "jour"
+calendar.nav.week: "semaine"
+calendar.nav.event: "événement"
+calendar.nav.month: "mois"
+calendar.nav.year: "année"
+calendar.mode.month: "MODE MOIS"
+calendar.mode.year: "MODE ANNÉE"
+calendar.exit_mode: "quitter mode"
+
+# Actions du calendrier
+calendar.action.view: "voir"
+calendar.action.new: "nouveau"
+calendar.create: "créer"
+calendar.cycle: "cycle"
+calendar.next: "suivant"
+calendar.next_step: "étape suivante"
+
+# Champs du formulaire
+calendar.field.title: "Titre:"
+calendar.field.date: "Date:"
+calendar.field.time: "Heure:"
+calendar.field.start: "Début:"
+calendar.field.end: "Fin:"
+calendar.field.location: "Lieu:"
+calendar.field.notes: "Notes:"
+calendar.field.calendar: "Calendrier:"
+calendar.field.reminder: "Rappel:"
+calendar.picker_hint: "(↑↓ défiler, ←→ changer)"
+
+# Formulaires d'événements
+calendar.new_event: "Nouvel Événement"
+calendar.edit_event: "Modifier l'Événement"
+calendar.event: "Événement"
+calendar.what_event: "Quel est l'événement?"
+calendar.when_event: "Quand est-ce?"
+calendar.step: "Étape {{.Current}} sur {{.Total}}"
+calendar.select_calendar: "Sélectionner le Calendrier"
+calendar.select_hint: "↑/k haut • ↓/j bas • Enter sélectionner • Esc annuler"
+calendar.default: "Par défaut"
+
+# Calendrier NLP
+calendar.quick_add: "Ajout Rapide"
+calendar.parsing: "Analyse..."
+calendar.parsing_input: "Analyse IA: \"{{.Input}}\""
+calendar.edit_parsed: "Modifier l'Événement Analysé"
+calendar.parsed_event: "Événement Analysé"
+calendar.confirm_event: "Confirmer l'Événement"
+
+# Rappels du calendrier
+calendar.reminder: "Rappel"
+calendar.reminder.none: "Pas de rappel"
+calendar.reminder.5min: "5 minutes avant"
+calendar.reminder.10min: "10 minutes avant"
+calendar.reminder.15min: "15 minutes avant"
+calendar.reminder.30min: "30 minutes avant"
+calendar.reminder.1hour: "1 heure avant"
+calendar.reminder.minutes: "{{.Minutes}} minutes avant"
+
+# Suppression du calendrier
+calendar.delete_event: "Supprimer l'Événement?"
+calendar.delete_confirm: "Êtes-vous sûr de vouloir supprimer \"{{.Title}}\"?"
+
 # ============================================
 # Vue Aujourd'hui
 # ============================================
 today.title: "Aujourd'hui"
-today.emails: "E-mails"
+today.emails: "Emails"
 today.events: "Événements"
+today.loading: "Chargement du tableau de bord..."
+today.emails_today: "Emails d'Aujourd'hui"
+today.no_emails: "Pas d'emails aujourd'hui"
+today.no_events: "Pas d'événements aujourd'hui"
+today.no_subject: "(sans objet)"
+today.no_content: "(pas de contenu)"
+today.switch: "changer"
+today.scroll: "défiler"
+
+# En-têtes d'email
+today.from: "De: "
+today.to: "À: "
+today.subject: "Objet: "
+today.date: "Date: "
+
+# Confirmation de suppression
+today.delete_confirm: "Supprimer?"
+today.delete_email: "Supprimer l'email: \"{{.Subject}}\"?"
+today.delete_event: "Supprimer l'événement: \"{{.Title}}\"?"
 
 # ============================================
 # Messages CLI

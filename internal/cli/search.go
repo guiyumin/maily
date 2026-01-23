@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/cobra"
 	"maily/internal/auth"
 	"maily/internal/client"
+	"maily/internal/i18n"
 	"maily/internal/ui"
 	"maily/internal/ui/utils"
 )
@@ -86,14 +87,13 @@ func handleSearch(cmd *cobra.Command) {
 
 	store, err := auth.LoadAccountStore()
 	if err != nil {
-		fmt.Printf("Error loading accounts: %v\n", err)
+		fmt.Printf("%s\n", i18n.T("cli.error_loading_accounts", map[string]any{"Error": err}))
 		os.Exit(1)
 	}
 
 	if len(store.Accounts) == 0 {
-		fmt.Println("No accounts configured. Run:")
-		fmt.Println()
-		fmt.Println("  maily login")
+		fmt.Println(i18n.T("cli.no_accounts"))
+		fmt.Println(i18n.T("cli.login_hint"))
 		fmt.Println()
 		os.Exit(1)
 	}
@@ -103,9 +103,9 @@ func handleSearch(cmd *cobra.Command) {
 		if len(store.Accounts) == 1 {
 			account = &store.Accounts[0]
 		} else {
-			fmt.Println("Error: --account (-a) is required when multiple accounts are configured")
+			fmt.Printf("%s: %s\n", i18n.T("common.error"), "--account (-a) required")
 			fmt.Println()
-			fmt.Println("Available accounts:")
+			fmt.Println(i18n.T("cli.available_providers"))
 			for _, acc := range store.Accounts {
 				fmt.Printf("  - %s\n", acc.Credentials.Email)
 			}
@@ -114,9 +114,9 @@ func handleSearch(cmd *cobra.Command) {
 	} else {
 		account = store.GetAccount(searchAccount)
 		if account == nil {
-			fmt.Printf("Error: account '%s' not found\n", searchAccount)
+			fmt.Printf("%s\n", i18n.T("cli.account_not_found", map[string]any{"Email": searchAccount}))
 			fmt.Println()
-			fmt.Println("Available accounts:")
+			fmt.Println(i18n.T("cli.available_providers"))
 			for _, acc := range store.Accounts {
 				fmt.Printf("  - %s\n", acc.Credentials.Email)
 			}
@@ -264,7 +264,7 @@ func outputTable(response SearchResponse) {
 	fmt.Println()
 
 	if len(response.Results) == 0 {
-		fmt.Println(pad + "No results.")
+		fmt.Println(pad + i18n.T("email.no_emails"))
 		return
 	}
 

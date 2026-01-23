@@ -40,14 +40,13 @@ func init() {
 func runTUI() {
 	store, err := auth.LoadAccountStore()
 	if err != nil {
-		fmt.Printf("Error loading accounts: %v\n", err)
+		fmt.Printf("%s\n", i18n.T("cli.error_loading_accounts", map[string]any{"Error": err}))
 		os.Exit(1)
 	}
 
 	if len(store.Accounts) == 0 {
-		fmt.Println("No accounts configured. Run:")
-		fmt.Println()
-		fmt.Println("  maily login")
+		fmt.Println(i18n.T("cli.no_accounts"))
+		fmt.Println(i18n.T("cli.login_hint"))
 		fmt.Println()
 		os.Exit(1)
 	}
@@ -55,7 +54,7 @@ func runTUI() {
 	// Load config
 	cfg, err := config.Load()
 	if err != nil {
-		fmt.Printf("Error loading config: %v\n", err)
+		fmt.Printf("%s\n", i18n.T("cli.error_loading_config", map[string]any{"Error": err}))
 		os.Exit(1)
 	}
 
@@ -81,7 +80,7 @@ func runTUI() {
 
 		m, err := p.Run()
 		if err != nil {
-			fmt.Printf("Error running program: %v\n", err)
+			fmt.Printf("%s\n", i18n.T("cli.error_running", map[string]any{"Error": err}))
 			os.Exit(1)
 		}
 

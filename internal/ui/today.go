@@ -16,6 +16,7 @@ import (
 	"maily/internal/auth"
 	"maily/internal/calendar"
 	"maily/internal/client"
+	"maily/internal/i18n"
 	"maily/internal/mail"
 	"maily/internal/ui/components"
 	"maily/internal/ui/utils"
@@ -525,7 +526,7 @@ func (m *TodayApp) handleEditEvent(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 func (m *TodayApp) View() string {
 	if m.width == 0 {
-		return "Loading..."
+		return i18n.T("common.loading")
 	}
 
 	if m.loading {
@@ -551,7 +552,7 @@ func (m *TodayApp) View() string {
 func (m *TodayApp) renderLoading() string {
 	content := lipgloss.NewStyle().
 		Foreground(components.Text).
-		Render(m.spinner.View() + " Loading today's dashboard...")
+		Render(m.spinner.View() + " " + i18n.T("today.loading"))
 
 	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, content)
 }
@@ -559,7 +560,7 @@ func (m *TodayApp) renderLoading() string {
 func (m *TodayApp) renderError() string {
 	content := lipgloss.NewStyle().
 		Foreground(components.Danger).
-		Render(fmt.Sprintf("Error: %v", m.err))
+		Render(fmt.Sprintf("%s: %v", i18n.T("common.error"), m.err))
 
 	return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, content)
 }
@@ -598,7 +599,7 @@ func (m *TodayApp) renderEmailPanel(width, height int) string {
 	if m.activePanel == emailPanel {
 		titleStyle = titleStyle.Foreground(components.Text)
 	}
-	b.WriteString(titleStyle.Render(fmt.Sprintf("Today's Emails (%d)", len(m.emails))))
+	b.WriteString(titleStyle.Render(fmt.Sprintf("%s (%d)", i18n.T("today.emails_today"), len(m.emails))))
 	b.WriteString("\n")
 
 	// Separator line
@@ -609,7 +610,7 @@ func (m *TodayApp) renderEmailPanel(width, height int) string {
 	// Email list grouped by account
 	if len(m.emails) == 0 {
 		emptyStyle := lipgloss.NewStyle().Foreground(components.Muted).Italic(true)
-		b.WriteString(emptyStyle.Render("  No emails today"))
+		b.WriteString(emptyStyle.Render("  " + i18n.T("today.no_emails")))
 	} else {
 		// Track global index for cursor
 		globalIdx := 0
@@ -667,7 +668,7 @@ func (m *TodayApp) renderCompactEmailLine(email mail.Email, isCursor bool, maxWi
 
 	subject := email.Subject
 	if subject == "" {
-		subject = "(no subject)"
+		subject = i18n.T("today.no_subject")
 	}
 
 	// Truncate subject
@@ -694,7 +695,7 @@ func (m *TodayApp) renderEventPanel(width, height int) string {
 	if m.activePanel == eventPanel {
 		titleStyle = titleStyle.Foreground(components.Text)
 	}
-	b.WriteString(titleStyle.Render(fmt.Sprintf("Events (%d)", len(m.events))))
+	b.WriteString(titleStyle.Render(fmt.Sprintf("%s (%d)", i18n.T("today.events"), len(m.events))))
 	b.WriteString("\n")
 
 	// Separator line
@@ -705,7 +706,7 @@ func (m *TodayApp) renderEventPanel(width, height int) string {
 	// Event list (vertical timeline)
 	if len(m.events) == 0 {
 		emptyStyle := lipgloss.NewStyle().Foreground(components.Muted).Italic(true)
-		b.WriteString(emptyStyle.Render("  No events today"))
+		b.WriteString(emptyStyle.Render("  " + i18n.T("today.no_events")))
 	} else {
 		for i, event := range m.events {
 			line := m.renderEventLine(event, i == m.eventCursor, width-4)
@@ -728,7 +729,7 @@ func (m *TodayApp) renderEventLine(event calendar.Event, isCursor bool, maxWidth
 	// Time on first line
 	timeStr := event.StartTime.Format("3:04pm")
 	if event.AllDay {
-		timeStr = "All day"
+		timeStr = i18n.T("calendar.all_day")
 	}
 
 	timeStyle := lipgloss.NewStyle().Foreground(components.Muted)
@@ -766,21 +767,23 @@ func (m *TodayApp) renderHelpBar() string {
 	helpStyle := lipgloss.NewStyle().Foreground(components.Muted).Padding(1, 2)
 	keyStyle := lipgloss.NewStyle().Bold(true).Foreground(components.Secondary)
 
+	key := func(k, label string) string { return fmt.Sprintf("%s %s", keyStyle.Render(k), label) }
+
 	items := []string{
-		keyStyle.Render("↑↓") + " navigate",
-		keyStyle.Render("tab") + " switch",
-		keyStyle.Render("enter") + " open",
-		keyStyle.Render("d") + " delete",
+		key("↑↓", i18n.T("help.navigate")),
+		key("tab", i18n.T("today.switch")),
+		key("enter", i18n.T("help.open")),
+		key("d", i18n.T("help.delete")),
 	}
 
 	// Show edit only for events panel
 	if m.activePanel == eventPanel {
-		items = append(items, keyStyle.Render("e")+" edit")
+		items = append(items, key("e", i18n.T("help.edit")))
 	}
 
 	items = append(items,
-		keyStyle.Render("r")+" refresh",
-		keyStyle.Render("q")+" quit",
+		key("r", i18n.T("help.refresh")),
+		key("q", i18n.T("help.quit")),
 	)
 
 	return helpStyle.Render(strings.Join(items, "  "))
@@ -798,12 +801,12 @@ func (m *TodayApp) renderEmailView() string {
 	labelStyle := lipgloss.NewStyle().Foreground(components.Muted)
 	subjectStyle := lipgloss.NewStyle().Bold(true).Foreground(components.Text)
 
-	header := headerStyle.Render(
-		labelStyle.Render("From: ") + fromStyle.Render(email.From) + "\n" +
-			labelStyle.Render("To: ") + email.To + "\n" +
-			labelStyle.Render("Subject: ") + subjectStyle.Render(email.Subject) + "\n" +
-			labelStyle.Render("Date: ") + email.Date.Format("Mon, Jan 2, 2006 3:04 PM"),
-	)
+	header := headerStyle.Render(fmt.Sprintf("%s%s\n%s%s\n%s%s\n%s%s",
+		labelStyle.Render(i18n.T("today.from")), fromStyle.Render(email.From),
+		labelStyle.Render(i18n.T("today.to")), email.To,
+		labelStyle.Render(i18n.T("today.subject")), subjectStyle.Render(email.Subject),
+		labelStyle.Render(i18n.T("today.date")), email.Date.Format("Mon, Jan 2, 2006 3:04 PM"),
+	))
 
 	// Separator
 	separator := lipgloss.NewStyle().
@@ -813,7 +816,8 @@ func (m *TodayApp) renderEmailView() string {
 	// Help
 	helpStyle := lipgloss.NewStyle().Foreground(components.Muted).Padding(0, 2)
 	keyStyle := lipgloss.NewStyle().Bold(true).Foreground(components.Secondary)
-	help := helpStyle.Render(keyStyle.Render("esc") + " back  " + keyStyle.Render("↑↓") + " scroll  " + keyStyle.Render("d") + " delete  " + keyStyle.Render("q") + " quit")
+	key := func(k, label string) string { return fmt.Sprintf("%s %s", keyStyle.Render(k), label) }
+	help := helpStyle.Render(fmt.Sprintf("%s  %s  %s  %s", key("esc", i18n.T("help.back")), key("↑↓", i18n.T("today.scroll")), key("d", i18n.T("help.delete")), key("q", i18n.T("help.quit"))))
 
 	return lipgloss.JoinVertical(
 		lipgloss.Left,
@@ -830,7 +834,7 @@ func (m *TodayApp) renderEmailContent(email mail.Email) string {
 		body = email.Snippet
 	}
 	if body == "" {
-		return "(no content)"
+		return i18n.T("today.no_content")
 	}
 	// Render HTML with glamour
 	width := m.viewport.Width - 4
@@ -1041,19 +1045,18 @@ func (m *TodayApp) renderDeleteConfirm() string {
 		Bold(true).
 		Foreground(components.Danger)
 
-	b.WriteString(titleStyle.Render("Delete?"))
-	b.WriteString("\n\n")
+	fmt.Fprintf(&b, "%s\n\n", titleStyle.Render(i18n.T("today.delete_confirm")))
 
 	if m.activePanel == emailPanel && m.emailCursor < len(m.emails) {
 		email := m.emails[m.emailCursor]
-		b.WriteString(fmt.Sprintf("Delete email: \"%s\"?\n\n", utils.TruncateStr(email.Subject, 40)))
+		fmt.Fprintf(&b, "%s\n\n", i18n.T("today.delete_email", map[string]any{"Subject": utils.TruncateStr(email.Subject, 40)}))
 	} else if m.activePanel == eventPanel && m.eventCursor < len(m.events) {
 		event := m.events[m.eventCursor]
-		b.WriteString(fmt.Sprintf("Delete event: \"%s\"?\n\n", utils.TruncateStr(event.Title, 40)))
+		fmt.Fprintf(&b, "%s\n\n", i18n.T("today.delete_event", map[string]any{"Title": utils.TruncateStr(event.Title, 40)}))
 	}
 
 	helpStyle := lipgloss.NewStyle().Foreground(components.Muted)
-	b.WriteString(helpStyle.Render("y: yes  n: no"))
+	b.WriteString(helpStyle.Render(fmt.Sprintf("y: %s  n: %s", i18n.T("common.yes"), i18n.T("common.no"))))
 
 	dialogStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
@@ -1070,14 +1073,14 @@ func (m *TodayApp) renderEditEventForm() string {
 		Bold(true).
 		Foreground(components.Primary)
 
-	b.WriteString(titleStyle.Render("Edit Event"))
+	b.WriteString(titleStyle.Render(i18n.T("calendar.edit_event")))
 	b.WriteString("\n\n")
 
 	labelStyle := lipgloss.NewStyle().Width(12).Foreground(components.Muted)
 	focusedStyle := lipgloss.NewStyle().Foreground(components.Primary)
 
 	// Title
-	label := "Title:"
+	label := i18n.T("calendar.field.title")
 	if m.editFormFocus == 0 {
 		label = focusedStyle.Render(label)
 	}
@@ -1086,7 +1089,7 @@ func (m *TodayApp) renderEditEventForm() string {
 	b.WriteString("\n")
 
 	// Date
-	label = "Date:"
+	label = i18n.T("calendar.field.date")
 	if m.editFormFocus == 1 {
 		label = focusedStyle.Render(label)
 	}
@@ -1095,7 +1098,7 @@ func (m *TodayApp) renderEditEventForm() string {
 	b.WriteString("\n")
 
 	// Start time
-	label = "Start:"
+	label = i18n.T("calendar.field.start")
 	if m.editFormFocus == 2 {
 		label = focusedStyle.Render(label)
 	}
@@ -1104,7 +1107,7 @@ func (m *TodayApp) renderEditEventForm() string {
 	b.WriteString("\n")
 
 	// End time
-	label = "End:"
+	label = i18n.T("calendar.field.end")
 	if m.editFormFocus == 3 {
 		label = focusedStyle.Render(label)
 	}
@@ -1113,7 +1116,7 @@ func (m *TodayApp) renderEditEventForm() string {
 	b.WriteString("\n")
 
 	// Location
-	label = "Location:"
+	label = i18n.T("calendar.field.location")
 	if m.editFormFocus == 4 {
 		label = focusedStyle.Render(label)
 	}
@@ -1122,7 +1125,7 @@ func (m *TodayApp) renderEditEventForm() string {
 	b.WriteString("\n")
 
 	// Notes
-	label = "Notes:"
+	label = i18n.T("calendar.field.notes")
 	if m.editFormFocus == 5 {
 		label = focusedStyle.Render(label)
 	}
@@ -1136,7 +1139,7 @@ func (m *TodayApp) renderEditEventForm() string {
 	if runtime.GOOS == "darwin" {
 		saveKey = "⌘+S"
 	}
-	b.WriteString(helpStyle.Render(fmt.Sprintf("Tab: next field  %s: save  Esc: cancel", saveKey)))
+	b.WriteString(helpStyle.Render(fmt.Sprintf("Tab: %s  %s: %s  Esc: %s", i18n.T("help.next_field"), saveKey, i18n.T("common.save"), i18n.T("help.cancel"))))
 
 	formStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).

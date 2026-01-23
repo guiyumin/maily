@@ -303,25 +303,134 @@ attachment.total: "Вложения ({{.Count}}, {{.Size}}):"
 # Календарь
 # ============================================
 calendar.title: "Календарь"
-calendar.today: "Сегодня"
+calendar.today: "сегодня"
 calendar.no_events: "Нет событий"
 
 calendar.event_count:
   one: "{{.Count}} событие"
   few: "{{.Count}} события"
-  many: "{{.Count}} событий"
   other: "{{.Count}} событий"
 
 calendar.not_available: "Календарь недоступен"
 calendar.adding: "Добавление в календарь..."
 calendar.extracting: "Извлечение события..."
 
+# Дни недели (сокращённо)
+calendar.weekday.sun: "Вс"
+calendar.weekday.mon: "Пн"
+calendar.weekday.tue: "Вт"
+calendar.weekday.wed: "Ср"
+calendar.weekday.thu: "Чт"
+calendar.weekday.fri: "Пт"
+calendar.weekday.sat: "Сб"
+
+# Месяцы (сокращённо)
+calendar.month.jan: "Янв"
+calendar.month.feb: "Фев"
+calendar.month.mar: "Мар"
+calendar.month.apr: "Апр"
+calendar.month.may: "Май"
+calendar.month.jun: "Июн"
+calendar.month.jul: "Июл"
+calendar.month.aug: "Авг"
+calendar.month.sep: "Сен"
+calendar.month.oct: "Окт"
+calendar.month.nov: "Ноя"
+calendar.month.dec: "Дек"
+
+# Время
+calendar.time.am: "AM"
+calendar.time.pm: "PM"
+calendar.all_day: "Весь день"
+
+# Навигация по календарю
+calendar.nav.day: "день"
+calendar.nav.week: "неделя"
+calendar.nav.event: "событие"
+calendar.nav.month: "месяц"
+calendar.nav.year: "год"
+calendar.mode.month: "РЕЖИМ МЕСЯЦА"
+calendar.mode.year: "РЕЖИМ ГОДА"
+calendar.exit_mode: "выйти из режима"
+
+# Действия календаря
+calendar.action.view: "просмотр"
+calendar.action.new: "новое"
+calendar.create: "создать"
+calendar.cycle: "цикл"
+calendar.next: "далее"
+calendar.next_step: "следующий шаг"
+
+# Поля формы
+calendar.field.title: "Название:"
+calendar.field.date: "Дата:"
+calendar.field.time: "Время:"
+calendar.field.start: "Начало:"
+calendar.field.end: "Конец:"
+calendar.field.location: "Место:"
+calendar.field.notes: "Заметки:"
+calendar.field.calendar: "Календарь:"
+calendar.field.reminder: "Напоминание:"
+calendar.picker_hint: "(↑↓ прокрутка, ←→ смена)"
+
+# Формы событий
+calendar.new_event: "Новое Событие"
+calendar.edit_event: "Редактировать Событие"
+calendar.event: "Событие"
+calendar.what_event: "Какое событие?"
+calendar.when_event: "Когда?"
+calendar.step: "Шаг {{.Current}} из {{.Total}}"
+calendar.select_calendar: "Выбрать Календарь"
+calendar.select_hint: "↑/k вверх • ↓/j вниз • Enter выбрать • Esc отмена"
+calendar.default: "По умолчанию"
+
+# Календарь NLP
+calendar.quick_add: "Быстрое Добавление"
+calendar.parsing: "Анализ..."
+calendar.parsing_input: "ИИ анализирует: \"{{.Input}}\""
+calendar.edit_parsed: "Редактировать Распознанное Событие"
+calendar.parsed_event: "Распознанное Событие"
+calendar.confirm_event: "Подтвердить Событие"
+
+# Напоминания календаря
+calendar.reminder: "Напоминание"
+calendar.reminder.none: "Без напоминания"
+calendar.reminder.5min: "За 5 минут"
+calendar.reminder.10min: "За 10 минут"
+calendar.reminder.15min: "За 15 минут"
+calendar.reminder.30min: "За 30 минут"
+calendar.reminder.1hour: "За 1 час"
+calendar.reminder.minutes: "За {{.Minutes}} минут"
+
+# Удаление календаря
+calendar.delete_event: "Удалить Событие?"
+calendar.delete_confirm: "Вы уверены, что хотите удалить \"{{.Title}}\"?"
+
 # ============================================
-# Вид "Сегодня"
+# Просмотр Сегодня
 # ============================================
 today.title: "Сегодня"
 today.emails: "Письма"
 today.events: "События"
+today.loading: "Загрузка панели сегодняшнего дня..."
+today.emails_today: "Письма за Сегодня"
+today.no_emails: "Нет писем сегодня"
+today.no_events: "Нет событий сегодня"
+today.no_subject: "(без темы)"
+today.no_content: "(нет содержимого)"
+today.switch: "переключить"
+today.scroll: "прокрутка"
+
+# Заголовки письма
+today.from: "От: "
+today.to: "Кому: "
+today.subject: "Тема: "
+today.date: "Дата: "
+
+# Подтверждение удаления
+today.delete_confirm: "Удалить?"
+today.delete_email: "Удалить письмо: \"{{.Subject}}\"?"
+today.delete_event: "Удалить событие: \"{{.Title}}\"?"
 
 # ============================================
 # Сообщения CLI

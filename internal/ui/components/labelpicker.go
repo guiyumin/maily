@@ -6,29 +6,30 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"maily/internal/i18n"
 	"maily/internal/mail"
 )
 
-// Label display names for system folders (Gmail and other providers)
-var labelDisplayNames = map[string]string{
+// Label i18n keys for system folders (Gmail and other providers)
+var labelI18nKeys = map[string]string{
 	// Standard
-	mail.INBOX: "Inbox",
+	mail.INBOX: "label.inbox",
 	// Gmail
-	mail.GmailStarred: "Starred",
-	mail.GmailSent:    "Sent",
-	mail.GmailDrafts:  "Drafts",
-	mail.GmailSpam:    "Spam",
-	mail.GmailTrash:   "Trash",
-	mail.GmailAllMail: "All Mail",
+	mail.GmailStarred: "label.starred",
+	mail.GmailSent:    "label.sent",
+	mail.GmailDrafts:  "label.drafts",
+	mail.GmailSpam:    "label.spam",
+	mail.GmailTrash:   "label.trash",
+	mail.GmailAllMail: "label.all_mail",
 	// Yahoo / Standard IMAP
-	mail.Sent:     "Sent",
-	mail.Draft:    "Drafts",
-	mail.Drafts:   "Drafts",
-	mail.Trash:    "Trash",
-	mail.Spam:     "Spam",
-	mail.BulkMail: "Spam",
-	mail.Archive:  "Archive",
-	mail.Junk:     "Spam",
+	mail.Sent:     "label.sent",
+	mail.Draft:    "label.drafts",
+	mail.Drafts:   "label.drafts",
+	mail.Trash:    "label.trash",
+	mail.Spam:     "label.spam",
+	mail.BulkMail: "label.spam",
+	mail.Archive:  "label.archive",
+	mail.Junk:     "label.spam",
 }
 
 // System folder sort order (lower = higher priority)
@@ -143,7 +144,7 @@ func (p *LabelPicker) buildItems() {
 	// Folders section
 	if len(p.folders) > 0 {
 		p.items = append(p.items, pickerItem{
-			display:  "Folders",
+			display:  i18n.T("label.folders"),
 			isHeader: true,
 		})
 		for _, f := range p.folders {
@@ -158,7 +159,7 @@ func (p *LabelPicker) buildItems() {
 	// Labels section
 	if len(p.labels) > 0 {
 		p.items = append(p.items, pickerItem{
-			display:  "Labels",
+			display:  i18n.T("label.labels"),
 			isHeader: true,
 		})
 		for _, l := range p.labels {
@@ -313,11 +314,11 @@ func (p LabelPicker) View() string {
 
 	content := lipgloss.JoinVertical(
 		lipgloss.Left,
-		titleStyle.Render("Select Label"),
+		titleStyle.Render(i18n.T("label.select")),
 		"",
 		b.String(),
 		"",
-		hintStyle.Render("↑/↓ navigate • enter select • esc cancel"),
+		hintStyle.Render("↑/↓ "+i18n.T("help.navigate")+" • enter "+i18n.T("help.select")+" • esc "+i18n.T("help.cancel")),
 	)
 
 	// Center in the available space
@@ -349,8 +350,8 @@ func (p LabelPicker) SelectedLabel() string {
 
 // getDisplayName returns a friendly display name for a label
 func getDisplayName(label string) string {
-	if name, ok := labelDisplayNames[label]; ok {
-		return name
+	if key, ok := labelI18nKeys[label]; ok {
+		return i18n.T(key)
 	}
 	// For [Gmail]/Something not in our map, strip the prefix
 	if after, found := strings.CutPrefix(label, mail.GmailFolderPrefix); found {

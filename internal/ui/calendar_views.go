@@ -7,6 +7,7 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 	"maily/internal/calendar"
+	"maily/internal/i18n"
 	"maily/internal/ui/components"
 )
 
@@ -24,7 +25,15 @@ func (m *CalendarApp) renderCalendar() string {
 	b.WriteString("\n\n")
 
 	// Weekday headers
-	weekdays := []string{"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"}
+	weekdays := []string{
+		i18n.T("calendar.weekday.sun"),
+		i18n.T("calendar.weekday.mon"),
+		i18n.T("calendar.weekday.tue"),
+		i18n.T("calendar.weekday.wed"),
+		i18n.T("calendar.weekday.thu"),
+		i18n.T("calendar.weekday.fri"),
+		i18n.T("calendar.weekday.sat"),
+	}
 	headerStyle := lipgloss.NewStyle().
 		Foreground(components.Muted).
 		Width(7).
@@ -60,7 +69,7 @@ func (m *CalendarApp) renderCalendar() string {
 		noEvents := lipgloss.NewStyle().
 			Foreground(components.Muted).
 			Italic(true).
-			Render("  No events")
+			Render("  " + i18n.T("calendar.no_events"))
 		b.WriteString(noEvents)
 	} else {
 		for i, event := range dayEvents {
@@ -157,7 +166,7 @@ func (m *CalendarApp) renderMonthGrid() string {
 func (m *CalendarApp) renderEvent(event calendar.Event, selected bool) string {
 	var timeStr string
 	if event.AllDay {
-		timeStr = "All day"
+		timeStr = i18n.T("calendar.all_day")
 	} else {
 		timeStr = fmt.Sprintf("%s - %s", event.StartTime.Format("3:04 PM"), event.EndTime.Format("3:04 PM"))
 	}
@@ -190,33 +199,37 @@ func (m *CalendarApp) renderHelpBar() string {
 	keyStyle := lipgloss.NewStyle().Bold(true).Foreground(components.Secondary)
 	modeStyle := lipgloss.NewStyle().Bold(true).Foreground(components.Primary)
 
+	// Helper for key + label formatting
+	key := func(k, label string) string {
+		return fmt.Sprintf("%s %s", keyStyle.Render(k), label)
+	}
+
 	// Show mode indicator when in navigation mode
 	if m.pendingKey != "" {
-		modeName := map[string]string{"m": "MONTH", "y": "YEAR"}[m.pendingKey]
-		return modeStyle.Render("["+modeName+" MODE]") + "  " +
-			helpStyle.Render(keyStyle.Render("↑↓")+" navigate  "+keyStyle.Render("esc")+" exit mode")
+		modeName := map[string]string{"m": i18n.T("calendar.mode.month"), "y": i18n.T("calendar.mode.year")}[m.pendingKey]
+		return fmt.Sprintf("%s  %s", modeStyle.Render("["+modeName+"]"),
+			helpStyle.Render(fmt.Sprintf("%s  %s", key("↑↓", i18n.T("help.navigate")), key("esc", i18n.T("calendar.exit_mode")))))
 	}
 
 	// Row 1: Navigation
 	row1 := []string{
-		keyStyle.Render("←→") + " day",
-		keyStyle.Render("↑↓") + " week",
-		keyStyle.Render("tab") + " event",
-		keyStyle.Render("m") + " month",
-		keyStyle.Render("y") + " year",
-		keyStyle.Render("t") + " today",
+		key("←→", i18n.T("calendar.nav.day")),
+		key("↑↓", i18n.T("calendar.nav.week")),
+		key("tab", i18n.T("calendar.nav.event")),
+		key("m", i18n.T("calendar.nav.month")),
+		key("y", i18n.T("calendar.nav.year")),
+		key("t", i18n.T("calendar.today")),
 	}
 
 	// Row 2: Actions
 	row2 := []string{
-		keyStyle.Render("enter") + " view",
-		keyStyle.Render("n") + " new",
-		keyStyle.Render("e") + " edit",
-		keyStyle.Render("d") + " delete",
-		keyStyle.Render("q") + " quit",
+		key("enter", i18n.T("calendar.action.view")),
+		key("n", i18n.T("calendar.action.new")),
+		key("e", i18n.T("help.edit")),
+		key("d", i18n.T("help.delete")),
+		key("q", i18n.T("help.quit")),
 	}
 
-	return helpStyle.Render(strings.Join(row1, "  ")) + "\n" +
-		helpStyle.Render(strings.Join(row2, "  "))
+	return fmt.Sprintf("%s\n%s", helpStyle.Render(strings.Join(row1, "  ")), helpStyle.Render(strings.Join(row2, "  ")))
 }
 

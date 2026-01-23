@@ -10,6 +10,7 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 	"maily/internal/auth"
+	"maily/internal/i18n"
 )
 
 var logoutYes bool
@@ -47,7 +48,7 @@ func confirmLogout(email string) bool {
 func handleLogoutAccount(email string) {
 	store, err := auth.LoadAccountStore()
 	if err != nil {
-		fmt.Printf("Error: %v\n", err)
+		fmt.Printf("%s: %v\n", i18n.T("common.error"), err)
 		os.Exit(1)
 	}
 
@@ -60,31 +61,31 @@ func handleLogoutAccount(email string) {
 		}
 	}
 	if !found {
-		fmt.Printf("Account not found: %s\n", email)
+		fmt.Printf("%s\n", i18n.T("cli.account_not_found", map[string]any{"Email": email}))
 		return
 	}
 
 	// Confirm before removing
 	if !confirmLogout(email) {
-		fmt.Println("Cancelled.")
+		fmt.Println(i18n.T("common.cancel"))
 		return
 	}
 
 	if store.RemoveAccount(email) {
 		store.Save()
-		fmt.Printf("Removed account %s\n", email)
+		fmt.Printf("%s\n", i18n.T("cli.logged_out", map[string]any{"Email": email}))
 	}
 }
 
 func handleLogout() {
 	store, err := auth.LoadAccountStore()
 	if err != nil {
-		fmt.Printf("Error: %v\n", err)
+		fmt.Printf("%s: %v\n", i18n.T("common.error"), err)
 		os.Exit(1)
 	}
 
 	if len(store.Accounts) == 0 {
-		fmt.Println("No accounts configured.")
+		fmt.Println(i18n.T("cli.no_accounts"))
 		return
 	}
 
@@ -94,7 +95,7 @@ func handleLogout() {
 		email = store.Accounts[0].Credentials.Email
 	} else {
 		fmt.Println()
-		fmt.Println("  Which account to remove?")
+		fmt.Println("  " + i18n.T("label.select"))
 		fmt.Println()
 		for i, acc := range store.Accounts {
 			fmt.Printf("  %d. %s\n", i+1, acc.Credentials.Email)
@@ -108,12 +109,12 @@ func handleLogout() {
 
 		num, err := strconv.Atoi(input)
 		if err != nil || num < 0 || num > len(store.Accounts) {
-			fmt.Println("Cancelled.")
+			fmt.Println(i18n.T("common.cancel"))
 			return
 		}
 
 		if num == 0 {
-			fmt.Println("Cancelled.")
+			fmt.Println(i18n.T("common.cancel"))
 			return
 		}
 
@@ -122,11 +123,11 @@ func handleLogout() {
 
 	// Confirm before removing
 	if !confirmLogout(email) {
-		fmt.Println("Cancelled.")
+		fmt.Println(i18n.T("common.cancel"))
 		return
 	}
 
 	store.RemoveAccount(email)
 	store.Save()
-	fmt.Printf("Removed account %s\n", email)
+	fmt.Printf("%s\n", i18n.T("cli.logged_out", map[string]any{"Email": email}))
 }

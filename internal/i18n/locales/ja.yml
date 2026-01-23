@@ -289,21 +289,131 @@ attachment.total: "添付ファイル ({{.Count}}件、{{.Size}}):"
 # ============================================
 calendar.title: "カレンダー"
 calendar.today: "今日"
-calendar.no_events: "予定なし"
+calendar.no_events: "イベントなし"
 
 calendar.event_count:
-  other: "{{.Count}}件の予定"
+  other: "{{.Count}}件のイベント"
 
 calendar.not_available: "カレンダーは利用できません"
 calendar.adding: "カレンダーに追加中..."
-calendar.extracting: "予定を抽出中..."
+calendar.extracting: "イベントを抽出中..."
+
+# 曜日（短縮形）
+calendar.weekday.sun: "日"
+calendar.weekday.mon: "月"
+calendar.weekday.tue: "火"
+calendar.weekday.wed: "水"
+calendar.weekday.thu: "木"
+calendar.weekday.fri: "金"
+calendar.weekday.sat: "土"
+
+# 月（短縮形）
+calendar.month.jan: "1月"
+calendar.month.feb: "2月"
+calendar.month.mar: "3月"
+calendar.month.apr: "4月"
+calendar.month.may: "5月"
+calendar.month.jun: "6月"
+calendar.month.jul: "7月"
+calendar.month.aug: "8月"
+calendar.month.sep: "9月"
+calendar.month.oct: "10月"
+calendar.month.nov: "11月"
+calendar.month.dec: "12月"
+
+# 時間
+calendar.time.am: "午前"
+calendar.time.pm: "午後"
+calendar.all_day: "終日"
+
+# カレンダーナビゲーション
+calendar.nav.day: "日"
+calendar.nav.week: "週"
+calendar.nav.event: "イベント"
+calendar.nav.month: "月"
+calendar.nav.year: "年"
+calendar.mode.month: "月モード"
+calendar.mode.year: "年モード"
+calendar.exit_mode: "モード終了"
+
+# カレンダー操作
+calendar.action.view: "表示"
+calendar.action.new: "新規"
+calendar.create: "作成"
+calendar.cycle: "循環"
+calendar.next: "次へ"
+calendar.next_step: "次のステップ"
+
+# カレンダーフォームフィールド
+calendar.field.title: "タイトル:"
+calendar.field.date: "日付:"
+calendar.field.time: "時間:"
+calendar.field.start: "開始:"
+calendar.field.end: "終了:"
+calendar.field.location: "場所:"
+calendar.field.notes: "メモ:"
+calendar.field.calendar: "カレンダー:"
+calendar.field.reminder: "リマインダー:"
+calendar.picker_hint: "(↑↓ スクロール, ←→ 切替)"
+
+# カレンダーイベントフォーム
+calendar.new_event: "新規イベント"
+calendar.edit_event: "イベントを編集"
+calendar.event: "イベント"
+calendar.what_event: "イベント名は？"
+calendar.when_event: "いつですか？"
+calendar.step: "ステップ{{.Current}}/{{.Total}}"
+calendar.select_calendar: "カレンダーを選択"
+calendar.select_hint: "↑/k 上 • ↓/j 下 • Enter 選択 • Esc キャンセル"
+calendar.default: "デフォルト"
+
+# カレンダーNLP
+calendar.quick_add: "クイック追加"
+calendar.parsing: "解析中..."
+calendar.parsing_input: "AIで解析中: \"{{.Input}}\""
+calendar.edit_parsed: "解析結果を編集"
+calendar.parsed_event: "解析されたイベント"
+calendar.confirm_event: "イベントを確認"
+
+# カレンダーリマインダー
+calendar.reminder: "リマインダー"
+calendar.reminder.none: "リマインダーなし"
+calendar.reminder.5min: "5分前"
+calendar.reminder.10min: "10分前"
+calendar.reminder.15min: "15分前"
+calendar.reminder.30min: "30分前"
+calendar.reminder.1hour: "1時間前"
+calendar.reminder.minutes: "{{.Minutes}}分前"
+
+# カレンダー削除
+calendar.delete_event: "イベントを削除？"
+calendar.delete_confirm: "\"{{.Title}}\"を削除してもよろしいですか？"
 
 # ============================================
 # 今日ビュー
 # ============================================
 today.title: "今日"
 today.emails: "メール"
-today.events: "予定"
+today.events: "イベント"
+today.loading: "今日のダッシュボードを読み込み中..."
+today.emails_today: "今日のメール"
+today.no_emails: "今日のメールはありません"
+today.no_events: "今日のイベントはありません"
+today.no_subject: "(件名なし)"
+today.no_content: "(内容なし)"
+today.switch: "切替"
+today.scroll: "スクロール"
+
+# 今日のメールヘッダー
+today.from: "差出人: "
+today.to: "宛先: "
+today.subject: "件名: "
+today.date: "日付: "
+
+# 今日の削除確認
+today.delete_confirm: "削除？"
+today.delete_email: "メールを削除: \"{{.Subject}}\"？"
+today.delete_event: "イベントを削除: \"{{.Title}}\"？"
 
 # ============================================
 # CLIメッセージ

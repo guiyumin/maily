@@ -6,14 +6,20 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"maily/internal/i18n"
 )
 
 // Command represents a slash command
 type Command struct {
 	Name        string
-	Description string
-	Shortcut    string // keyboard shortcut hint
+	DescKey     string   // i18n key for description
+	Shortcut    string   // keyboard shortcut hint
 	Views       []string // views where this command is available: "list", "read", "today"
+}
+
+// Description returns the translated description
+func (c Command) Description() string {
+	return i18n.T(c.DescKey)
 }
 
 // CommandSelectedMsg is sent when a command is selected
@@ -23,15 +29,15 @@ type CommandSelectedMsg struct {
 
 // AllCommands defines all available slash commands
 var AllCommands = []Command{
-	{Name: "new", Description: "New email", Shortcut: "n", Views: []string{"list"}},
-	{Name: "reply", Description: "Reply to this email", Shortcut: "r", Views: []string{"list", "today"}},
-	{Name: "delete", Description: "Delete this email", Shortcut: "d", Views: []string{"list", "today"}},
-	{Name: "search", Description: "Search emails", Shortcut: "s", Views: []string{"list"}},
-	{Name: "refresh", Description: "Refresh inbox", Shortcut: "R", Views: []string{"list"}},
-	{Name: "labels", Description: "Switch label/folder", Shortcut: "f", Views: []string{"list"}},
-	{Name: "summarize", Description: "Summarize this email (AI)", Shortcut: "s", Views: []string{"today"}},
-	{Name: "event", Description: "Create event from this email (AI)", Shortcut: "e", Views: []string{"today"}},
-	{Name: "add", Description: "Add calendar event", Shortcut: "a", Views: []string{"today"}},
+	{Name: "new", DescKey: "command.new", Shortcut: "n", Views: []string{"list"}},
+	{Name: "reply", DescKey: "command.reply", Shortcut: "r", Views: []string{"list", "today"}},
+	{Name: "delete", DescKey: "command.delete", Shortcut: "d", Views: []string{"list", "today"}},
+	{Name: "search", DescKey: "command.search", Shortcut: "s", Views: []string{"list"}},
+	{Name: "refresh", DescKey: "command.refresh", Shortcut: "R", Views: []string{"list"}},
+	{Name: "labels", DescKey: "command.labels", Shortcut: "f", Views: []string{"list"}},
+	{Name: "summarize", DescKey: "command.summarize", Shortcut: "s", Views: []string{"today"}},
+	{Name: "event", DescKey: "command.event", Shortcut: "e", Views: []string{"today"}},
+	{Name: "add", DescKey: "command.add", Shortcut: "a", Views: []string{"today"}},
 }
 
 // CommandPalette is the command palette component
@@ -48,7 +54,7 @@ type CommandPalette struct {
 // NewCommandPalette creates a new command palette
 func NewCommandPalette() CommandPalette {
 	ti := textinput.New()
-	ti.Placeholder = "Type a command..."
+	ti.Placeholder = i18n.T("command.palette.placeholder")
 	ti.Focus()
 	ti.CharLimit = 50
 	ti.Width = 40
@@ -98,7 +104,7 @@ func filterCommandsByQuery(commands []Command, query string) []Command {
 	var filtered []Command
 	for _, cmd := range commands {
 		if strings.Contains(strings.ToLower(cmd.Name), query) ||
-			strings.Contains(strings.ToLower(cmd.Description), query) {
+			strings.Contains(strings.ToLower(cmd.Description()), query) {
 			filtered = append(filtered, cmd)
 		}
 	}
@@ -151,7 +157,7 @@ func (c CommandPalette) View() string {
 	title := lipgloss.NewStyle().
 		Bold(true).
 		Foreground(Primary).
-		Render("Commands")
+		Render(i18n.T("command.palette.title"))
 
 	// Input field with / prefix
 	inputLine := lipgloss.NewStyle().
@@ -162,7 +168,7 @@ func (c CommandPalette) View() string {
 	var cmdLines []string
 	for i, cmd := range c.commands {
 		name := cmd.Name
-		desc := cmd.Description
+		desc := cmd.Description()
 		shortcut := cmd.Shortcut
 
 		nameStyle := lipgloss.NewStyle().Width(12)
@@ -191,7 +197,7 @@ func (c CommandPalette) View() string {
 		cmdList = lipgloss.NewStyle().
 			Foreground(TextDim).
 			Italic(true).
-			Render("  No matching commands")
+			Render("  " + i18n.T("command.no_matching"))
 	}
 
 	// Container

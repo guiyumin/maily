@@ -18,6 +18,7 @@ import (
 	"maily/internal/cache"
 	"maily/internal/calendar"
 	"maily/internal/client"
+	"maily/internal/i18n"
 	"maily/internal/mail"
 	"maily/internal/ui/components"
 )
@@ -246,7 +247,7 @@ func NewApp(store *auth.AccountStore, cfg *config.Config) App {
 	s.Style = components.SpinnerStyle
 
 	si := textinput.New()
-	si.Placeholder = "Search emails..."
+	si.Placeholder = i18n.T("dialog.search.placeholder")
 	si.CharLimit = 200
 	si.Width = 40
 
@@ -344,7 +345,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					a.searchMode = false
 					a.searchInput.Blur()
 					a.state = stateLoading
-					a.statusMsg = "Searching..."
+					a.statusMsg = i18n.T("email.searching")
 					// Cache inbox before search
 					if !a.isSearchResult {
 						a.inboxCache = a.mailList.Emails()
@@ -372,7 +373,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					a.showExtractInput = false
 					a.extractInput.Blur()
 					a.state = stateLoading
-					a.statusMsg = "Parsing with " + a.aiClient.Provider() + "..."
+					a.statusMsg = i18n.T("extract.parsing", map[string]any{"Provider": a.aiClient.Provider()})
 					// Pass current email for context (helps resolve "them", "the meeting", etc.)
 					email := a.mailList.SelectedEmail()
 					return a, tea.Batch(a.spinner.Tick, a.parseManualEvent(input, email))
@@ -400,7 +401,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					a.currentLabel = newLabel
 					a.labelPicker.SetSelected(newLabel)
 					a.state = stateLoading
-					a.statusMsg = "Loading..."
+					a.statusMsg = i18n.T("common.loading")
 					return a, tea.Batch(a.spinner.Tick, a.loadEmails())
 				}
 				return a, nil
@@ -467,11 +468,11 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				switch a.extractEditFocus {
 				case 7: // Save button
 					if err := a.applyExtractEdits(); err != nil {
-						a.statusMsg = fmt.Sprintf("Invalid input: %v", err)
+						a.statusMsg = i18n.T("error.invalid_input", map[string]any{"Error": err})
 						return a, nil
 					}
 					a.showExtractEdit = false
-					a.statusMsg = "Changes saved"
+					a.statusMsg = i18n.T("status.changes_saved")
 					return a, nil
 				case 8: // Cancel button
 					a.showExtractEdit = false
@@ -511,13 +512,13 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "enter":
 				// Add event to calendar
 				if a.calClient == nil {
-					a.statusMsg = "Calendar not available"
+					a.statusMsg = i18n.T("calendar.not_available")
 					a.showExtract = false
 					a.extractedEvent = nil
 					return a, nil
 				}
 				a.state = stateLoading
-				a.statusMsg = "Adding to calendar..."
+				a.statusMsg = i18n.T("calendar.adding")
 				return a, tea.Batch(a.spinner.Tick, a.addEventToCalendar())
 			case "e":
 				// Enter edit mode
@@ -589,7 +590,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				a.selected = make(map[imap.UID]bool) // Clear selections
 				a.mailList.SetSelectionMode(false)
 				a.state = stateLoading
-				a.statusMsg = "Refreshing..."
+				a.statusMsg = i18n.T("email.refreshing")
 				return a, tea.Batch(a.spinner.Tick, a.loadEmails())
 			}
 		case "/":
@@ -613,13 +614,13 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					a.state = stateLoading
 					if a.attachmentIdx == 0 {
 						// Download All
-						a.statusMsg = fmt.Sprintf("Downloading %d attachments...", len(email.Attachments))
+						a.statusMsg = i18n.T("help.download") + "..."
 						return a, tea.Batch(a.spinner.Tick, a.downloadAllAttachments(email))
 					} else {
 						// Individual attachment (index shifted by 1)
 						attIdx := a.attachmentIdx - 1
 						if attIdx < len(email.Attachments) {
-							a.statusMsg = "Downloading " + email.Attachments[attIdx].Filename + "..."
+							a.statusMsg = i18n.T("help.download") + " " + email.Attachments[attIdx].Filename + "..."
 							return a, tea.Batch(a.spinner.Tick, a.downloadAttachment(email, attIdx))
 						}
 					}
@@ -637,14 +638,14 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					// Move to trash
 					if a.isSearchResult && a.selectedCount() > 0 {
 						a.state = stateLoading
-						a.statusMsg = "Moving to trash..."
+						a.statusMsg = i18n.T("status.moving_to_trash")
 						a.confirmDelete = false
 						return a, tea.Batch(a.spinner.Tick, a.moveSelectedToTrash())
 					} else if email := a.mailList.SelectedEmail(); email != nil {
 						uid := email.UID
 						a.view = listView
 						a.state = stateLoading
-						a.statusMsg = "Moving to trash..."
+						a.statusMsg = i18n.T("status.moving_to_trash")
 						a.confirmDelete = false
 						return a, tea.Batch(a.spinner.Tick, a.moveSingleToTrash(uid))
 					}
@@ -652,14 +653,14 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					// Permanent delete
 					if a.isSearchResult && a.selectedCount() > 0 {
 						a.state = stateLoading
-						a.statusMsg = "Deleting permanently..."
+						a.statusMsg = i18n.T("status.deleting_permanently")
 						a.confirmDelete = false
 						return a, tea.Batch(a.spinner.Tick, a.deleteSelectedEmails())
 					} else if email := a.mailList.SelectedEmail(); email != nil {
 						uid := email.UID
 						a.view = listView
 						a.state = stateLoading
-						a.statusMsg = "Deleting permanently..."
+						a.statusMsg = i18n.T("status.deleting_permanently")
 						a.confirmDelete = false
 						return a, tea.Batch(a.spinner.Tick, a.deleteSingleEmail(uid))
 					}
@@ -684,7 +685,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 					// Check if body needs to be fetched
 					if email.BodyHTML == "" && email.Snippet == "" {
-						a.viewport.SetContent("Loading email content...")
+						a.viewport.SetContent(i18n.T("common.loading"))
 						// Trigger async body fetch
 						cmd := a.fetchEmailBody(email.UID)
 						if email.Unread {
@@ -747,7 +748,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// Shift+R for refresh - direct IMAP metadata-only refresh
 			if a.state == stateReady && !a.isSearchResult && a.view == listView {
 				a.state = stateLoading
-				a.statusMsg = "Refreshing..."
+				a.statusMsg = i18n.T("email.refreshing")
 				return a, tea.Batch(a.spinner.Tick, a.refreshFromIMAP())
 			}
 		case "s":
@@ -767,7 +768,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					email := a.mailList.SelectedEmail()
 					if email != nil {
 						a.state = stateLoading
-						a.statusMsg = "Summarizing with " + a.aiClient.Provider() + "..."
+						a.statusMsg = i18n.T("summary.generating")
 						return a, tea.Batch(a.spinner.Tick, a.summarizeEmail(email))
 					}
 				}
@@ -782,7 +783,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				email := a.mailList.SelectedEmail()
 				if email != nil {
 					a.state = stateLoading
-					a.statusMsg = "Extracting event with " + a.aiClient.Provider() + "..."
+					a.statusMsg = i18n.T("calendar.extracting")
 					return a, tea.Batch(a.spinner.Tick, a.doExtractEvent(email))
 				}
 			}
@@ -791,7 +792,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if a.state == stateReady && a.view == readView && !a.confirmDelete && !a.showAttachmentPicker {
 				email := a.mailList.SelectedEmail()
 				if email == nil || len(email.Attachments) == 0 {
-					a.statusMsg = "No attachments"
+					a.statusMsg = i18n.T("attachment.no_attachments")
 					return a, nil
 				}
 				// Always show picker
@@ -825,7 +826,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if email != nil {
 					uid := email.UID
 					a.state = stateLoading
-					a.statusMsg = "Marking as unread..."
+					a.statusMsg = i18n.T("help.mark_read") + "..."
 					return a, tea.Batch(a.spinner.Tick, a.markSingleAsUnread(uid))
 				}
 			}
@@ -856,7 +857,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if a.view == listView && a.state == stateReady && !a.confirmDelete && !a.isSearchResult {
 				a.emailLimit += uint32(a.cfg.MaxEmails)
 				a.state = stateLoading
-				a.statusMsg = fmt.Sprintf("Loading %d emails...", a.emailLimit)
+				a.statusMsg = i18n.T("email.loading", map[string]any{"Count": a.emailLimit})
 				return a, tea.Batch(a.spinner.Tick, a.reloadFromCache())
 			}
 		case " ": // Space to toggle selection (search mode only)
@@ -873,7 +874,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "m": // Mark read/unread (search mode only, for selected emails)
 			if a.isSearchResult && a.view == listView && a.state == stateReady && a.selectedCount() > 0 {
 				a.state = stateLoading
-				a.statusMsg = "Marking as read..."
+				a.statusMsg = i18n.T("help.mark_read") + "..."
 				return a, tea.Batch(a.spinner.Tick, a.markSelectedAsRead())
 			}
 		case "tab":
@@ -890,7 +891,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				a.state = stateLoading
 				a.emailLimit = uint32(a.cfg.MaxEmails)
 				a.mailList.SetEmails(nil)
-				a.statusMsg = "Loading..."
+				a.statusMsg = i18n.T("common.loading")
 
 				// Load from disk cache
 				return a, tea.Batch(a.spinner.Tick, a.loadCachedEmails())
@@ -986,7 +987,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				// Cache is fresh, no need to fetch from server
 				a.state = stateReady
 				labelName := components.GetLabelDisplayName(a.currentLabel)
-				a.statusMsg = fmt.Sprintf("%s: %d emails", labelName, len(a.mailList.Emails()))
+				a.statusMsg = i18n.T("email.folder_count", map[string]any{"Label": labelName, "Count": len(a.mailList.Emails())})
 				return a, nil
 			}
 		}
@@ -996,7 +997,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// Don't show "Loading..." - UI is already usable
 			return a, a.loadEmails()
 		}
-		a.statusMsg = "Loading emails..."
+		a.statusMsg = i18n.T("common.loading")
 		return a, a.loadEmails()
 
 	case cachedEmailsLoadedMsg:
@@ -1013,7 +1014,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.mailList.SetEmails(msg.emails)
 		a.state = stateReady
 		labelName := components.GetLabelDisplayName(a.currentLabel)
-		a.statusMsg = fmt.Sprintf("%s: %d emails", labelName, len(msg.emails))
+		a.statusMsg = i18n.T("email.folder_count", map[string]any{"Label": labelName, "Count": len(msg.emails)})
 		return a, nil
 
 	case emailsLoadedMsg:
@@ -1029,7 +1030,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.mailList.SetEmails(msg.emails)
 		a.state = stateReady
 		labelName := components.GetLabelDisplayName(a.currentLabel)
-		a.statusMsg = fmt.Sprintf("%s: %d emails", labelName, len(msg.emails))
+		a.statusMsg = i18n.T("email.folder_count", map[string]any{"Label": labelName, "Count": len(msg.emails)})
 		// Update cache metadata so future runs know cache is fresh
 		if a.diskCache != nil && currentEmail != "" {
 			uidValidity := msg.uidValidity
@@ -1058,13 +1059,13 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.err != nil {
 			a.state = stateError
 			a.err = msg.err
-			a.statusMsg = fmt.Sprintf("Refresh failed: %v", msg.err)
+			a.statusMsg = i18n.T("error.connection", map[string]any{"Error": msg.err})
 			return a, nil
 		}
 		a.mailList.SetEmails(msg.emails)
 		a.state = stateReady
 		labelName := components.GetLabelDisplayName(a.currentLabel)
-		a.statusMsg = fmt.Sprintf("%s: %d emails (refreshed)", labelName, len(msg.emails))
+		a.statusMsg = i18n.T("email.folder_count", map[string]any{"Label": labelName, "Count": len(msg.emails)})
 
 	case autoRefreshTickMsg:
 		// Schedule next tick
@@ -1072,7 +1073,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Only refresh if in list view, ready state, and not in any dialog
 		if a.view == listView && a.state == stateReady && !a.confirmDelete && !a.searchMode && !a.showLabelPicker && !a.showCommandPalette && !a.isSearchResult {
 			a.state = stateLoading
-			a.statusMsg = "Auto-refreshing..."
+			a.statusMsg = i18n.T("email.auto_refreshing")
 			cmds = append(cmds, a.spinner.Tick, a.loadEmails())
 		}
 		return a, tea.Batch(cmds...)
@@ -1094,7 +1095,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			a.state = stateReady
 			a.view = listView
-			a.statusMsg = "Email was deleted on another device"
+			a.statusMsg = i18n.T("email.parse_error")
 			return a, tea.ClearScreen
 		}
 		a.state = stateError
@@ -1118,9 +1119,9 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.isSearchResult = true
 		a.searchQuery = msg.query
 		if len(msg.emails) == 0 {
-			a.statusMsg = fmt.Sprintf("No results for '%s'", msg.query)
+			a.statusMsg = i18n.T("email.no_results", map[string]any{"Query": msg.query})
 		} else {
-			a.statusMsg = fmt.Sprintf("%d results for '%s'", len(msg.emails), msg.query)
+			a.statusMsg = i18n.T("email.results_count", map[string]any{"Count": len(msg.emails), "Query": msg.query})
 		}
 
 	case bulkActionCompleteMsg:
@@ -1128,7 +1129,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Clear selections after action
 		a.selected = make(map[imap.UID]bool)
 		a.mailList.SetSelections(a.selected)
-		a.statusMsg = fmt.Sprintf("Successfully %s %d email(s)", msg.action, msg.count)
+		a.statusMsg = i18n.TPlural("email.deleted", msg.count, map[string]any{"Count": msg.count})
 		// Re-run search to refresh the list
 		if a.isSearchResult && a.searchQuery != "" {
 			a.state = stateLoading
@@ -1138,25 +1139,25 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case singleDeleteCompleteMsg:
 		a.state = stateReady
 		a.mailList.RemoveByUID(msg.uid)
-		a.statusMsg = "Successfully deleted 1 email"
+		a.statusMsg = i18n.TPlural("email.deleted", 1, map[string]any{"Count": 1})
 
 	case markUnreadCompleteMsg:
 		a.state = stateReady
 		a.view = listView
 		a.mailList.MarkAsUnread(msg.uid)
-		a.statusMsg = "Marked as unread"
+		a.statusMsg = i18n.T("help.mark_read")
 		return a, tea.ClearScreen
 
 	case replySentMsg:
 		a.state = stateReady
 		a.view = listView
-		a.statusMsg = "Reply sent!"
+		a.statusMsg = i18n.T("email.reply_success")
 		return a, tea.ClearScreen
 
 	case replySendErrorMsg:
 		a.state = stateReady
 		a.view = composeView
-		a.statusMsg = fmt.Sprintf("Send failed: %v", msg.err)
+		a.statusMsg = i18n.T("email.send_failed", map[string]any{"Error": msg.err})
 
 	case components.CommandSelectedMsg:
 		a.showCommandPalette = false
@@ -1165,18 +1166,18 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case SendMsg:
 		// Send button pressed in compose view
 		a.state = stateLoading
-		a.statusMsg = "Sending..."
+		a.statusMsg = i18n.T("compose.send") + "..."
 		return a, tea.Batch(a.spinner.Tick, a.sendReply())
 
 	case SaveDraftMsg:
 		// Save Draft button pressed
 		a.state = stateLoading
-		a.statusMsg = "Saving draft..."
+		a.statusMsg = i18n.T("compose.save_draft") + "..."
 		return a, tea.Batch(a.spinner.Tick, a.saveDraft())
 
 	case draftSavedMsg:
 		a.state = stateReady
-		a.statusMsg = "Draft saved!"
+		a.statusMsg = i18n.T("email.draft_saved")
 		if a.compose.isReply {
 			a.view = readView
 		} else {
@@ -1186,11 +1187,11 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case draftSaveErrorMsg:
 		a.state = stateReady
-		a.statusMsg = fmt.Sprintf("Failed to save draft: %v", msg.err)
+		a.statusMsg = i18n.T("email.draft_failed", map[string]any{"Error": msg.err})
 
 	case CancelMsg:
 		// Cancel button pressed in compose view
-		a.statusMsg = "Cancelled"
+		a.statusMsg = i18n.T("common.cancel")
 		if a.compose.isReply {
 			a.view = readView
 		} else {
@@ -1210,9 +1211,9 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.showFilePicker = false
 		contentType := ""
 		if err := a.compose.AddAttachment(msg.Path, msg.Name, contentType, msg.Size); err != nil {
-			a.statusMsg = fmt.Sprintf("Cannot attach: %v", err)
+			a.statusMsg = i18n.T("error.invalid_input", map[string]any{"Error": err})
 		} else {
-			a.statusMsg = fmt.Sprintf("Attached: %s", msg.Name)
+			a.statusMsg = i18n.T("compose.attach") + ": " + msg.Name
 		}
 		return a, nil
 
@@ -1238,7 +1239,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case summaryErrorMsg:
 		a.state = stateReady
-		a.statusMsg = fmt.Sprintf("Summarize failed: %v", msg.err)
+		a.statusMsg = i18n.T("summary.error", map[string]any{"Error": msg.err})
 
 	case extractResultMsg:
 		a.state = stateReady
@@ -1264,7 +1265,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case extractErrorMsg:
 		a.state = stateReady
-		a.statusMsg = fmt.Sprintf("Extract failed: %v", msg.err)
+		a.statusMsg = i18n.T("extract.failed", map[string]any{"Error": msg.err})
 
 	case calendarEventCreatedMsg:
 		a.state = stateReady
@@ -1272,22 +1273,22 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.showExtractEdit = false
 		a.extractedEvent = nil
 		a.extractedProvider = ""
-		a.statusMsg = "Event added to calendar"
+		a.statusMsg = i18n.T("extract.added")
 
 	case calendarEventErrorMsg:
 		a.state = stateReady
 		a.showExtract = false
 		a.showExtractEdit = false
 		a.extractedEvent = nil
-		a.statusMsg = fmt.Sprintf("Failed to add event: %v", msg.err)
+		a.statusMsg = i18n.T("extract.failed", map[string]any{"Error": msg.err})
 
 	case attachmentDownloadedMsg:
 		a.state = stateReady
-		a.statusMsg = fmt.Sprintf("Downloaded %s to ~/Downloads/maily", msg.filename)
+		a.statusMsg = i18n.T("attachment.downloaded", map[string]any{"Filename": msg.filename})
 
 	case attachmentDownloadErrorMsg:
 		a.state = stateReady
-		a.statusMsg = fmt.Sprintf("Download failed: %v", msg.err)
+		a.statusMsg = i18n.T("attachment.download_failed", map[string]any{"Error": msg.err})
 
 	case emailBodyLoadedMsg:
 		// Skip UI update if account/mailbox changed since fetch started
@@ -1314,7 +1315,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if strings.Contains(msg.err.Error(), "deleted on another device") {
 			a.mailList.RemoveByUID(msg.uid)
 			a.view = listView
-			a.statusMsg = "Email was deleted on another device"
+			a.statusMsg = i18n.T("email.parse_error")
 			return a, tea.ClearScreen
 		}
 		// Only show error if still viewing the same email
@@ -1348,7 +1349,7 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (a App) View() string {
 	if a.width == 0 {
-		return "Loading..."
+		return i18n.T("common.loading")
 	}
 
 	var content string

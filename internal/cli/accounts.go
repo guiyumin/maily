@@ -6,6 +6,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"maily/internal/auth"
+	"maily/internal/i18n"
 )
 
 var accountsCmd = &cobra.Command{
@@ -19,19 +20,18 @@ var accountsCmd = &cobra.Command{
 func handleAccounts() {
 	store, err := auth.LoadAccountStore()
 	if err != nil {
-		fmt.Printf("Error: %v\n", err)
+		fmt.Printf("%s: %v\n", i18n.T("common.error"), err)
 		os.Exit(1)
 	}
 
 	if len(store.Accounts) == 0 {
-		fmt.Println("No accounts configured.")
-		fmt.Println()
-		fmt.Println("Run: maily login")
+		fmt.Println(i18n.T("cli.no_accounts"))
+		fmt.Println(i18n.T("cli.login_hint"))
 		return
 	}
 
 	fmt.Println()
-	fmt.Println("  Accounts:")
+	fmt.Println("  " + i18n.T("cli.available_providers"))
 	fmt.Println()
 	for _, acc := range store.Accounts {
 		fmt.Printf("  %s (%s)\n", acc.Credentials.Email, acc.Provider)

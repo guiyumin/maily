@@ -304,7 +304,7 @@ attachment.total: "Attachments ({{.Count}}, {{.Size}}):"
 # Calendar
 # ============================================
 calendar.title: "Calendar"
-calendar.today: "Today"
+calendar.today: "today"
 calendar.no_events: "No events"
 
 calendar.event_count:
@@ -315,12 +315,122 @@ calendar.not_available: "Calendar not available"
 calendar.adding: "Adding to calendar..."
 calendar.extracting: "Extracting event..."
 
+# Calendar weekdays (short)
+calendar.weekday.sun: "Sun"
+calendar.weekday.mon: "Mon"
+calendar.weekday.tue: "Tue"
+calendar.weekday.wed: "Wed"
+calendar.weekday.thu: "Thu"
+calendar.weekday.fri: "Fri"
+calendar.weekday.sat: "Sat"
+
+# Calendar months (short)
+calendar.month.jan: "Jan"
+calendar.month.feb: "Feb"
+calendar.month.mar: "Mar"
+calendar.month.apr: "Apr"
+calendar.month.may: "May"
+calendar.month.jun: "Jun"
+calendar.month.jul: "Jul"
+calendar.month.aug: "Aug"
+calendar.month.sep: "Sep"
+calendar.month.oct: "Oct"
+calendar.month.nov: "Nov"
+calendar.month.dec: "Dec"
+
+# Calendar time
+calendar.time.am: "AM"
+calendar.time.pm: "PM"
+calendar.all_day: "All day"
+
+# Calendar navigation
+calendar.nav.day: "day"
+calendar.nav.week: "week"
+calendar.nav.event: "event"
+calendar.nav.month: "month"
+calendar.nav.year: "year"
+calendar.mode.month: "MONTH MODE"
+calendar.mode.year: "YEAR MODE"
+calendar.exit_mode: "exit mode"
+
+# Calendar actions
+calendar.action.view: "view"
+calendar.action.new: "new"
+calendar.create: "create"
+calendar.cycle: "cycle"
+calendar.next: "next"
+calendar.next_step: "next step"
+
+# Calendar form fields
+calendar.field.title: "Title:"
+calendar.field.date: "Date:"
+calendar.field.time: "Time:"
+calendar.field.start: "Start:"
+calendar.field.end: "End:"
+calendar.field.location: "Location:"
+calendar.field.notes: "Notes:"
+calendar.field.calendar: "Calendar:"
+calendar.field.reminder: "Reminder:"
+calendar.picker_hint: "(↑↓ scroll, ←→ switch)"
+
+# Calendar event forms
+calendar.new_event: "New Event"
+calendar.edit_event: "Edit Event"
+calendar.event: "Event"
+calendar.what_event: "What's the event?"
+calendar.when_event: "When is it?"
+calendar.step: "Step {{.Current}} of {{.Total}}"
+calendar.select_calendar: "Select Calendar"
+calendar.select_hint: "↑/k up • ↓/j down • enter select • esc cancel"
+calendar.default: "Default"
+
+# Calendar NLP
+calendar.quick_add: "Quick Add Event"
+calendar.parsing: "Parsing..."
+calendar.parsing_input: "Using AI to parse: \"{{.Input}}\""
+calendar.edit_parsed: "Edit Parsed Event"
+calendar.parsed_event: "Parsed Event"
+calendar.confirm_event: "Confirm Event"
+
+# Calendar reminders
+calendar.reminder: "Reminder"
+calendar.reminder.none: "No reminder"
+calendar.reminder.5min: "5 minutes before"
+calendar.reminder.10min: "10 minutes before"
+calendar.reminder.15min: "15 minutes before"
+calendar.reminder.30min: "30 minutes before"
+calendar.reminder.1hour: "1 hour before"
+calendar.reminder.minutes: "{{.Minutes}} minutes before"
+
+# Calendar delete
+calendar.delete_event: "Delete Event?"
+calendar.delete_confirm: "Are you sure you want to delete \"{{.Title}}\"?"
+
 # ============================================
 # Today view
 # ============================================
 today.title: "Today"
 today.emails: "Emails"
 today.events: "Events"
+today.loading: "Loading today's dashboard..."
+today.emails_today: "Today's Emails"
+today.no_emails: "No emails today"
+today.no_events: "No events today"
+today.no_subject: "(no subject)"
+today.no_content: "(no content)"
+today.switch: "switch"
+today.scroll: "scroll"
+
+# Today email headers
+today.from: "From: "
+today.to: "To: "
+today.subject: "Subject: "
+today.date: "Date: "
+
+# Today delete confirmation
+today.delete_confirm: "Delete?"
+today.delete_email: "Delete email: \"{{.Subject}}\"?"
+today.delete_event: "Delete event: \"{{.Title}}\"?"
 
 # ============================================
 # CLI messages

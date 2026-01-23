@@ -290,26 +290,136 @@ attachment.no_attachments: "Geen bijlagen"
 attachment.total: "Bijlagen ({{.Count}}, {{.Size}}):"
 
 # ============================================
-# Agenda
+# Kalender
 # ============================================
-calendar.title: "Agenda"
-calendar.today: "Vandaag"
-calendar.no_events: "Geen gebeurtenissen"
+calendar.title: "Kalender"
+calendar.today: "vandaag"
+calendar.no_events: "Geen evenementen"
 
 calendar.event_count:
-  one: "{{.Count}} gebeurtenis"
-  other: "{{.Count}} gebeurtenissen"
+  one: "{{.Count}} evenement"
+  other: "{{.Count}} evenementen"
 
-calendar.not_available: "Agenda niet beschikbaar"
-calendar.adding: "Toevoegen aan agenda..."
-calendar.extracting: "Gebeurtenis extraheren..."
+calendar.not_available: "Kalender niet beschikbaar"
+calendar.adding: "Toevoegen aan kalender..."
+calendar.extracting: "Evenement extraheren..."
+
+# Weekdagen (kort)
+calendar.weekday.sun: "Zo"
+calendar.weekday.mon: "Ma"
+calendar.weekday.tue: "Di"
+calendar.weekday.wed: "Wo"
+calendar.weekday.thu: "Do"
+calendar.weekday.fri: "Vr"
+calendar.weekday.sat: "Za"
+
+# Maanden (kort)
+calendar.month.jan: "Jan"
+calendar.month.feb: "Feb"
+calendar.month.mar: "Mrt"
+calendar.month.apr: "Apr"
+calendar.month.may: "Mei"
+calendar.month.jun: "Jun"
+calendar.month.jul: "Jul"
+calendar.month.aug: "Aug"
+calendar.month.sep: "Sep"
+calendar.month.oct: "Okt"
+calendar.month.nov: "Nov"
+calendar.month.dec: "Dec"
+
+# Tijd
+calendar.time.am: "AM"
+calendar.time.pm: "PM"
+calendar.all_day: "Hele dag"
+
+# Kalender navigatie
+calendar.nav.day: "dag"
+calendar.nav.week: "week"
+calendar.nav.event: "evenement"
+calendar.nav.month: "maand"
+calendar.nav.year: "jaar"
+calendar.mode.month: "MAANDMODUS"
+calendar.mode.year: "JAARMODUS"
+calendar.exit_mode: "modus verlaten"
+
+# Kalender acties
+calendar.action.view: "bekijken"
+calendar.action.new: "nieuw"
+calendar.create: "aanmaken"
+calendar.cycle: "wissel"
+calendar.next: "volgende"
+calendar.next_step: "volgende stap"
+
+# Kalender formuliervelden
+calendar.field.title: "Titel:"
+calendar.field.date: "Datum:"
+calendar.field.time: "Tijd:"
+calendar.field.start: "Start:"
+calendar.field.end: "Einde:"
+calendar.field.location: "Locatie:"
+calendar.field.notes: "Notities:"
+calendar.field.calendar: "Kalender:"
+calendar.field.reminder: "Herinnering:"
+calendar.picker_hint: "(↑↓ scrollen, ←→ wisselen)"
+
+# Kalender evenementformulieren
+calendar.new_event: "Nieuw Evenement"
+calendar.edit_event: "Evenement Bewerken"
+calendar.event: "Evenement"
+calendar.what_event: "Wat is het evenement?"
+calendar.when_event: "Wanneer is het?"
+calendar.step: "Stap {{.Current}} van {{.Total}}"
+calendar.select_calendar: "Kalender Selecteren"
+calendar.select_hint: "↑/k omhoog • ↓/j omlaag • Enter selecteer • Esc annuleer"
+calendar.default: "Standaard"
+
+# Kalender NLP
+calendar.quick_add: "Snel Toevoegen"
+calendar.parsing: "Analyseren..."
+calendar.parsing_input: "AI-analyse: \"{{.Input}}\""
+calendar.edit_parsed: "Geanalyseerd Evenement Bewerken"
+calendar.parsed_event: "Geanalyseerd Evenement"
+calendar.confirm_event: "Evenement Bevestigen"
+
+# Kalender herinneringen
+calendar.reminder: "Herinnering"
+calendar.reminder.none: "Geen herinnering"
+calendar.reminder.5min: "5 minuten van tevoren"
+calendar.reminder.10min: "10 minuten van tevoren"
+calendar.reminder.15min: "15 minuten van tevoren"
+calendar.reminder.30min: "30 minuten van tevoren"
+calendar.reminder.1hour: "1 uur van tevoren"
+calendar.reminder.minutes: "{{.Minutes}} minuten van tevoren"
+
+# Kalender verwijderen
+calendar.delete_event: "Evenement Verwijderen?"
+calendar.delete_confirm: "Weet je zeker dat je \"{{.Title}}\" wilt verwijderen?"
 
 # ============================================
-# Vandaag-weergave
+# Vandaag Weergave
 # ============================================
 today.title: "Vandaag"
 today.emails: "E-mails"
-today.events: "Gebeurtenissen"
+today.events: "Evenementen"
+today.loading: "Vandaag dashboard laden..."
+today.emails_today: "E-mails van Vandaag"
+today.no_emails: "Geen e-mails vandaag"
+today.no_events: "Geen evenementen vandaag"
+today.no_subject: "(geen onderwerp)"
+today.no_content: "(geen inhoud)"
+today.switch: "wisselen"
+today.scroll: "scrollen"
+
+# Vandaag e-mail headers
+today.from: "Van: "
+today.to: "Aan: "
+today.subject: "Onderwerp: "
+today.date: "Datum: "
+
+# Vandaag verwijderbevestiging
+today.delete_confirm: "Verwijderen?"
+today.delete_email: "E-mail verwijderen: \"{{.Subject}}\"?"
+today.delete_event: "Evenement verwijderen: \"{{.Title}}\"?"
 
 # ============================================
 # CLI-berichten

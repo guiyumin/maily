@@ -293,8 +293,8 @@ attachment.total: "Anexos ({{.Count}}, {{.Size}}):"
 # Calendário
 # ============================================
 calendar.title: "Calendário"
-calendar.today: "Hoje"
-calendar.no_events: "Nenhum evento"
+calendar.today: "hoje"
+calendar.no_events: "Sem eventos"
 
 calendar.event_count:
   one: "{{.Count}} evento"
@@ -304,12 +304,122 @@ calendar.not_available: "Calendário não disponível"
 calendar.adding: "Adicionando ao calendário..."
 calendar.extracting: "Extraindo evento..."
 
+# Dias da semana (abreviado)
+calendar.weekday.sun: "Dom"
+calendar.weekday.mon: "Seg"
+calendar.weekday.tue: "Ter"
+calendar.weekday.wed: "Qua"
+calendar.weekday.thu: "Qui"
+calendar.weekday.fri: "Sex"
+calendar.weekday.sat: "Sáb"
+
+# Meses (abreviado)
+calendar.month.jan: "Jan"
+calendar.month.feb: "Fev"
+calendar.month.mar: "Mar"
+calendar.month.apr: "Abr"
+calendar.month.may: "Mai"
+calendar.month.jun: "Jun"
+calendar.month.jul: "Jul"
+calendar.month.aug: "Ago"
+calendar.month.sep: "Set"
+calendar.month.oct: "Out"
+calendar.month.nov: "Nov"
+calendar.month.dec: "Dez"
+
+# Tempo
+calendar.time.am: "AM"
+calendar.time.pm: "PM"
+calendar.all_day: "Dia inteiro"
+
+# Navegação do calendário
+calendar.nav.day: "dia"
+calendar.nav.week: "semana"
+calendar.nav.event: "evento"
+calendar.nav.month: "mês"
+calendar.nav.year: "ano"
+calendar.mode.month: "MODO MÊS"
+calendar.mode.year: "MODO ANO"
+calendar.exit_mode: "sair modo"
+
+# Ações do calendário
+calendar.action.view: "ver"
+calendar.action.new: "novo"
+calendar.create: "criar"
+calendar.cycle: "ciclo"
+calendar.next: "próximo"
+calendar.next_step: "próximo passo"
+
+# Campos do formulário
+calendar.field.title: "Título:"
+calendar.field.date: "Data:"
+calendar.field.time: "Hora:"
+calendar.field.start: "Início:"
+calendar.field.end: "Fim:"
+calendar.field.location: "Local:"
+calendar.field.notes: "Notas:"
+calendar.field.calendar: "Calendário:"
+calendar.field.reminder: "Lembrete:"
+calendar.picker_hint: "(↑↓ rolar, ←→ trocar)"
+
+# Formulários de evento
+calendar.new_event: "Novo Evento"
+calendar.edit_event: "Editar Evento"
+calendar.event: "Evento"
+calendar.what_event: "Qual é o evento?"
+calendar.when_event: "Quando é?"
+calendar.step: "Passo {{.Current}} de {{.Total}}"
+calendar.select_calendar: "Selecionar Calendário"
+calendar.select_hint: "↑/k cima • ↓/j baixo • Enter selecionar • Esc cancelar"
+calendar.default: "Padrão"
+
+# Calendário NLP
+calendar.quick_add: "Adicionar Rápido"
+calendar.parsing: "Analisando..."
+calendar.parsing_input: "Usando IA para analisar: \"{{.Input}}\""
+calendar.edit_parsed: "Editar Evento Analisado"
+calendar.parsed_event: "Evento Analisado"
+calendar.confirm_event: "Confirmar Evento"
+
+# Lembretes do calendário
+calendar.reminder: "Lembrete"
+calendar.reminder.none: "Sem lembrete"
+calendar.reminder.5min: "5 minutos antes"
+calendar.reminder.10min: "10 minutos antes"
+calendar.reminder.15min: "15 minutos antes"
+calendar.reminder.30min: "30 minutos antes"
+calendar.reminder.1hour: "1 hora antes"
+calendar.reminder.minutes: "{{.Minutes}} minutos antes"
+
+# Excluir calendário
+calendar.delete_event: "Excluir Evento?"
+calendar.delete_confirm: "Tem certeza que deseja excluir \"{{.Title}}\"?"
+
 # ============================================
 # Visualização Hoje
 # ============================================
 today.title: "Hoje"
 today.emails: "E-mails"
 today.events: "Eventos"
+today.loading: "Carregando painel de hoje..."
+today.emails_today: "E-mails de Hoje"
+today.no_emails: "Sem e-mails hoje"
+today.no_events: "Sem eventos hoje"
+today.no_subject: "(sem assunto)"
+today.no_content: "(sem conteúdo)"
+today.switch: "trocar"
+today.scroll: "rolar"
+
+# Cabeçalhos de e-mail
+today.from: "De: "
+today.to: "Para: "
+today.subject: "Assunto: "
+today.date: "Data: "
+
+# Confirmação de exclusão
+today.delete_confirm: "Excluir?"
+today.delete_email: "Excluir e-mail: \"{{.Subject}}\"?"
+today.delete_event: "Excluir evento: \"{{.Title}}\"?"
 
 # ============================================
 # Mensagens CLI

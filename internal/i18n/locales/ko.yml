@@ -294,16 +294,126 @@ calendar.no_events: "일정 없음"
 calendar.event_count:
   other: "{{.Count}}개 일정"
 
-calendar.not_available: "캘린더 사용 불가"
+calendar.not_available: "캘린더를 사용할 수 없습니다"
 calendar.adding: "캘린더에 추가 중..."
 calendar.extracting: "일정 추출 중..."
 
+# 요일 (축약)
+calendar.weekday.sun: "일"
+calendar.weekday.mon: "월"
+calendar.weekday.tue: "화"
+calendar.weekday.wed: "수"
+calendar.weekday.thu: "목"
+calendar.weekday.fri: "금"
+calendar.weekday.sat: "토"
+
+# 월 (축약)
+calendar.month.jan: "1월"
+calendar.month.feb: "2월"
+calendar.month.mar: "3월"
+calendar.month.apr: "4월"
+calendar.month.may: "5월"
+calendar.month.jun: "6월"
+calendar.month.jul: "7월"
+calendar.month.aug: "8월"
+calendar.month.sep: "9월"
+calendar.month.oct: "10월"
+calendar.month.nov: "11월"
+calendar.month.dec: "12월"
+
+# 시간
+calendar.time.am: "오전"
+calendar.time.pm: "오후"
+calendar.all_day: "종일"
+
+# 캘린더 탐색
+calendar.nav.day: "일"
+calendar.nav.week: "주"
+calendar.nav.event: "일정"
+calendar.nav.month: "월"
+calendar.nav.year: "년"
+calendar.mode.month: "월 모드"
+calendar.mode.year: "년 모드"
+calendar.exit_mode: "모드 종료"
+
+# 캘린더 작업
+calendar.action.view: "보기"
+calendar.action.new: "새로 만들기"
+calendar.create: "생성"
+calendar.cycle: "순환"
+calendar.next: "다음"
+calendar.next_step: "다음 단계"
+
+# 캘린더 폼 필드
+calendar.field.title: "제목:"
+calendar.field.date: "날짜:"
+calendar.field.time: "시간:"
+calendar.field.start: "시작:"
+calendar.field.end: "종료:"
+calendar.field.location: "장소:"
+calendar.field.notes: "메모:"
+calendar.field.calendar: "캘린더:"
+calendar.field.reminder: "알림:"
+calendar.picker_hint: "(↑↓ 스크롤, ←→ 전환)"
+
+# 캘린더 이벤트 폼
+calendar.new_event: "새 일정"
+calendar.edit_event: "일정 편집"
+calendar.event: "일정"
+calendar.what_event: "어떤 일정인가요?"
+calendar.when_event: "언제인가요?"
+calendar.step: "{{.Total}}단계 중 {{.Current}}단계"
+calendar.select_calendar: "캘린더 선택"
+calendar.select_hint: "↑/k 위 • ↓/j 아래 • Enter 선택 • Esc 취소"
+calendar.default: "기본값"
+
+# 캘린더 NLP
+calendar.quick_add: "빠른 추가"
+calendar.parsing: "분석 중..."
+calendar.parsing_input: "AI로 분석 중: \"{{.Input}}\""
+calendar.edit_parsed: "분석 결과 편집"
+calendar.parsed_event: "분석된 일정"
+calendar.confirm_event: "일정 확인"
+
+# 캘린더 알림
+calendar.reminder: "알림"
+calendar.reminder.none: "알림 없음"
+calendar.reminder.5min: "5분 전"
+calendar.reminder.10min: "10분 전"
+calendar.reminder.15min: "15분 전"
+calendar.reminder.30min: "30분 전"
+calendar.reminder.1hour: "1시간 전"
+calendar.reminder.minutes: "{{.Minutes}}분 전"
+
+# 캘린더 삭제
+calendar.delete_event: "일정 삭제?"
+calendar.delete_confirm: "\"{{.Title}}\"을(를) 삭제하시겠습니까?"
+
 # ============================================
-# 오늘 뷰
+# 오늘 보기
 # ============================================
 today.title: "오늘"
 today.emails: "이메일"
 today.events: "일정"
+today.loading: "오늘의 대시보드 로딩 중..."
+today.emails_today: "오늘의 이메일"
+today.no_emails: "오늘 이메일 없음"
+today.no_events: "오늘 일정 없음"
+today.no_subject: "(제목 없음)"
+today.no_content: "(내용 없음)"
+today.switch: "전환"
+today.scroll: "스크롤"
+
+# 오늘 이메일 헤더
+today.from: "보낸 사람: "
+today.to: "받는 사람: "
+today.subject: "제목: "
+today.date: "날짜: "
+
+# 오늘 삭제 확인
+today.delete_confirm: "삭제?"
+today.delete_email: "이메일 삭제: \"{{.Subject}}\"?"
+today.delete_event: "일정 삭제: \"{{.Title}}\"?"
 
 # ============================================
 # CLI 메시지

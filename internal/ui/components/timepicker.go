@@ -6,6 +6,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"maily/internal/i18n"
 )
 
 // TimePickerField represents which field is currently focused
@@ -92,9 +93,9 @@ func (t TimePicker) Value24() string {
 
 // Value12 returns the time in 12-hour format (e.g., "3:04 PM")
 func (t TimePicker) Value12() string {
-	period := "AM"
+	period := i18n.T("calendar.time.am")
 	if t.isPM {
-		period = "PM"
+		period = i18n.T("calendar.time.pm")
 	}
 	return fmt.Sprintf("%d:%02d %s", t.hour, t.minute, period)
 }
@@ -178,9 +179,9 @@ func (t TimePicker) View() string {
 	// Format parts
 	hourStr := fmt.Sprintf("%2d", t.hour)
 	minuteStr := fmt.Sprintf("%02d", t.minute)
-	period := "AM"
+	period := i18n.T("calendar.time.am")
 	if t.isPM {
-		period = "PM"
+		period = i18n.T("calendar.time.pm")
 	}
 
 	var hourView, minuteView, periodView string
@@ -216,9 +217,9 @@ func (t TimePicker) View() string {
 
 // ViewCompact renders a compact view (just the time, no interactive hints)
 func (t TimePicker) ViewCompact() string {
-	period := "AM"
+	period := i18n.T("calendar.time.am")
 	if t.isPM {
-		period = "PM"
+		period = i18n.T("calendar.time.pm")
 	}
 	return fmt.Sprintf("%d:%02d %s", t.hour, t.minute, period)
 }

@@ -298,12 +298,122 @@ calendar.not_available: "日历不可用"
 calendar.adding: "正在添加到日历..."
 calendar.extracting: "正在提取事件..."
 
+# 星期（简写）
+calendar.weekday.sun: "日"
+calendar.weekday.mon: "一"
+calendar.weekday.tue: "二"
+calendar.weekday.wed: "三"
+calendar.weekday.thu: "四"
+calendar.weekday.fri: "五"
+calendar.weekday.sat: "六"
+
+# 月份（简写）
+calendar.month.jan: "1月"
+calendar.month.feb: "2月"
+calendar.month.mar: "3月"
+calendar.month.apr: "4月"
+calendar.month.may: "5月"
+calendar.month.jun: "6月"
+calendar.month.jul: "7月"
+calendar.month.aug: "8月"
+calendar.month.sep: "9月"
+calendar.month.oct: "10月"
+calendar.month.nov: "11月"
+calendar.month.dec: "12月"
+
+# 时间
+calendar.time.am: "上午"
+calendar.time.pm: "下午"
+calendar.all_day: "全天"
+
+# 日历导航
+calendar.nav.day: "日"
+calendar.nav.week: "周"
+calendar.nav.event: "事件"
+calendar.nav.month: "月"
+calendar.nav.year: "年"
+calendar.mode.month: "月份模式"
+calendar.mode.year: "年份模式"
+calendar.exit_mode: "退出模式"
+
+# 日历操作
+calendar.action.view: "查看"
+calendar.action.new: "新建"
+calendar.create: "创建"
+calendar.cycle: "循环"
+calendar.next: "下一步"
+calendar.next_step: "下一步"
+
+# 日历表单字段
+calendar.field.title: "标题:"
+calendar.field.date: "日期:"
+calendar.field.time: "时间:"
+calendar.field.start: "开始:"
+calendar.field.end: "结束:"
+calendar.field.location: "地点:"
+calendar.field.notes: "备注:"
+calendar.field.calendar: "日历:"
+calendar.field.reminder: "提醒:"
+calendar.picker_hint: "(↑↓ 滚动, ←→ 切换)"
+
+# 日历事件表单
+calendar.new_event: "新建事件"
+calendar.edit_event: "编辑事件"
+calendar.event: "事件"
+calendar.what_event: "什么事件？"
+calendar.when_event: "什么时间？"
+calendar.step: "第{{.Current}}步，共{{.Total}}步"
+calendar.select_calendar: "选择日历"
+calendar.select_hint: "↑/k 上 • ↓/j 下 • Enter 选择 • Esc 取消"
+calendar.default: "默认"
+
+# 日历NLP
+calendar.quick_add: "快速添加事件"
+calendar.parsing: "解析中..."
+calendar.parsing_input: "正在使用AI解析: \"{{.Input}}\""
+calendar.edit_parsed: "编辑解析的事件"
+calendar.parsed_event: "解析的事件"
+calendar.confirm_event: "确认事件"
+
+# 日历提醒
+calendar.reminder: "提醒"
+calendar.reminder.none: "无提醒"
+calendar.reminder.5min: "5分钟前"
+calendar.reminder.10min: "10分钟前"
+calendar.reminder.15min: "15分钟前"
+calendar.reminder.30min: "30分钟前"
+calendar.reminder.1hour: "1小时前"
+calendar.reminder.minutes: "{{.Minutes}}分钟前"
+
+# 日历删除
+calendar.delete_event: "删除事件？"
+calendar.delete_confirm: "确定要删除\"{{.Title}}\"吗？"
+
 # ============================================
 # 今日视图
 # ============================================
 today.title: "今天"
 today.emails: "邮件"
 today.events: "事件"
+today.loading: "正在加载今日概览..."
+today.emails_today: "今日邮件"
+today.no_emails: "今天没有邮件"
+today.no_events: "今天没有事件"
+today.no_subject: "(无主题)"
+today.no_content: "(无内容)"
+today.switch: "切换"
+today.scroll: "滚动"
+
+# 今日邮件标题
+today.from: "发件人: "
+today.to: "收件人: "
+today.subject: "主题: "
+today.date: "日期: "
+
+# 今日删除确认
+today.delete_confirm: "删除？"
+today.delete_email: "删除邮件: \"{{.Subject}}\"？"
+today.delete_event: "删除事件: \"{{.Title}}\"？"
 
 # ============================================
 # CLI 消息

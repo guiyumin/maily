@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
+	"maily/internal/i18n"
 	"maily/internal/ui/components"
 )
 
@@ -28,18 +29,18 @@ func (m *CalendarApp) renderForm(title string) string {
 
 	// Title field
 	if m.formFocusIdx == 0 {
-		content.WriteString(focusedLabelStyle.Render("Title"))
+		content.WriteString(focusedLabelStyle.Render(i18n.T("calendar.field.title")))
 	} else {
-		content.WriteString(labelStyle.Render("Title"))
+		content.WriteString(labelStyle.Render(i18n.T("calendar.field.title")))
 	}
 	content.WriteString(m.form.title.View())
 	content.WriteString("\n")
 
 	// Date field
 	if m.formFocusIdx == 1 {
-		content.WriteString(focusedLabelStyle.Render("Date"))
+		content.WriteString(focusedLabelStyle.Render(i18n.T("calendar.field.date")))
 	} else {
-		content.WriteString(labelStyle.Render("Date"))
+		content.WriteString(labelStyle.Render(i18n.T("calendar.field.date")))
 	}
 	content.WriteString(m.form.date.View())
 	if m.formFocusIdx == 1 {
@@ -49,9 +50,9 @@ func (m *CalendarApp) renderForm(title string) string {
 
 	// Start time
 	if m.formFocusIdx == 2 {
-		content.WriteString(focusedLabelStyle.Render("Start"))
+		content.WriteString(focusedLabelStyle.Render(i18n.T("calendar.field.start")))
 	} else {
-		content.WriteString(labelStyle.Render("Start"))
+		content.WriteString(labelStyle.Render(i18n.T("calendar.field.start")))
 	}
 	content.WriteString(m.form.start.View())
 	if m.formFocusIdx == 2 {
@@ -61,9 +62,9 @@ func (m *CalendarApp) renderForm(title string) string {
 
 	// End time
 	if m.formFocusIdx == 3 {
-		content.WriteString(focusedLabelStyle.Render("End"))
+		content.WriteString(focusedLabelStyle.Render(i18n.T("calendar.field.end")))
 	} else {
-		content.WriteString(labelStyle.Render("End"))
+		content.WriteString(labelStyle.Render(i18n.T("calendar.field.end")))
 	}
 	content.WriteString(m.form.end.View())
 	if m.formFocusIdx == 3 {
@@ -73,30 +74,30 @@ func (m *CalendarApp) renderForm(title string) string {
 
 	// Location
 	if m.formFocusIdx == 4 {
-		content.WriteString(focusedLabelStyle.Render("Location"))
+		content.WriteString(focusedLabelStyle.Render(i18n.T("calendar.field.location")))
 	} else {
-		content.WriteString(labelStyle.Render("Location"))
+		content.WriteString(labelStyle.Render(i18n.T("calendar.field.location")))
 	}
 	content.WriteString(m.form.location.View())
 	content.WriteString("\n")
 
 	// Notes
 	if m.formFocusIdx == 5 {
-		content.WriteString(focusedLabelStyle.Render("Notes"))
+		content.WriteString(focusedLabelStyle.Render(i18n.T("calendar.field.notes")))
 	} else {
-		content.WriteString(labelStyle.Render("Notes"))
+		content.WriteString(labelStyle.Render(i18n.T("calendar.field.notes")))
 	}
 	content.WriteString(m.form.notes.View())
 	content.WriteString("\n")
 
 	// Calendar selector
 	if m.formFocusIdx == 6 {
-		content.WriteString(focusedLabelStyle.Render("Calendar"))
+		content.WriteString(focusedLabelStyle.Render(i18n.T("calendar.field.calendar")))
 	} else {
-		content.WriteString(labelStyle.Render("Calendar"))
+		content.WriteString(labelStyle.Render(i18n.T("calendar.field.calendar")))
 	}
 
-	calName := "Default"
+	calName := i18n.T("calendar.default")
 	if len(m.calendars) > 0 && m.form.calendar < len(m.calendars) {
 		calName = m.calendars[m.form.calendar].Title
 	}
@@ -110,7 +111,7 @@ func (m *CalendarApp) renderForm(title string) string {
 	if m.err != nil {
 		errStyle := lipgloss.NewStyle().Foreground(components.Danger)
 		content.WriteString("\n\n")
-		content.WriteString(errStyle.Render(fmt.Sprintf("Error: %v", m.err)))
+		content.WriteString(errStyle.Render(fmt.Sprintf("%s: %v", i18n.T("common.error"), m.err)))
 	}
 
 	// Create bordered box
@@ -136,14 +137,14 @@ func (m *CalendarApp) renderForm(title string) string {
 
 	var saveBtn, cancelBtn string
 	if m.formFocusIdx == 7 {
-		saveBtn = selectedBtn.BorderForeground(components.Primary).Background(components.Primary).Foreground(lipgloss.Color("#FFFFFF")).Render("Save")
+		saveBtn = selectedBtn.BorderForeground(components.Primary).Background(components.Primary).Foreground(lipgloss.Color("#FFFFFF")).Render(i18n.T("common.save"))
 	} else {
-		saveBtn = unselectedBtn.Render("Save")
+		saveBtn = unselectedBtn.Render(i18n.T("common.save"))
 	}
 	if m.formFocusIdx == 8 {
-		cancelBtn = selectedBtn.BorderForeground(components.Muted).Background(components.Muted).Foreground(lipgloss.Color("#FFFFFF")).Render("Cancel")
+		cancelBtn = selectedBtn.BorderForeground(components.Muted).Background(components.Muted).Foreground(lipgloss.Color("#FFFFFF")).Render(i18n.T("common.cancel"))
 	} else {
-		cancelBtn = unselectedBtn.Render("Cancel")
+		cancelBtn = unselectedBtn.Render(i18n.T("common.cancel"))
 	}
 
 	b.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, saveBtn, "  ", cancelBtn))
@@ -151,7 +152,7 @@ func (m *CalendarApp) renderForm(title string) string {
 
 	// Help hint
 	helpStyle := lipgloss.NewStyle().Foreground(components.Muted)
-	b.WriteString(helpStyle.Render("Tab: cycle • Enter: select • Ctrl+S: save • Esc: cancel"))
+	b.WriteString(helpStyle.Render(fmt.Sprintf("Tab: %s • Enter: %s • Ctrl+S: %s • Esc: %s", i18n.T("calendar.cycle"), i18n.T("help.select"), i18n.T("common.save"), i18n.T("help.cancel"))))
 
 	// Wrap with padding
 	formStyle := lipgloss.NewStyle().Padding(1, 2)
@@ -171,10 +172,10 @@ func (m *CalendarApp) renderDeleteConfirm() string {
 		Bold(true).
 		Foreground(components.Danger)
 
-	b.WriteString(titleStyle.Render("Delete Event?"))
+	b.WriteString(titleStyle.Render(i18n.T("calendar.delete_event")))
 	b.WriteString("\n\n")
 
-	b.WriteString(fmt.Sprintf("Are you sure you want to delete \"%s\"?\n\n", eventTitle))
+	fmt.Fprintf(&b, "%s\n\n", i18n.T("calendar.delete_confirm", map[string]any{"Title": eventTitle}))
 
 	// Button styles
 	selectedBtn := lipgloss.NewStyle().
@@ -189,18 +190,17 @@ func (m *CalendarApp) renderDeleteConfirm() string {
 	// Render buttons
 	var deleteBtn, cancelBtn string
 	if m.deleteButtonIdx == 0 {
-		deleteBtn = selectedBtn.Render("Delete")
-		cancelBtn = unselectedBtn.Render("Cancel")
+		deleteBtn = selectedBtn.Render(i18n.T("common.delete"))
+		cancelBtn = unselectedBtn.Render(i18n.T("common.cancel"))
 	} else {
-		deleteBtn = unselectedBtn.Render("Delete")
-		cancelBtn = selectedBtn.Background(components.Muted).Foreground(lipgloss.Color("#FFFFFF")).Render("Cancel")
+		deleteBtn = unselectedBtn.Render(i18n.T("common.delete"))
+		cancelBtn = selectedBtn.Background(components.Muted).Foreground(lipgloss.Color("#FFFFFF")).Render(i18n.T("common.cancel"))
 	}
 
-	b.WriteString(deleteBtn + "  " + cancelBtn)
-	b.WriteString("\n\n")
+	fmt.Fprintf(&b, "%s  %s\n\n", deleteBtn, cancelBtn)
 
 	hintStyle := lipgloss.NewStyle().Foreground(components.Muted)
-	b.WriteString(hintStyle.Render("←/→ select • enter confirm • esc cancel"))
+	b.WriteString(hintStyle.Render(fmt.Sprintf("←/→ %s • enter %s • esc %s", i18n.T("help.select"), i18n.T("help.confirm"), i18n.T("help.cancel"))))
 
 	// Wrap with padding
 	dialogStyle := lipgloss.NewStyle().Padding(1, 2)
@@ -226,36 +226,36 @@ func (m *CalendarApp) renderEventDetail() string {
 		Foreground(components.Text)
 
 	// Title
-	content.WriteString(labelStyle.Render("Title"))
+	content.WriteString(labelStyle.Render(i18n.T("calendar.field.title")))
 	content.WriteString(valueStyle.Bold(true).Render(event.Title))
 	content.WriteString("\n")
 
 	// Date
-	content.WriteString(labelStyle.Render("Date"))
+	content.WriteString(labelStyle.Render(i18n.T("calendar.field.date")))
 	content.WriteString(valueStyle.Render(event.StartTime.Format("Monday, January 2, 2006")))
 	content.WriteString("\n")
 
 	// Time
 	var timeStr string
 	if event.AllDay {
-		timeStr = "All day"
+		timeStr = i18n.T("calendar.all_day")
 	} else {
 		timeStr = fmt.Sprintf("%s - %s", event.StartTime.Format("3:04 PM"), event.EndTime.Format("3:04 PM"))
 	}
-	content.WriteString(labelStyle.Render("Time"))
+	content.WriteString(labelStyle.Render(i18n.T("calendar.field.time")))
 	content.WriteString(valueStyle.Render(timeStr))
 	content.WriteString("\n")
 
 	// Location (if present)
 	if event.Location != "" {
-		content.WriteString(labelStyle.Render("Location"))
+		content.WriteString(labelStyle.Render(i18n.T("calendar.field.location")))
 		content.WriteString(valueStyle.Render(event.Location))
 		content.WriteString("\n")
 	}
 
 	// Calendar
 	if event.Calendar != "" {
-		content.WriteString(labelStyle.Render("Calendar"))
+		content.WriteString(labelStyle.Render(i18n.T("calendar.field.calendar")))
 		content.WriteString(valueStyle.Foreground(components.Secondary).Render(event.Calendar))
 		content.WriteString("\n")
 	}
@@ -263,7 +263,7 @@ func (m *CalendarApp) renderEventDetail() string {
 	// Notes (if present)
 	if event.Notes != "" {
 		content.WriteString("\n")
-		content.WriteString(labelStyle.Render("Notes"))
+		content.WriteString(labelStyle.Render(i18n.T("calendar.field.notes")))
 		content.WriteString(valueStyle.Render(event.Notes))
 	}
 
@@ -287,27 +287,26 @@ func (m *CalendarApp) renderEventDetail() string {
 
 	var editBtn, deleteBtn, closeBtn string
 	if m.detailButtonIdx == 0 {
-		editBtn = selectedBtn.Background(components.Primary).Foreground(lipgloss.Color("#FFFFFF")).Render("Edit")
+		editBtn = selectedBtn.Background(components.Primary).Foreground(lipgloss.Color("#FFFFFF")).Render(i18n.T("common.edit"))
 	} else {
-		editBtn = unselectedBtn.Render("Edit")
+		editBtn = unselectedBtn.Render(i18n.T("common.edit"))
 	}
 	if m.detailButtonIdx == 1 {
-		deleteBtn = selectedBtn.Background(components.Danger).Foreground(lipgloss.Color("#FFFFFF")).Render("Delete")
+		deleteBtn = selectedBtn.Background(components.Danger).Foreground(lipgloss.Color("#FFFFFF")).Render(i18n.T("common.delete"))
 	} else {
-		deleteBtn = unselectedBtn.Render("Delete")
+		deleteBtn = unselectedBtn.Render(i18n.T("common.delete"))
 	}
 	if m.detailButtonIdx == 2 {
-		closeBtn = selectedBtn.Background(components.Muted).Foreground(lipgloss.Color("#FFFFFF")).Render("Close")
+		closeBtn = selectedBtn.Background(components.Muted).Foreground(lipgloss.Color("#FFFFFF")).Render(i18n.T("common.close"))
 	} else {
-		closeBtn = unselectedBtn.Render("Close")
+		closeBtn = unselectedBtn.Render(i18n.T("common.close"))
 	}
 
-	b.WriteString(editBtn + "  " + deleteBtn + "  " + closeBtn)
-	b.WriteString("\n\n")
+	fmt.Fprintf(&b, "%s  %s  %s\n\n", editBtn, deleteBtn, closeBtn)
 
 	// Help hint
 	hintStyle := lipgloss.NewStyle().Foreground(components.Muted)
-	b.WriteString(hintStyle.Render("←/→ select • enter confirm • esc close"))
+	b.WriteString(hintStyle.Render(fmt.Sprintf("←/→ %s • enter %s • esc %s", i18n.T("help.select"), i18n.T("help.confirm"), i18n.T("help.close"))))
 
 	// Wrap with padding
 	detailStyle := lipgloss.NewStyle().Padding(1, 2)

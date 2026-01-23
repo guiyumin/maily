@@ -134,29 +134,29 @@ func (m *ConfigTUI) buildRows() {
 	}
 
 	m.rows = []row{
-		{kind: rowSection, label: "General"},
-		{kind: rowField, key: "max_emails", label: "Max Emails", value: fmt.Sprintf("%d", m.cfg.MaxEmails), providerIdx: -1},
-		{kind: rowField, key: "default_label", label: "Default Label", value: m.cfg.DefaultLabel, providerIdx: -1},
-		{kind: rowField, key: "theme", label: "Theme", value: m.cfg.Theme, providerIdx: -1},
-		{kind: rowAction, key: "language", label: "Language", value: langDisplay, providerIdx: -1},
+		{kind: rowSection, label: i18n.T("config.section.general")},
+		{kind: rowField, key: "max_emails", label: i18n.T("config.max_emails"), value: fmt.Sprintf("%d", m.cfg.MaxEmails), providerIdx: -1},
+		{kind: rowField, key: "default_label", label: i18n.T("config.default_label"), value: m.cfg.DefaultLabel, providerIdx: -1},
+		{kind: rowField, key: "theme", label: i18n.T("config.theme"), value: m.cfg.Theme, providerIdx: -1},
+		{kind: rowAction, key: "language", label: i18n.T("config.language"), value: langDisplay, providerIdx: -1},
 	}
 
 	// AI Providers
 	if len(m.cfg.AIProviders) > 0 {
-		m.rows = append(m.rows, row{kind: rowSection, label: "AI Providers"})
+		m.rows = append(m.rows, row{kind: rowSection, label: i18n.T("config.section.ai_providers")})
 		for i, p := range m.cfg.AIProviders {
 			label := fmt.Sprintf("%s/%s", p.Name, p.Model)
 			if p.Name == "" {
-				label = "(not configured)"
+				label = i18n.T("config.no_providers")
 			}
 			m.rows = append(m.rows, row{kind: rowAction, key: "edit_provider", label: label, value: string(p.Type), providerIdx: i})
 		}
 	}
 
 	// Actions
-	m.rows = append(m.rows, row{kind: rowSection, label: "Actions"})
-	m.rows = append(m.rows, row{kind: rowAction, key: "add_cli", label: "Add CLI Provider (claude, codex, gemini...)"})
-	m.rows = append(m.rows, row{kind: rowAction, key: "add_api", label: "Add API Provider (OpenAI, etc.)"})
+	m.rows = append(m.rows, row{kind: rowSection, label: i18n.T("config.section.actions")})
+	m.rows = append(m.rows, row{kind: rowAction, key: "add_cli", label: i18n.T("config.add_cli_provider")})
+	m.rows = append(m.rows, row{kind: rowAction, key: "add_api", label: i18n.T("config.add_api_provider")})
 }
 
 func (m ConfigTUI) Init() tea.Cmd {
@@ -607,7 +607,7 @@ func (m ConfigTUI) View() string {
 	pad := "   "
 
 	// Title
-	title := cfgTitleStyle.Render("Maily Configuration")
+	title := cfgTitleStyle.Render(i18n.T("config.title"))
 	if m.dirty {
 		title += cfgErrorStyle.Render(" *")
 	}
@@ -615,7 +615,7 @@ func (m ConfigTUI) View() string {
 
 	// Error
 	if m.err != nil {
-		b.WriteString(pad + cfgErrorStyle.Render("Error: "+m.err.Error()) + "\n\n")
+		b.WriteString(pad + cfgErrorStyle.Render(i18n.T("common.error")+": "+m.err.Error()) + "\n\n")
 	}
 
 	// Rows
@@ -672,18 +672,18 @@ func (m ConfigTUI) View() string {
 	}
 
 	// Footer
-	b.WriteString("\n" + pad + cfgHintStyle.Render("↑↓ navigate · Enter edit · s save · q quit") + "\n")
+	b.WriteString("\n" + pad + cfgHintStyle.Render(i18n.T("config.hint")) + "\n")
 
 	// Provider dialog overlay
 	if m.showProviderDialog {
 		var dialogContent strings.Builder
 
-		title := "Add CLI Provider"
+		title := i18n.T("config.add_cli_provider")
 		if m.providerType == config.AIProviderTypeAPI {
-			title = "Add API Provider"
+			title = i18n.T("config.add_api_provider")
 		}
 		if m.editingProviderIdx >= 0 {
-			title = "Edit Provider"
+			title = i18n.T("config.edit_provider")
 		}
 		dialogContent.WriteString(cfgSectionStyle.Render(title) + "\n\n")
 
@@ -702,9 +702,9 @@ func (m ConfigTUI) View() string {
 			}
 		}
 
-		hints := "Tab next · Enter save · Esc cancel"
+		hints := "Tab " + i18n.T("help.next_field") + " · Enter " + i18n.T("common.save") + " · Esc " + i18n.T("help.cancel")
 		if m.editingProviderIdx >= 0 {
-			hints = "Tab next · Enter save · d delete · Esc cancel"
+			hints = "Tab " + i18n.T("help.next_field") + " · Enter " + i18n.T("common.save") + " · d " + i18n.T("config.delete_provider") + " · Esc " + i18n.T("help.cancel")
 		}
 		dialogContent.WriteString("\n" + cfgHintStyle.Render(hints))
 
@@ -716,9 +716,9 @@ func (m ConfigTUI) View() string {
 	if m.editing {
 		r := m.rows[m.cursor]
 		dialog := cfgDialogStyle.Render(
-			cfgSectionStyle.Render("Edit: "+r.label) + "\n\n" +
+			cfgSectionStyle.Render(i18n.T("common.edit")+": "+r.label) + "\n\n" +
 				m.input.View() + "\n\n" +
-				cfgHintStyle.Render("Enter save · Esc cancel"),
+				cfgHintStyle.Render("Enter "+i18n.T("common.save")+" · Esc "+i18n.T("help.cancel")),
 		)
 		return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, dialog)
 	}
@@ -728,25 +728,25 @@ func (m ConfigTUI) View() string {
 		var saveBtn, discardBtn, cancelBtn string
 
 		if m.quitOption == quitOptionSave {
-			saveBtn = cfgButtonSelectedStyle.Render(" S  Save & Quit ")
+			saveBtn = cfgButtonSelectedStyle.Render(" S  " + i18n.T("config.save_quit") + " ")
 		} else {
-			saveBtn = cfgButtonStyle.Render(" S  Save & Quit ")
+			saveBtn = cfgButtonStyle.Render(" S  " + i18n.T("config.save_quit") + " ")
 		}
 		if m.quitOption == quitOptionDiscard {
-			discardBtn = lipgloss.NewStyle().Foreground(cfgWhite).Background(cfgRed).Padding(0, 1).Render(" D  Discard ")
+			discardBtn = lipgloss.NewStyle().Foreground(cfgWhite).Background(cfgRed).Padding(0, 1).Render(" D  " + i18n.T("common.discard") + " ")
 		} else {
-			discardBtn = cfgButtonStyle.Render(" D  Discard ")
+			discardBtn = cfgButtonStyle.Render(" D  " + i18n.T("common.discard") + " ")
 		}
 		if m.quitOption == quitOptionCancel {
-			cancelBtn = cfgButtonSelectedStyle.Render(" C  Cancel ")
+			cancelBtn = cfgButtonSelectedStyle.Render(" C  " + i18n.T("common.cancel") + " ")
 		} else {
-			cancelBtn = cfgButtonStyle.Render(" C  Cancel ")
+			cancelBtn = cfgButtonStyle.Render(" C  " + i18n.T("common.cancel") + " ")
 		}
 
 		dialog := cfgDialogStyle.BorderForeground(cfgRed).Render(
-			cfgErrorStyle.Render("Unsaved Changes") + "\n\n" +
+			cfgErrorStyle.Render(i18n.T("config.unsaved_changes")) + "\n\n" +
 				saveBtn + "  " + discardBtn + "  " + cancelBtn + "\n\n" +
-				cfgHintStyle.Render("← → select · Enter confirm"),
+				cfgHintStyle.Render("← → "+i18n.T("help.select")+" · Enter "+i18n.T("help.confirm")),
 		)
 		return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, dialog)
 	}
@@ -754,10 +754,10 @@ func (m ConfigTUI) View() string {
 	// Language picker dialog
 	if m.showLanguagePicker {
 		var dialogContent strings.Builder
-		dialogContent.WriteString(cfgSectionStyle.Render("Select Language") + "\n\n")
+		dialogContent.WriteString(cfgSectionStyle.Render(i18n.T("config.select_language")) + "\n\n")
 
 		// Auto option
-		autoLabel := "Auto (detect from system)"
+		autoLabel := "Auto"
 		if m.languageCursor == 0 {
 			dialogContent.WriteString(cfgSelectedStyle.Render(" ▸ "+autoLabel+" ") + "\n")
 		} else {
@@ -774,7 +774,7 @@ func (m ConfigTUI) View() string {
 			}
 		}
 
-		dialogContent.WriteString("\n" + cfgHintStyle.Render("↑↓ select · Enter confirm · Esc cancel"))
+		dialogContent.WriteString("\n" + cfgHintStyle.Render("↑↓ "+i18n.T("help.select")+" · Enter "+i18n.T("help.confirm")+" · Esc "+i18n.T("help.cancel")))
 
 		dialog := cfgDialogStyle.Render(dialogContent.String())
 		return lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, dialog)

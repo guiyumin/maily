@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/lipgloss"
+	"maily/internal/i18n"
 )
 
 
@@ -97,45 +98,45 @@ func RenderStatusBar(data StatusBarData) string {
 	var help string
 	tabHint := ""
 	if data.AccountCount > 1 && !data.IsSearchResult && !data.IsComposeView {
-		tabHint = HelpKeyStyle.Render("tab") + HelpDescStyle.Render(" switch  ")
+		tabHint = HelpKeyStyle.Render("tab") + HelpDescStyle.Render(" "+i18n.T("help.switch_account")+"  ")
 	}
 
 	if data.SearchMode {
-		help = HelpKeyStyle.Render("enter") + HelpDescStyle.Render(" search  ") +
-			HelpKeyStyle.Render("esc") + HelpDescStyle.Render(" cancel")
+		help = HelpKeyStyle.Render("enter") + HelpDescStyle.Render(" "+i18n.T("help.search")+"  ") +
+			HelpKeyStyle.Render("esc") + HelpDescStyle.Render(" "+i18n.T("help.cancel"))
 	} else if data.IsComposeView {
-		help = HelpKeyStyle.Render("Tab") + HelpDescStyle.Render(" next field")
+		help = HelpKeyStyle.Render("Tab") + HelpDescStyle.Render(" "+i18n.T("help.next_field"))
 	} else if data.IsSearchResult {
-		help = HelpKeyStyle.Render("space") + HelpDescStyle.Render(" select  ") +
-			HelpKeyStyle.Render("a") + HelpDescStyle.Render(" all  ") +
-			HelpKeyStyle.Render("m") + HelpDescStyle.Render(" mark read  ") +
-			HelpKeyStyle.Render("d") + HelpDescStyle.Render(" delete  ") +
-			HelpKeyStyle.Render("esc") + HelpDescStyle.Render(" back  ") +
-			HelpKeyStyle.Render("q") + HelpDescStyle.Render(" quit")
+		help = HelpKeyStyle.Render("space") + HelpDescStyle.Render(" "+i18n.T("help.select")+"  ") +
+			HelpKeyStyle.Render("a") + HelpDescStyle.Render(" "+i18n.T("help.select_all")+"  ") +
+			HelpKeyStyle.Render("m") + HelpDescStyle.Render(" "+i18n.T("help.mark_read")+"  ") +
+			HelpKeyStyle.Render("d") + HelpDescStyle.Render(" "+i18n.T("help.delete")+"  ") +
+			HelpKeyStyle.Render("esc") + HelpDescStyle.Render(" "+i18n.T("help.back")+"  ") +
+			HelpKeyStyle.Render("q") + HelpDescStyle.Render(" "+i18n.T("help.quit"))
 	} else if data.IsListView {
 		row1 := tabHint +
-			HelpKeyStyle.Render("enter") + HelpDescStyle.Render(" open  ") +
-			HelpKeyStyle.Render("n") + HelpDescStyle.Render(" new email  ") +
-			HelpKeyStyle.Render("r") + HelpDescStyle.Render(" reply  ") +
-			HelpKeyStyle.Render("R") + HelpDescStyle.Render(" refresh  ") +
-			HelpKeyStyle.Render("s") + HelpDescStyle.Render(" search  ") +
-			HelpKeyStyle.Render("q") + HelpDescStyle.Render(" quit")
-		row2 := HelpKeyStyle.Render("d") + HelpDescStyle.Render(" delete  ") +
-			HelpKeyStyle.Render("l") + HelpDescStyle.Render(" load more  ") +
-			HelpKeyStyle.Render("f") + HelpDescStyle.Render(" folders  ") +
-			HelpKeyStyle.Render("/") + HelpDescStyle.Render(" commands")
+			HelpKeyStyle.Render("enter") + HelpDescStyle.Render(" "+i18n.T("help.open")+"  ") +
+			HelpKeyStyle.Render("n") + HelpDescStyle.Render(" "+i18n.T("help.new_email")+"  ") +
+			HelpKeyStyle.Render("r") + HelpDescStyle.Render(" "+i18n.T("help.reply")+"  ") +
+			HelpKeyStyle.Render("R") + HelpDescStyle.Render(" "+i18n.T("help.refresh")+"  ") +
+			HelpKeyStyle.Render("s") + HelpDescStyle.Render(" "+i18n.T("help.search")+"  ") +
+			HelpKeyStyle.Render("q") + HelpDescStyle.Render(" "+i18n.T("help.quit"))
+		row2 := HelpKeyStyle.Render("d") + HelpDescStyle.Render(" "+i18n.T("help.delete")+"  ") +
+			HelpKeyStyle.Render("l") + HelpDescStyle.Render(" "+i18n.T("help.load_more")+"  ") +
+			HelpKeyStyle.Render("f") + HelpDescStyle.Render(" "+i18n.T("help.folders")+"  ") +
+			HelpKeyStyle.Render("/") + HelpDescStyle.Render(" "+i18n.T("help.commands"))
 		help = row1 + "\n" + row2
 	} else {
 		// Read view
 		help = tabHint +
-			HelpKeyStyle.Render("r") + HelpDescStyle.Render(" reply  ") +
-			HelpKeyStyle.Render("u") + HelpDescStyle.Render(" unread  ") +
-			HelpKeyStyle.Render("d") + HelpDescStyle.Render(" delete  ") +
-			HelpKeyStyle.Render("a") + HelpDescStyle.Render(" attachments  ") +
-			HelpKeyStyle.Render("s") + HelpDescStyle.Render(" summarize  ") +
-			HelpKeyStyle.Render("e") + HelpDescStyle.Render(" create event  ") +
-			HelpKeyStyle.Render("esc") + HelpDescStyle.Render(" back  ") +
-			HelpKeyStyle.Render("q") + HelpDescStyle.Render(" quit")
+			HelpKeyStyle.Render("r") + HelpDescStyle.Render(" "+i18n.T("help.reply")+"  ") +
+			HelpKeyStyle.Render("u") + HelpDescStyle.Render(" "+i18n.T("help.mark_read")+"  ") +
+			HelpKeyStyle.Render("d") + HelpDescStyle.Render(" "+i18n.T("help.delete")+"  ") +
+			HelpKeyStyle.Render("a") + HelpDescStyle.Render(" "+i18n.T("help.attachments")+"  ") +
+			HelpKeyStyle.Render("s") + HelpDescStyle.Render(" "+i18n.T("help.summarize")+"  ") +
+			HelpKeyStyle.Render("e") + HelpDescStyle.Render(" "+i18n.T("help.extract")+"  ") +
+			HelpKeyStyle.Render("esc") + HelpDescStyle.Render(" "+i18n.T("help.back")+"  ") +
+			HelpKeyStyle.Render("q") + HelpDescStyle.Render(" "+i18n.T("help.quit"))
 	}
 
 	status := StatusKeyStyle.Render(data.StatusMsg)
@@ -146,7 +147,7 @@ func RenderStatusBar(data StatusBarData) string {
 		selectionInfo = lipgloss.NewStyle().
 			Bold(true).
 			Foreground(lipgloss.Color("#10B981")).
-			Render(fmt.Sprintf(" %d selected ", data.SelectionCount))
+			Render(" " + i18n.TPlural("email.selected", data.SelectionCount, map[string]any{"Count": data.SelectionCount}) + " ")
 	}
 
 	gap := max(0, data.Width-lipgloss.Width(help)-lipgloss.Width(status)-lipgloss.Width(selectionInfo)-12)
@@ -230,9 +231,9 @@ const (
 func RenderConfirmDialog(count int, selected DeleteOption) string {
 	dialogStyle := DialogStyle.BorderForeground(Warning)
 
-	titleText := "Delete Email?"
+	titleText := i18n.T("dialog.delete.title")
 	if count > 1 {
-		titleText = fmt.Sprintf("Delete %d Emails?", count)
+		titleText = i18n.T("dialog.delete.title_plural", map[string]any{"Count": count})
 	}
 
 	title := DialogTitleStyle.
@@ -259,24 +260,24 @@ func RenderConfirmDialog(count int, selected DeleteOption) string {
 	// Render buttons
 	var trashBtn, permBtn, cancelBtn string
 	if selected == DeleteOptionTrash {
-		trashBtn = selectedStyle.Render("Move to Trash")
+		trashBtn = selectedStyle.Render(i18n.T("dialog.delete.move_trash"))
 	} else {
-		trashBtn = unselectedStyle.Render("Move to Trash")
+		trashBtn = unselectedStyle.Render(i18n.T("dialog.delete.move_trash"))
 	}
 	if selected == DeleteOptionPermanent {
-		permBtn = dangerSelectedStyle.Render("Permanent Delete")
+		permBtn = dangerSelectedStyle.Render(i18n.T("dialog.delete.permanent"))
 	} else {
-		permBtn = unselectedStyle.Render("Permanent Delete")
+		permBtn = unselectedStyle.Render(i18n.T("dialog.delete.permanent"))
 	}
 	if selected == DeleteOptionCancel {
-		cancelBtn = selectedStyle.Render("Cancel")
+		cancelBtn = selectedStyle.Render(i18n.T("common.cancel"))
 	} else {
-		cancelBtn = unselectedStyle.Render("Cancel")
+		cancelBtn = unselectedStyle.Render(i18n.T("common.cancel"))
 	}
 
 	buttons := lipgloss.JoinHorizontal(lipgloss.Center, trashBtn, "  ", permBtn, "  ", cancelBtn)
 
-	hint := DialogHintStyle.Render("← → to select, enter to confirm, esc to cancel")
+	hint := DialogHintStyle.Render(i18n.T("dialog.delete.hint"))
 
 	return dialogStyle.Render(
 		lipgloss.JoinVertical(
@@ -296,15 +297,15 @@ func RenderAISetupDialog() string {
 
 	title := DialogTitleStyle.
 		Foreground(Primary).
-		Render("No AI Provider Found")
+		Render(i18n.T("dialog.ai_setup.title"))
 
 	message := lipgloss.NewStyle().
 		Foreground(TextDim).
 		Width(40).
 		Align(lipgloss.Center).
-		Render("Would you like to configure an AI provider?\n\nYou can add CLI tools (claude, codex, gemini) or API keys.")
+		Render(i18n.T("dialog.ai_setup.message"))
 
-	hint := DialogHintStyle.Render("Enter to configure, Esc to skip")
+	hint := DialogHintStyle.Render(i18n.T("dialog.ai_setup.hint"))
 
 	return dialogStyle.Render(
 		lipgloss.JoinVertical(
@@ -323,9 +324,9 @@ func RenderSearchInput(inputView string) string {
 
 	title := DialogTitleStyle.
 		Foreground(Primary).
-		Render("Search")
+		Render(i18n.T("dialog.search.title"))
 
-	hint := DialogHintStyle.Render("Enter to search, Esc to cancel")
+	hint := DialogHintStyle.Render(i18n.T("dialog.search.hint"))
 
 	return dialogStyle.Render(
 		lipgloss.JoinVertical(
@@ -350,9 +351,9 @@ func RenderLoading(width, height int, spinnerView, statusMsg string) string {
 }
 
 func RenderError(width, height int, err error, accountEmail string, canSwitch bool) string {
-	errorText := fmt.Sprintf("Error: %v", err)
+	errorText := fmt.Sprintf("%s: %v", i18n.T("common.error"), err)
 	if accountEmail != "" {
-		errorText = fmt.Sprintf("Error [%s]: %v", accountEmail, err)
+		errorText = fmt.Sprintf("%s [%s]: %v", i18n.T("common.error"), accountEmail, err)
 	}
 
 	// Check if this is a login/authentication error
@@ -366,16 +367,15 @@ func RenderError(width, height int, err error, accountEmail string, canSwitch bo
 		fixHintStyle := lipgloss.NewStyle().
 			Foreground(Muted).
 			Italic(true)
-		fixHint = "\n\n" + fixHintStyle.Render("To fix: Generate a new App Password for your email provider") +
-			"\n" + fixHintStyle.Render("Then run: maily login")
+		fixHint = "\n\n" + fixHintStyle.Render(i18n.T("error.auth_hint"))
 	}
 
 	hint := ""
 	if canSwitch {
-		hint = "\n\n" + HelpKeyStyle.Render("tab") + HelpDescStyle.Render(" switch account  ") +
-			HelpKeyStyle.Render("q") + HelpDescStyle.Render(" quit")
+		hint = "\n\n" + HelpKeyStyle.Render("tab") + HelpDescStyle.Render(" "+i18n.T("help.switch_account")+"  ") +
+			HelpKeyStyle.Render("q") + HelpDescStyle.Render(" "+i18n.T("help.quit"))
 	} else {
-		hint = "\n\n" + HelpKeyStyle.Render("q") + HelpDescStyle.Render(" quit")
+		hint = "\n\n" + HelpKeyStyle.Render("q") + HelpDescStyle.Render(" "+i18n.T("help.quit"))
 	}
 
 	return lipgloss.Place(
@@ -413,18 +413,18 @@ func RenderSummaryDialog(width, height int, viewportContent string, provider str
 		Foreground(Muted).
 		MarginTop(1)
 
-	hint := "Press Esc to close"
+	hint := i18n.T("summary.close_hint")
 	if scrollable {
-		hint = "j/k to scroll • Esc to close"
+		hint = fmt.Sprintf("j/k %s • Esc %s", i18n.T("help.navigate"), i18n.T("help.close"))
 	}
 
 	content := lipgloss.JoinVertical(
 		lipgloss.Left,
-		titleStyle.Render("Summary"),
+		titleStyle.Render(i18n.T("summary.title")),
 		"",
 		viewportContent,
 		"",
-		providerStyle.Render("via "+provider),
+		providerStyle.Render(i18n.T("summary.via", map[string]any{"Provider": provider})),
 		"",
 		hintStyle.Render(hint),
 	)
@@ -462,12 +462,12 @@ func RenderExtractInputDialog(width, height int, inputView string) string {
 
 	content := lipgloss.JoinVertical(
 		lipgloss.Left,
-		titleStyle.Render("No Event Found"),
-		subtitleStyle.Render("Type event details to add to calendar:"),
+		titleStyle.Render(i18n.T("extract.no_event")),
+		subtitleStyle.Render(i18n.T("extract.input_hint")),
 		"",
 		"  "+inputView,
 		"",
-		hintStyle.Render("enter to parse • esc to cancel"),
+		hintStyle.Render(i18n.T("extract.parse_hint")),
 	)
 
 	dialogStyle := lipgloss.NewStyle().
@@ -522,31 +522,35 @@ func RenderExtractDialog(width, height int, data ExtractData) string {
 	dateStr := data.StartTime.Format("Monday, Jan 2, 2006")
 	timeStr := fmt.Sprintf("%s - %s", data.StartTime.Format("3:04 PM"), data.EndTime.Format("3:04 PM"))
 
+	line := func(label, value string) string {
+		return fmt.Sprintf("%s%s", labelStyle.Render(label), valueStyle.Render(value))
+	}
+
 	lines := []string{
-		labelStyle.Render("Title:") + valueStyle.Render(data.Title),
-		labelStyle.Render("Date:") + valueStyle.Render(dateStr),
-		labelStyle.Render("Time:") + valueStyle.Render(timeStr),
+		line(i18n.T("extract.field.title"), data.Title),
+		line(i18n.T("extract.field.date"), dateStr),
+		line(i18n.T("extract.field.time"), timeStr),
 	}
 
 	if data.Location != "" {
-		lines = append(lines, labelStyle.Render("Location:")+valueStyle.Render(data.Location))
+		lines = append(lines, line(i18n.T("extract.field.location"), data.Location))
 	}
 
 	reminderText := data.Reminder
 	if reminderText == "" {
-		reminderText = "No reminder set"
+		reminderText = i18n.T("extract.no_reminder")
 	}
-	lines = append(lines, labelStyle.Render("Reminder:")+valueStyle.Render(reminderText))
+	lines = append(lines, line(i18n.T("extract.field.reminder"), reminderText))
 
 	content := lipgloss.JoinVertical(
 		lipgloss.Left,
-		titleStyle.Render("Extracted Event"),
+		titleStyle.Render(i18n.T("extract.title")),
 		"",
 		strings.Join(lines, "\n"),
 		"",
-		providerStyle.Render("via "+data.Provider),
+		providerStyle.Render(i18n.T("summary.via", map[string]any{"Provider": data.Provider})),
 		"",
-		hintStyle.Render("Enter: add · e: edit · Esc: close"),
+		hintStyle.Render(i18n.T("extract.hint")),
 	)
 
 	dialogStyle := lipgloss.NewStyle().
@@ -611,11 +615,11 @@ func RenderExtractEditDialog(width, height int, data ExtractEditData) string {
 		label string
 		value string
 	}{
-		{"Title:", data.TitleInput},
-		{"Date:", data.DateInput},
+		{i18n.T("extract.field.title"), data.TitleInput},
+		{i18n.T("extract.field.date"), data.DateInput},
 		{"Start:", data.StartInput},
 		{"End:", data.EndInput},
-		{"Location:", data.LocationInput},
+		{i18n.T("extract.field.location"), data.LocationInput},
 		{"Notes:", data.NotesInput},
 	}
 
@@ -635,7 +639,7 @@ func RenderExtractEditDialog(width, height int, data ExtractEditData) string {
 		reminderLs = focusedLabelStyle
 		reminderHint = " (↑↓)"
 	}
-	lines = append(lines, reminderLs.Render("Reminder:")+inputStyle.Render(data.ReminderLabel+reminderHint))
+	lines = append(lines, reminderLs.Render(i18n.T("extract.field.reminder"))+inputStyle.Render(data.ReminderLabel+reminderHint))
 
 	// Button styles
 	buttonStyle := lipgloss.NewStyle().
@@ -659,19 +663,19 @@ func RenderExtractEditDialog(width, height int, data ExtractEditData) string {
 	if data.FocusIdx == 8 {
 		cancelStyle = focusedButtonStyle
 	}
-	buttons := lipgloss.JoinHorizontal(lipgloss.Center, saveStyle.Render("Save"), "  ", cancelStyle.Render("Cancel"))
+	buttons := lipgloss.JoinHorizontal(lipgloss.Center, saveStyle.Render(i18n.T("common.save")), "  ", cancelStyle.Render(i18n.T("common.cancel")))
 
 	content := lipgloss.JoinVertical(
 		lipgloss.Left,
-		titleStyle.Render("Edit Event"),
+		titleStyle.Render(i18n.T("extract.edit.title")),
 		"",
 		strings.Join(lines, "\n"),
 		"",
 		buttons,
 		"",
-		providerStyle.Render("via "+data.Provider),
+		providerStyle.Render(i18n.T("summary.via", map[string]any{"Provider": data.Provider})),
 		"",
-		hintStyle.Render("Tab: next · Enter: select · Esc: back"),
+		hintStyle.Render(i18n.T("extract.edit.hint")),
 	)
 
 	dialogStyle := lipgloss.NewStyle().
@@ -721,7 +725,7 @@ func RenderAttachmentPicker(width, height int, attachments []AttachmentInfo, sel
 	for _, att := range attachments {
 		totalSize += att.Size
 	}
-	downloadAllText := fmt.Sprintf("Download All (%d files, %s)", len(attachments), formatFileSize(totalSize))
+	downloadAllText := i18n.T("attachment.download_all", map[string]any{"Count": len(attachments), "Size": formatFileSize(totalSize)})
 	if selectedIdx == 0 {
 		items = append(items, selectedStyle.Render("→ "+downloadAllText))
 	} else {
@@ -740,11 +744,11 @@ func RenderAttachmentPicker(width, height int, attachments []AttachmentInfo, sel
 
 	content := lipgloss.JoinVertical(
 		lipgloss.Left,
-		titleStyle.Render("📎 Download Attachments"),
+		titleStyle.Render("📎 "+i18n.T("attachment.title")),
 		"",
 		strings.Join(items, "\n"),
 		"",
-		hintStyle.Render("tab select  enter download  esc cancel"),
+		hintStyle.Render(i18n.T("attachment.hint")),
 	)
 
 	dialogStyle := lipgloss.NewStyle().

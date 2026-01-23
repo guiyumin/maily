@@ -293,7 +293,7 @@ attachment.total: "Anhänge ({{.Count}}, {{.Size}}):"
 # Kalender
 # ============================================
 calendar.title: "Kalender"
-calendar.today: "Heute"
+calendar.today: "heute"
 calendar.no_events: "Keine Termine"
 
 calendar.event_count:
@@ -301,8 +301,99 @@ calendar.event_count:
   other: "{{.Count}} Termine"
 
 calendar.not_available: "Kalender nicht verfügbar"
-calendar.adding: "Wird zum Kalender hinzugefügt..."
-calendar.extracting: "Termin wird extrahiert..."
+calendar.adding: "Zum Kalender hinzufügen..."
+calendar.extracting: "Termin extrahieren..."
+
+# Wochentage (kurz)
+calendar.weekday.sun: "So"
+calendar.weekday.mon: "Mo"
+calendar.weekday.tue: "Di"
+calendar.weekday.wed: "Mi"
+calendar.weekday.thu: "Do"
+calendar.weekday.fri: "Fr"
+calendar.weekday.sat: "Sa"
+
+# Monate (kurz)
+calendar.month.jan: "Jan"
+calendar.month.feb: "Feb"
+calendar.month.mar: "Mär"
+calendar.month.apr: "Apr"
+calendar.month.may: "Mai"
+calendar.month.jun: "Jun"
+calendar.month.jul: "Jul"
+calendar.month.aug: "Aug"
+calendar.month.sep: "Sep"
+calendar.month.oct: "Okt"
+calendar.month.nov: "Nov"
+calendar.month.dec: "Dez"
+
+# Zeit
+calendar.time.am: "AM"
+calendar.time.pm: "PM"
+calendar.all_day: "Ganztägig"
+
+# Kalender-Navigation
+calendar.nav.day: "Tag"
+calendar.nav.week: "Woche"
+calendar.nav.event: "Termin"
+calendar.nav.month: "Monat"
+calendar.nav.year: "Jahr"
+calendar.mode.month: "MONATSMODUS"
+calendar.mode.year: "JAHRESMODUS"
+calendar.exit_mode: "Modus beenden"
+
+# Kalender-Aktionen
+calendar.action.view: "ansehen"
+calendar.action.new: "neu"
+calendar.create: "erstellen"
+calendar.cycle: "wechseln"
+calendar.next: "weiter"
+calendar.next_step: "nächster Schritt"
+
+# Kalender-Formularfelder
+calendar.field.title: "Titel:"
+calendar.field.date: "Datum:"
+calendar.field.time: "Zeit:"
+calendar.field.start: "Beginn:"
+calendar.field.end: "Ende:"
+calendar.field.location: "Ort:"
+calendar.field.notes: "Notizen:"
+calendar.field.calendar: "Kalender:"
+calendar.field.reminder: "Erinnerung:"
+calendar.picker_hint: "(↑↓ scrollen, ←→ wechseln)"
+
+# Kalender-Terminformulare
+calendar.new_event: "Neuer Termin"
+calendar.edit_event: "Termin bearbeiten"
+calendar.event: "Termin"
+calendar.what_event: "Was ist der Termin?"
+calendar.when_event: "Wann ist es?"
+calendar.step: "Schritt {{.Current}} von {{.Total}}"
+calendar.select_calendar: "Kalender auswählen"
+calendar.select_hint: "↑/k hoch • ↓/j runter • Enter auswählen • Esc abbrechen"
+calendar.default: "Standard"
+
+# Kalender NLP
+calendar.quick_add: "Schnell hinzufügen"
+calendar.parsing: "Analysieren..."
+calendar.parsing_input: "KI-Analyse: \"{{.Input}}\""
+calendar.edit_parsed: "Analysierten Termin bearbeiten"
+calendar.parsed_event: "Analysierter Termin"
+calendar.confirm_event: "Termin bestätigen"
+
+# Kalender-Erinnerungen
+calendar.reminder: "Erinnerung"
+calendar.reminder.none: "Keine Erinnerung"
+calendar.reminder.5min: "5 Minuten vorher"
+calendar.reminder.10min: "10 Minuten vorher"
+calendar.reminder.15min: "15 Minuten vorher"
+calendar.reminder.30min: "30 Minuten vorher"
+calendar.reminder.1hour: "1 Stunde vorher"
+calendar.reminder.minutes: "{{.Minutes}} Minuten vorher"
+
+# Kalender löschen
+calendar.delete_event: "Termin löschen?"
+calendar.delete_confirm: "Sind Sie sicher, dass Sie \"{{.Title}}\" löschen möchten?"
 
 # ============================================
 # Heute-Ansicht
@@ -310,6 +401,25 @@ calendar.extracting: "Termin wird extrahiert..."
 today.title: "Heute"
 today.emails: "E-Mails"
 today.events: "Termine"
+today.loading: "Lade heutiges Dashboard..."
+today.emails_today: "Heutige E-Mails"
+today.no_emails: "Keine E-Mails heute"
+today.no_events: "Keine Termine heute"
+today.no_subject: "(kein Betreff)"
+today.no_content: "(kein Inhalt)"
+today.switch: "wechseln"
+today.scroll: "scrollen"
+
+# Heute E-Mail-Header
+today.from: "Von: "
+today.to: "An: "
+today.subject: "Betreff: "
+today.date: "Datum: "
+
+# Heute Löschbestätigung
+today.delete_confirm: "Löschen?"
+today.delete_email: "E-Mail löschen: \"{{.Subject}}\"?"
+today.delete_event: "Termin löschen: \"{{.Title}}\"?"
 
 # ============================================
 # CLI-Nachrichten

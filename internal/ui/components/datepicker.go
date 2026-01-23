@@ -6,6 +6,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"maily/internal/i18n"
 )
 
 // DatePickerField represents which field is currently focused
@@ -184,7 +185,21 @@ func (d DatePicker) View() string {
 	dimStyle := lipgloss.NewStyle().Foreground(Muted)
 
 	// Format parts
-	monthNames := []string{"", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"}
+	monthNames := []string{
+		"",
+		i18n.T("calendar.month.jan"),
+		i18n.T("calendar.month.feb"),
+		i18n.T("calendar.month.mar"),
+		i18n.T("calendar.month.apr"),
+		i18n.T("calendar.month.may"),
+		i18n.T("calendar.month.jun"),
+		i18n.T("calendar.month.jul"),
+		i18n.T("calendar.month.aug"),
+		i18n.T("calendar.month.sep"),
+		i18n.T("calendar.month.oct"),
+		i18n.T("calendar.month.nov"),
+		i18n.T("calendar.month.dec"),
+	}
 	monthStr := monthNames[d.month]
 	dayStr := fmt.Sprintf("%2d", d.day)
 	yearStr := fmt.Sprintf("%d", d.year)
@@ -221,6 +236,20 @@ func (d DatePicker) View() string {
 
 // ViewCompact renders a compact view
 func (d DatePicker) ViewCompact() string {
-	monthNames := []string{"", "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"}
+	monthNames := []string{
+		"",
+		i18n.T("calendar.month.jan"),
+		i18n.T("calendar.month.feb"),
+		i18n.T("calendar.month.mar"),
+		i18n.T("calendar.month.apr"),
+		i18n.T("calendar.month.may"),
+		i18n.T("calendar.month.jun"),
+		i18n.T("calendar.month.jul"),
+		i18n.T("calendar.month.aug"),
+		i18n.T("calendar.month.sep"),
+		i18n.T("calendar.month.oct"),
+		i18n.T("calendar.month.nov"),
+		i18n.T("calendar.month.dec"),
+	}
 	return fmt.Sprintf("%s %d, %d", monthNames[d.month], d.day, d.year)
 }

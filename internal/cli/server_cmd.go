@@ -177,20 +177,27 @@ func stopServer() {
 
 // startServerBackground starts the server in background
 func startServerBackground() error {
-	if server.IsServerRunning() {
-		return nil // Already running
-	}
-
-	// Check for version mismatch
+	// Check for version mismatch FIRST (before checking if server is running)
 	running, pid, serverVer := isServerRunning()
 	if running && serverVer != version.Version {
-		// Version mismatch - stop old server
+		// Version mismatch - stop old server so we can start our version
 		if process, err := os.FindProcess(pid); err == nil {
 			process.Signal(syscall.SIGTERM)
-			time.Sleep(500 * time.Millisecond)
+			// Wait for graceful shutdown
+			for i := 0; i < 20; i++ { // 2 seconds max
+				time.Sleep(100 * time.Millisecond)
+				if !server.IsServerRunning() {
+					break
+				}
+			}
 		}
 		os.Remove(server.GetPidPath())
 		os.Remove(server.GetSocketPath())
+	}
+
+	// Now check if a compatible server is already running
+	if server.IsServerRunning() {
+		return nil // Already running with matching version
 	}
 
 	executable, err := os.Executable()

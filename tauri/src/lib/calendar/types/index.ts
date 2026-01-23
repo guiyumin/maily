@@ -7,7 +7,7 @@ export * from './core';
 export * from './calendar';
 
 // Event core types
-export * from './event';
+export * from './calendarEvent';
 
 // Event layout types
 export * from './layout';

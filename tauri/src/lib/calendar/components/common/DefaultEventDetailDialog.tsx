@@ -18,7 +18,7 @@ interface DefaultEventDetailDialogProps extends EventDetailDialogProps {
  * Content is consistent with DefaultEventDetailPanel, but displayed using Dialog/Modal
  */
 const DefaultEventDetailDialog: React.FC<DefaultEventDetailDialogProps> = ({
-  event,
+  calendarEvent,
   isOpen,
   isAllDay,
   onEventUpdate,
@@ -26,13 +26,13 @@ const DefaultEventDetailDialog: React.FC<DefaultEventDetailDialogProps> = ({
   onClose,
   app,
 }) => {
-  const [editedEvent, setEditedEvent] = useState(event);
+  const [editedEvent, setEditedEvent] = useState(calendarEvent);
   const { t } = useLocale();
 
-  // Sync state when event prop changes (e.g. if opened with a different event)
+  // Sync state when calendarEvent prop changes (e.g. if opened with a different event)
   useEffect(() => {
-    setEditedEvent(event);
-  }, [event]);
+    setEditedEvent(calendarEvent);
+  }, [calendarEvent]);
 
   // Get visible calendar type options
   const colorOptions: ColorOption[] = useMemo(() => {
@@ -284,7 +284,7 @@ const DefaultEventDetailDialog: React.FC<DefaultEventDetailDialogProps> = ({
             <button
               className="px-3 py-2 bg-destructive border border-border text-destructive-foreground rounded-lg hover:bg-destructive/90 text-sm font-medium transition"
               onClick={() => {
-                onEventDelete(event.id);
+                onEventDelete(calendarEvent.id);
                 onClose();
               }}
             >

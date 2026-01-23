@@ -1,5 +1,5 @@
 // Event layout related type definitions
-import { Event } from './event';
+import { CalendarEvent } from './calendarEvent';
 
 /**
  * Event layout configuration constants
@@ -36,9 +36,9 @@ export interface EventLayout {
  * Represents hierarchical relationships of events
  */
 export interface NestedLayer {
-  events: Event[];
+  calendarEvents: CalendarEvent[];
   level: number;
-  parentEvent?: Event;
+  parentEvent?: CalendarEvent;
   timeSlot?: { start: number; end: number };
 }
 
@@ -47,13 +47,13 @@ export interface NestedLayer {
  * Represents a group of related events and their nested structure
  */
 export interface EventGroup {
-  events: Event[];
+  calendarEvents: CalendarEvent[];
   startHour: number;
   endHour: number;
-  primaryEvent?: Event;
+  primaryEvent?: CalendarEvent;
   nestedStructure: NestedLayer[];
   specialLayoutRules?: SpecialLayoutRule[];
-  originalBranchMap?: Map<string, Event>;
+  originalBranchMap?: Map<string, CalendarEvent>;
 }
 
 /**
@@ -61,9 +61,9 @@ export interface EventGroup {
  * Describes relationships of events in nested structures
  */
 export interface EventRelations {
-  directChildren: Event[];
-  allDescendants: Event[];
-  directParent: Event | null;
+  directChildren: CalendarEvent[];
+  allDescendants: CalendarEvent[];
+  directParent: CalendarEvent | null;
   layer: NestedLayer | null;
   subtreeSize: number;
   isLeaf: boolean;
@@ -74,12 +74,12 @@ export interface EventRelations {
  * Used to analyze structural information of event trees
  */
 export interface SubtreeAnalysis {
-  rootEvent: Event;
-  allDescendants: Event[];
+  rootEvent: CalendarEvent;
+  allDescendants: CalendarEvent[];
   timeSpan: { start: number; end: number; duration: number };
   descendantCount: number;
   maxDepth: number;
-  branchPath: Event[];
+  branchPath: CalendarEvent[];
 }
 
 /**
@@ -97,9 +97,9 @@ export interface BalanceStrategy {
  * Describes movement of events in layout optimization
  */
 export interface TransferOperation {
-  event: Event;
-  fromParent: Event;
-  toParent: Event;
+  calendarEvent: CalendarEvent;
+  fromParent: CalendarEvent;
+  toParent: CalendarEvent;
   reason: string;
 }
 
@@ -114,7 +114,7 @@ export interface SpecialLayoutRule {
     | 'full_width'
     | 'full_width_from_level'
     | 'align_with_sibling';
-  referenceEvent?: Event; // Reference event (for alignment)
+  referenceEvent?: CalendarEvent; // Reference event (for alignment)
   targetLevel?: number; // Target level
   reason?: string; // Reason for applying the rule
 }

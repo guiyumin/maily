@@ -9,7 +9,7 @@
  */
 
 import { Temporal } from 'temporal-polyfill';
-import { Event } from '../types';
+import { CalendarEvent } from '../types';
 import {
   dateToPlainDate,
   dateToPlainDateTime,
@@ -151,7 +151,7 @@ function normalizeZonedTime(
  *   allDay: true,
  * });
  */
-export function createEvent(params: CreateEventParams): Event {
+export function createEvent(params: CreateEventParams): CalendarEvent {
   const start = normalizeLocalTime(params.start, params.allDay);
   const end = normalizeLocalTime(params.end, params.allDay);
 
@@ -203,7 +203,7 @@ export function createEvent(params: CreateEventParams): Event {
  *   timeZone: 'Asia/Shanghai', // Only used if start/end are Date objects
  * });
  */
-export function createTimezoneEvent(params: CreateTimezoneEventParams): Event {
+export function createTimezoneEvent(params: CreateTimezoneEventParams): CalendarEvent {
   const start = normalizeZonedTime(params.start, params.timeZone);
   const end = normalizeZonedTime(params.end, params.timeZone);
 
@@ -226,7 +226,7 @@ export function createTimezoneEvent(params: CreateTimezoneEventParams): Event {
 /**
  * Create multiple local events at once
  */
-export function createEvents(paramsArray: CreateEventParams[]): Event[] {
+export function createEvents(paramsArray: CreateEventParams[]): CalendarEvent[] {
   return paramsArray.map(params => createEvent(params));
 }
 
@@ -235,7 +235,7 @@ export function createEvents(paramsArray: CreateEventParams[]): Event[] {
  */
 export function createTimezoneEvents(
   paramsArray: CreateTimezoneEventParams[]
-): Event[] {
+): CalendarEvent[] {
   return paramsArray.map(params => createTimezoneEvent(params));
 }
 
@@ -251,7 +251,7 @@ export function createAllDayEvent(
   title: string,
   date: Date,
   options?: Omit<CreateEventParams, 'id' | 'title' | 'start' | 'end' | 'allDay'>
-): Event {
+): CalendarEvent {
   return createEvent({
     id,
     title,
@@ -271,7 +271,7 @@ export function createTimedEvent(
   start: Date,
   end: Date,
   options?: Omit<CreateEventParams, 'id' | 'title' | 'start' | 'end'>
-): Event {
+): CalendarEvent {
   return createEvent({
     id,
     title,
@@ -300,7 +300,7 @@ export function convertDateEvent(
     calendarId?: string;
     meta?: Record<string, any>;
   }
-): Event {
+): CalendarEvent {
   return createEvent({
     id,
     title,
@@ -326,7 +326,7 @@ export function convertDateEventWithTimeZone(
     calendarId?: string;
     meta?: Record<string, any>;
   }
-): Event {
+): CalendarEvent {
   return createTimezoneEvent({
     id,
     title,

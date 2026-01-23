@@ -12,12 +12,12 @@ import {
 import { useLocale } from "@calendar/locale";
 import {
   EventLayout,
-  Event,
+  CalendarEvent,
   EventDetailContentRenderer,
   EventDetailDialogRenderer,
   ViewType,
 } from "@calendar/types";
-import CalendarEvent from "@calendar/components/weekView/CalendarEvent";
+import CalendarEventCard from "@calendar/components/weekView/CalendarEvent";
 import { EventLayoutCalculator } from "@calendar/components/EventLayout";
 import { useDragForView } from "@calendar/plugins/dragPlugin";
 import { ViewType as DragViewType, WeekDayDragState } from "@calendar/types";
@@ -47,7 +47,9 @@ const DayView: React.FC<DayViewProps> = ({
   const { t, locale } = useLocale();
 
   const [currentTime, setCurrentTime] = useState<Date | null>(null);
-  const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(
+    null,
+  );
   const [detailPanelEventId, setDetailPanelEventId] = useState<string | null>(
     null,
   );
@@ -140,7 +142,7 @@ const DayView: React.FC<DayViewProps> = ({
     startDate.setHours(Math.floor(startHour), (startHour % 1) * 60, 0, 0);
     endDate.setHours(Math.floor(endHour), (endHour % 1) * 60, 0, 0);
 
-    const tempEvent: Event = {
+    const tempEvent: CalendarEvent = {
       id: "-1",
       title: "Temp",
       day: targetDay,
@@ -159,7 +161,7 @@ const DayView: React.FC<DayViewProps> = ({
   };
 
   const calculateDragLayout = (
-    draggedEvent: Event,
+    draggedEvent: CalendarEvent,
     targetDay: number,
     targetStartHour: number,
     targetEndHour: number,
@@ -207,7 +209,9 @@ const DayView: React.FC<DayViewProps> = ({
     calendarRef,
     allDayRowRef,
     viewType: DragViewType.DAY,
-    onEventsUpdate: (updateFunc: (events: Event[]) => Event[]) => {
+    onEventsUpdate: (
+      updateFunc: (events: CalendarEvent[]) => CalendarEvent[],
+    ) => {
       const newEvents = updateFunc(currentDayEvents);
 
       // Find events that need to be deleted (in old list but not in new list)
@@ -244,14 +248,14 @@ const DayView: React.FC<DayViewProps> = ({
       eventsToAdd.forEach((event) => app.addEvent(event));
       eventsToUpdate.forEach((event) => app.updateEvent(event.id, event));
     },
-    onEventCreate: (event: Event) => {
+    onEventCreate: (event: CalendarEvent) => {
       app.addEvent(event);
     },
     onEventEdit: () => {
       // Event edit handling (add logic here if needed)
     },
     currentWeekStart,
-    events: currentDayEvents,
+    calendarEvents: currentDayEvents,
     calculateNewEventLayout,
     calculateDragLayout,
   });
@@ -259,13 +263,13 @@ const DayView: React.FC<DayViewProps> = ({
   // Use calendar drop functionality
   const { handleDrop, handleDragOver } = useCalendarDrop({
     app,
-    onEventCreated: (event: Event) => {
+    onEventCreated: (event: CalendarEvent) => {
       setNewlyCreatedEventId(event.id);
     },
   });
 
   // Event handling functions
-  const handleEventUpdate = (updatedEvent: Event) => {
+  const handleEventUpdate = (updatedEvent: CalendarEvent) => {
     app.updateEvent(updatedEvent.id, updatedEvent);
   };
 
@@ -309,10 +313,10 @@ const DayView: React.FC<DayViewProps> = ({
           />
           {/* All-day event area */}
           <div
-            className="flex items-center border-b border-gray-200 dark:border-gray-700 sticky pr-[10px] pt-px"
+            className="flex items-center border-b border-gray-200 dark:border-gray-700 sticky pr-2.5 pt-px"
             ref={allDayRowRef}
           >
-            <div className="w-20 flex-shrink-0 p-1 text-xs font-medium text-gray-500 dark:text-gray-400 flex justify-end">
+            <div className="w-20 shrink-0 p-1 text-xs font-medium text-gray-500 dark:text-gray-400 flex justify-end">
               {t("allDay")}
             </div>
             <div className="flex flex-1 relative">
@@ -334,9 +338,9 @@ const DayView: React.FC<DayViewProps> = ({
                 {currentDayEvents
                   .filter((event) => event.allDay)
                   .map((event) => (
-                    <CalendarEvent
+                    <CalendarEventCard
                       key={event.id}
-                      event={event}
+                      calendarEvent={event}
                       isAllDay={true}
                       isDayView={true}
                       allDayHeight={ALL_DAY_HEIGHT}
@@ -415,9 +419,9 @@ const DayView: React.FC<DayViewProps> = ({
                 })()}
 
               {/* Time column */}
-              <div className="w-20 flex-shrink-0 border-gray-200 dark:border-gray-700">
+              <div className="w-20 shrink-0 border-gray-200 dark:border-gray-700">
                 {timeSlots.map((slot, slotIndex) => (
-                  <div key={slotIndex} className="relative h-[4.5rem] flex">
+                  <div key={slotIndex} className="relative h-18 flex">
                     <div className="absolute -top-2.5 right-2 text-[12px] text-gray-500 dark:text-gray-400">
                       {slotIndex === 0 ? "" : slot.label}
                     </div>
@@ -430,7 +434,7 @@ const DayView: React.FC<DayViewProps> = ({
                 {timeSlots.map((slot, slotIndex) => (
                   <div
                     key={slotIndex}
-                    className="h-[4.5rem] border-t first:border-none border-gray-200 dark:border-gray-700 flex"
+                    className="h-18 border-t first:border-none border-gray-200 dark:border-gray-700 flex"
                     onDoubleClick={(e) => {
                       const currentDayIndex = Math.floor(
                         (currentDate.getTime() - currentWeekStart.getTime()) /
@@ -487,9 +491,9 @@ const DayView: React.FC<DayViewProps> = ({
                     .map((event) => {
                       const eventLayout = eventLayouts.get(event.id);
                       return (
-                        <CalendarEvent
+                        <CalendarEventCard
                           key={event.id}
-                          event={event}
+                          calendarEvent={event}
                           layout={eventLayout}
                           isDayView={true}
                           calendarRef={calendarRef}

@@ -13,7 +13,7 @@ import {
   SidebarConfig,
   CalendarType,
 } from "../types";
-import { Event } from "../types";
+import { CalendarEvent } from "../types";
 import {
   CalendarRegistry,
   setDefaultCalendarRegistry,
@@ -109,7 +109,7 @@ export interface CalendarStoreState {
   // Reactive state (triggers re-renders when changed)
   currentView: ViewType;
   currentDate: Date;
-  events: Event[];
+  calendarEvents: CalendarEvent[];
   highlightedEventId: string | null;
   visibleMonth: Date;
 
@@ -152,16 +152,16 @@ export interface CalendarStoreActions {
   getVisibleMonth: () => Date;
 
   // Event management
-  addEvent: (event: Event) => void;
+  addEvent: (event: CalendarEvent) => void;
   updateEvent: (
     id: string,
-    eventUpdate: Partial<Event>,
+    eventUpdate: Partial<CalendarEvent>,
     isPending?: boolean,
   ) => void;
   deleteEvent: (id: string) => void;
-  setEvents: (events: Event[]) => void;
-  getEvents: () => Event[];
-  getAllEvents: () => Event[];
+  setEvents: (events: CalendarEvent[]) => void;
+  getEvents: () => CalendarEvent[];
+  getAllEvents: () => CalendarEvent[];
   highlightEvent: (eventId: string | null) => void;
 
   // Calendar management
@@ -289,7 +289,7 @@ export function createCalendarStore(
         // ============ Initial State ============
         currentView: config.defaultView || ViewType.WEEK,
         currentDate: initialDate,
-        events: config.events || [],
+        calendarEvents: config.calendarEvents || [],
         highlightedEventId: null,
         visibleMonth: initialVisibleMonth,
         switcherMode: config.switcherMode || "buttons",
@@ -404,33 +404,33 @@ export function createCalendarStore(
         getVisibleMonth: () => new Date(get().visibleMonth),
 
         // ============ Event Management ============
-        addEvent: (event: Event) => {
-          set((state) => ({ events: [...state.events, event] }));
+        addEvent: (event: CalendarEvent) => {
+          set((state) => ({ calendarEvents: [...state.calendarEvents, event] }));
           get()._callbacks.onEventCreate?.(event);
         },
 
         updateEvent: (
           id: string,
-          eventUpdate: Partial<Event>,
+          eventUpdate: Partial<CalendarEvent>,
           isPending?: boolean,
         ) => {
           set((state) => {
-            const eventIndex = state.events.findIndex((e) => e.id === id);
+            const eventIndex = state.calendarEvents.findIndex((e) => e.id === id);
             if (eventIndex === -1) {
               throw new Error(`Event with id ${id} not found`);
             }
             const updatedEvent = {
-              ...state.events[eventIndex],
+              ...state.calendarEvents[eventIndex],
               ...eventUpdate,
             };
-            const newEvents = [...state.events];
+            const newEvents = [...state.calendarEvents];
             newEvents[eventIndex] = updatedEvent;
-            return { events: newEvents };
+            return { calendarEvents: newEvents };
           });
 
           if (!isPending) {
             const state = get();
-            const updatedEvent = state.events.find((e) => e.id === id);
+            const updatedEvent = state.calendarEvents.find((e) => e.id === id);
             if (updatedEvent) {
               state._callbacks.onEventUpdate?.(updatedEvent);
             }
@@ -439,23 +439,23 @@ export function createCalendarStore(
 
         deleteEvent: (id: string) => {
           const state = get();
-          const eventIndex = state.events.findIndex((e) => e.id === id);
+          const eventIndex = state.calendarEvents.findIndex((e) => e.id === id);
           if (eventIndex === -1) {
             throw new Error(`Event with id ${id} not found`);
           }
           set((s) => ({
-            events: s.events.filter((e) => e.id !== id),
+            calendarEvents: s.calendarEvents.filter((e) => e.id !== id),
           }));
           state._callbacks.onEventDelete?.(id);
         },
 
-        setEvents: (events: Event[]) => {
-          set({ events: [...events] });
+        setEvents: (events: CalendarEvent[]) => {
+          set({ calendarEvents: [...events] });
         },
 
         getEvents: () => {
           const state = get();
-          const allEvents = state.events;
+          const allEvents = state.calendarEvents;
           const visibleCalendars = new Set(
             state._calendarRegistry
               .getAll()
@@ -474,7 +474,7 @@ export function createCalendarStore(
           });
         },
 
-        getAllEvents: () => [...get().events],
+        getAllEvents: () => [...get().calendarEvents],
 
         highlightEvent: (eventId: string | null) => {
           set({ highlightedEventId: eventId });
@@ -518,7 +518,7 @@ export function createCalendarStore(
 
           // Update all events from source calendar to target calendar
           set((s) => ({
-            events: s.events.map((e) =>
+            calendarEvents: s.calendarEvents.map((e) =>
               e.calendarId === sourceId ? { ...e, calendarId: targetId } : e,
             ),
           }));
@@ -684,7 +684,7 @@ function createPluginAppInterface(
       return {
         currentView: s.currentView,
         currentDate: s.currentDate,
-        events: s.events,
+        calendarEvents: s.calendarEvents,
         plugins: s._plugins,
         views: s._views,
         switcherMode: s.switcherMode,
@@ -702,8 +702,8 @@ function createPluginAppInterface(
     goToPrevious: () => get().goToPrevious(),
     goToNext: () => get().goToNext(),
     selectDate: (date: Date) => get().selectDate(date),
-    addEvent: (event: Event) => get().addEvent(event),
-    updateEvent: (id: string, event: Partial<Event>, isPending?: boolean) =>
+    addEvent: (event: CalendarEvent) => get().addEvent(event),
+    updateEvent: (id: string, event: Partial<CalendarEvent>, isPending?: boolean) =>
       get().updateEvent(id, event, isPending),
     deleteEvent: (id: string) => get().deleteEvent(id),
     getEvents: () => get().getEvents(),

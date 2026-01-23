@@ -9,7 +9,7 @@
  */
 
 import { Temporal } from 'temporal-polyfill';
-import { Event } from '../types';
+import { CalendarEvent } from '../types';
 import { temporalToDate } from './temporal';
 
 // ============================================================================
@@ -22,7 +22,7 @@ import { temporalToDate } from './temporal';
  * @param events Array of events
  * @returns Filtered events
  */
-export const getEventsForDay = (dayIndex: number, events: Event[]) => {
+export const getEventsForDay = (dayIndex: number, events: CalendarEvent[]) => {
   return events.filter(event => event.day === dayIndex && !event.allDay);
 };
 
@@ -36,7 +36,7 @@ export const getEventsForDay = (dayIndex: number, events: Event[]) => {
  */
 export const getAllDayEventsForDay = (
   dayIndex: number,
-  events: Event[],
+  events: CalendarEvent[],
   weekStart?: Date
 ) => {
   return events.filter(event => {
@@ -84,10 +84,10 @@ export const getDateByDayIndex = (weekStart: Date, dayIndex: number): Date => {
  * @returns Updated event
  */
 export const updateEventDateAndDay = (
-  event: Event,
+  event: CalendarEvent,
   newDayIndex: number,
   weekStart: Date
-): Event => {
+): CalendarEvent => {
   const newDate = getDateByDayIndex(weekStart, newDayIndex);
   return {
     ...event,
@@ -160,9 +160,9 @@ const dateToTemporal = (
  * @returns Complete event with Temporal start/end
  */
 export const createEventWithDate = (
-  eventData: Omit<Event, 'start' | 'end'>,
+  eventData: Omit<CalendarEvent, 'start' | 'end'>,
   weekStart: Date
-): Event => {
+): CalendarEvent => {
   const eventDate = getDateByDayIndex(weekStart, eventData.day ?? 0);
   const allDay = eventData.allDay ?? false;
   return {
@@ -213,9 +213,9 @@ export const isEventInWeek = (eventDate: Date, weekStart: Date): boolean => {
  * @returns Events with updated day indices
  */
 export const recalculateEventDays = (
-  events: Event[],
+  events: CalendarEvent[],
   weekStart: Date
-): Event[] => {
+): CalendarEvent[] => {
   return events.map(event => {
     const eventDate = temporalToDate(event.start);
     const newDay = calculateDayIndex(eventDate, weekStart);
@@ -257,7 +257,7 @@ export const getDayIndexByDate = (
  * @param weekStart Week start date
  * @returns Filtered and recalculated events
  */
-export const getEventsForWeek = (events: Event[], weekStart: Date): Event[] => {
+export const getEventsForWeek = (events: CalendarEvent[], weekStart: Date): CalendarEvent[] => {
   const weekEnd = new Date(weekStart);
   weekEnd.setDate(weekStart.getDate() + 6);
   weekEnd.setHours(23, 59, 59, 999);
@@ -287,9 +287,9 @@ export const getEventsForWeek = (events: Event[], weekStart: Date): Event[] => {
  * @returns Complete event
  */
 export const createEventWithRealDate = (
-  eventData: Omit<Event, 'start' | 'end'>,
+  eventData: Omit<CalendarEvent, 'start' | 'end'>,
   weekStart: Date
-): Event => {
+): CalendarEvent => {
   const eventDate = new Date(weekStart);
   eventDate.setDate(weekStart.getDate() + (eventData.day ?? 0));
   const allDay = eventData.allDay ?? false;
@@ -308,10 +308,10 @@ export const createEventWithRealDate = (
  * @returns Updated event
  */
 export const updateEventWithRealDate = (
-  event: Event,
+  event: CalendarEvent,
   newDayIndex: number,
   weekStart: Date
-): Event => {
+): CalendarEvent => {
   const newDate = new Date(weekStart);
   newDate.setDate(weekStart.getDate() + newDayIndex);
   const allDay = event.allDay ?? false;
@@ -332,9 +332,9 @@ export const updateEventWithRealDate = (
  * This is the recommended function for creating events without timezone complexity
  */
 export const createEventWithPlainDateTime = (
-  eventData: Omit<Event, 'start' | 'end'>,
+  eventData: Omit<CalendarEvent, 'start' | 'end'>,
   weekStart: Date
-): Event => {
+): CalendarEvent => {
   const eventDate = getDateByDayIndex(weekStart, eventData.day ?? 0);
   const allDay = eventData.allDay ?? false;
 
@@ -374,10 +374,10 @@ export const createEventWithPlainDateTime = (
  * Use when explicit timezone control is needed
  */
 export const createEventWithZonedDateTime = (
-  eventData: Omit<Event, 'start' | 'end'>,
+  eventData: Omit<CalendarEvent, 'start' | 'end'>,
   weekStart: Date,
   timeZone: string
-): Event => {
+): CalendarEvent => {
   const eventDate = getDateByDayIndex(weekStart, eventData.day ?? 0);
   const allDay = eventData.allDay ?? false;
 

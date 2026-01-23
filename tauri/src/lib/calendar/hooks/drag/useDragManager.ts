@@ -2,7 +2,7 @@ import React, { useRef, useCallback } from 'react';
 import { createRoot, Root } from 'react-dom/client';
 import {
   EventLayout,
-  Event,
+  CalendarEvent,
   UnifiedDragRef,
   useDragProps,
   ViewType,
@@ -119,7 +119,7 @@ export const useDragManager = (options: useDragProps): UseDragManagerReturn => {
             end: nowTemporal,
             allDay: false,
             day: 0,
-          } as Event);
+          } as CalendarEvent);
 
         reactRootRef.current.render(
           React.createElement(LocaleProvider, { locale },

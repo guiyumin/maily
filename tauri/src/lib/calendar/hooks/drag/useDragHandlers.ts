@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import {
   EventLayout,
-  Event,
+  CalendarEvent,
   MonthDragState,
   ViewType,
   WeekDayDragState,
@@ -36,7 +36,7 @@ export const useDragHandlers = (
     calculateNewEventLayout,
     calculateDragLayout,
     currentWeekStart,
-    events,
+    calendarEvents,
     FIRST_HOUR = 0,
     LAST_HOUR = 24,
     MIN_DURATION = 0.25,
@@ -134,7 +134,7 @@ export const useDragHandlers = (
             : new Date();
           removeDragIndicator();
           drag.indicatorVisible = false;
-          const event = events?.find(e => e.id === drag.eventId);
+          const event = calendarEvents?.find(e => e.id === drag.eventId);
           // When switching regions, don't pass source element, use calculation method
           createDragIndicator(drag, event?.calendarId, event?.title);
           drag.sourceElement = null;
@@ -169,7 +169,7 @@ export const useDragHandlers = (
             : new Date();
           removeDragIndicator();
           drag.indicatorVisible = false;
-          const event = events?.find(e => e.id === drag.eventId);
+          const event = calendarEvents?.find(e => e.id === drag.eventId);
           // When switching regions, don't pass source element, use calculation method
           createDragIndicator(drag, event?.calendarId, event?.title);
           drag.sourceElement = null;
@@ -203,7 +203,7 @@ export const useDragHandlers = (
         // Calculate layout
         let dragLayout: EventLayout | null = null;
         if (drag.mode === 'move' && drag.eventId && calculateDragLayout) {
-          const draggedEvent = events?.find(e => e.id === drag.eventId);
+          const draggedEvent = calendarEvents?.find(e => e.id === drag.eventId);
           if (draggedEvent) {
             dragLayout = calculateDragLayout(
               draggedEvent,
@@ -227,7 +227,7 @@ export const useDragHandlers = (
       checkIfInAllDayArea,
       createDragIndicator,
       currentWeekStart,
-      events,
+      calendarEvents,
       FIRST_HOUR,
       getColumnDayIndex,
       handleDirectScroll,
@@ -480,7 +480,7 @@ export const useDragHandlers = (
             : dateToZonedDateTime(newEndDate);
 
           throttledSetEvents(
-            (prev: Event[]) =>
+            (prev: CalendarEvent[]) =>
               prev.map(event =>
                 event.id === drag.eventId
                   ? {
@@ -571,7 +571,7 @@ export const useDragHandlers = (
             const newEndTemporal = dateToPlainDate(newEndDate);
 
             throttledSetEvents(
-              (prev: Event[]) =>
+              (prev: CalendarEvent[]) =>
                 prev.map(event => {
                   if (event.id !== drag.eventId) return event;
 
@@ -590,7 +590,7 @@ export const useDragHandlers = (
             let newEndHour = drag.endHour;
 
             // Calculate actual end day of event (from current event)
-            const currentEvent = events?.find(e => e.id === drag.eventId);
+            const currentEvent = calendarEvents?.find(e => e.id === drag.eventId);
             let eventEndDayIndex = drag.dayIndex;
             if (currentEvent) {
               const eventStart = temporalToDate(currentEvent.start);
@@ -693,7 +693,7 @@ export const useDragHandlers = (
 
             // Update event
             throttledSetEvents(
-              (prev: Event[]) =>
+              (prev: CalendarEvent[]) =>
                 prev.map(event => {
                   if (event.id !== drag.eventId) return event;
 
@@ -776,7 +776,7 @@ export const useDragHandlers = (
           // Calculate layout and update drag indicator
           let dragLayout: EventLayout | null = null;
           if (drag.eventId && calculateDragLayout) {
-            const draggedEvent = events?.find(e => e.id === drag.eventId);
+            const draggedEvent = calendarEvents?.find(e => e.id === drag.eventId);
             if (draggedEvent) {
               dragLayout = calculateDragLayout(
                 draggedEvent,
@@ -811,7 +811,7 @@ export const useDragHandlers = (
       pixelYToHour,
       handleDirectScroll,
       calculateDragLayout,
-      events,
+      calendarEvents,
       dragRef,
       createDragIndicator,
     ]
@@ -853,7 +853,7 @@ export const useDragHandlers = (
             ? dateToPlainDate(drag.originalEndDate!)
             : dateToZonedDateTime(drag.originalEndDate!);
 
-          throttledSetEvents((prev: Event[]) =>
+          throttledSetEvents((prev: CalendarEvent[]) =>
             prev.map(event =>
               event.id === drag.eventId
                 ? {
@@ -888,7 +888,7 @@ export const useDragHandlers = (
               ? dateToPlainDate(drag.originalEndDate!)
               : dateToZonedDateTime(drag.originalEndDate!);
 
-            throttledSetEvents((prev: Event[]) =>
+            throttledSetEvents((prev: CalendarEvent[]) =>
               prev.map(event =>
                 event.id === drag.eventId
                   ? {
@@ -916,7 +916,7 @@ export const useDragHandlers = (
                 return prev;
               });
 
-              throttledSetEvents((prev: Event[]) =>
+              throttledSetEvents((prev: CalendarEvent[]) =>
                 prev.map(event => {
                   if (event.id !== drag.eventId) return event;
 
@@ -1075,7 +1075,7 @@ export const useDragHandlers = (
         const startTemporal = dateToZonedDateTime(startTime);
         const endTemporal = dateToZonedDateTime(endTime);
 
-        const newEvent: Event = {
+        const newEvent: CalendarEvent = {
           id: String(Date.now()),
           title: t('newEvent'),
           start: startTemporal,
@@ -1152,7 +1152,7 @@ export const useDragHandlers = (
 
   // Move event start - complete version
   const handleMoveStart = useCallback(
-    (e: React.MouseEvent, event: Event) => {
+    (e: React.MouseEvent, event: CalendarEvent) => {
       e.preventDefault();
       e.stopPropagation();
       if (dragRef.current?.active) return;
@@ -1323,7 +1323,7 @@ export const useDragHandlers = (
 
   // Resize start - complete version
   const handleResizeStart = useCallback(
-    (e: React.MouseEvent, event: Event, direction: string) => {
+    (e: React.MouseEvent, event: CalendarEvent, direction: string) => {
       e.preventDefault();
       e.stopPropagation();
       if (dragRef.current?.active) return;

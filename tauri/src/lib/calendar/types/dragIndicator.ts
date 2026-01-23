@@ -1,7 +1,7 @@
 // Drag-related type definitions
 import { DragConfig, CalendarApp } from '../types';
 import { EventLayout } from './layout';
-import { Event } from './event';
+import { CalendarEvent } from './calendarEvent';
 import {
   UseDragCommonReturn,
   UseDragManagerReturn,
@@ -74,7 +74,7 @@ export interface UnifiedDragRef extends DragRef {
   // Month view specific properties
   targetDate?: Date | null;
   originalDate?: Date | null;
-  originalEvent?: Event | null;
+  originalEvent?: CalendarEvent | null;
   dragOffset?: number;
   originalStartDate?: Date | null;
   originalEndDate?: Date | null;
@@ -95,24 +95,24 @@ export interface useDragProps extends Partial<DragConfig> {
   calendarRef: React.RefObject<HTMLDivElement | null>;
   allDayRowRef?: React.RefObject<HTMLDivElement | null>; // Required for Week/Day views
   onEventsUpdate: (
-    updateFunc: (events: Event[]) => Event[],
+    updateFunc: (events: CalendarEvent[]) => CalendarEvent[],
     isResizing?: boolean
   ) => void;
-  onEventCreate: (event: Event) => void;
-  onEventEdit?: (event: Event) => void; // Required for Month view
+  onEventCreate: (calendarEvent: CalendarEvent) => void;
+  onEventEdit?: (calendarEvent: CalendarEvent) => void; // Required for Month view
   calculateNewEventLayout?: (
     dayIndex: number,
     startHour: number,
     endHour: number
   ) => EventLayout | null; // Required for Week/Day views
   calculateDragLayout?: (
-    event: Event,
+    calendarEvent: CalendarEvent,
     targetDay: number,
     targetStartHour: number,
     targetEndHour: number
   ) => EventLayout | null; // Required for Week/Day views
   currentWeekStart: Date;
-  events: Event[];
+  calendarEvents: CalendarEvent[];
   renderer?: DragIndicatorRenderer; // Required for Week/Day views
   app?: CalendarApp;
 }
@@ -153,10 +153,10 @@ export interface useDragReturn {
   removeDragIndicator: () => void;
   handleCreateAllDayEvent?: (e: React.MouseEvent, dayIndex: number) => void; // Week/Day views
   handleCreateStart: (e: React.MouseEvent, ...args: (Date | number)[]) => void;
-  handleMoveStart: (e: React.MouseEvent, event: Event) => void;
+  handleMoveStart: (e: React.MouseEvent, calendarEvent: CalendarEvent) => void;
   handleResizeStart: (
     e: React.MouseEvent,
-    event: Event,
+    calendarEvent: CalendarEvent,
     direction: string
   ) => void;
   dragState: MonthDragState | WeekDayDragState;

@@ -1,7 +1,7 @@
 // Hook-related type definitions
 import React from 'react';
 import { Root } from 'react-dom/client';
-import { Event } from './event';
+import { CalendarEvent } from './calendarEvent';
 import { EventLayout } from './layout';
 import {
   UnifiedDragRef,
@@ -70,7 +70,7 @@ export interface UseDragStateReturn {
   // Methods
   resetDragState: () => void;
   throttledSetEvents: (
-    updateFunc: (events: Event[]) => Event[],
+    updateFunc: (events: CalendarEvent[]) => CalendarEvent[],
     dragState?: string
   ) => void;
 }
@@ -120,10 +120,10 @@ export interface UseDragHandlersReturn {
   handleDragMove: (e: MouseEvent) => void;
   handleDragEnd: (e: MouseEvent) => void;
   handleCreateStart: (e: React.MouseEvent, ...args: (Date | number)[]) => void;
-  handleMoveStart: (e: React.MouseEvent, event: Event) => void;
+  handleMoveStart: (e: React.MouseEvent, calendarEvent: CalendarEvent) => void;
   handleResizeStart: (
     e: React.MouseEvent,
-    event: Event,
+    calendarEvent: CalendarEvent,
     direction: string
   ) => void;
   handleUniversalDragMove: (e: MouseEvent) => void;

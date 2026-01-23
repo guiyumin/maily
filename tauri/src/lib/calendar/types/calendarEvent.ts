@@ -4,7 +4,7 @@ import { Temporal } from 'temporal-polyfill';
  * Calendar event interface (using Temporal API)
  * Unified event data structure supporting single-day, cross-day, and all-day events
  */
-export interface Event {
+export interface CalendarEvent {
   id: string;
   title: string;
   description?: string;

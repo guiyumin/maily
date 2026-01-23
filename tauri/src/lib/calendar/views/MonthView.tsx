@@ -3,7 +3,7 @@ import { CalendarApp } from "@calendar/core";
 import { extractHourFromDate } from "@calendar/utils";
 import { useLocale } from "@calendar/locale";
 import {
-  Event,
+  CalendarEvent,
   MonthEventDragState,
   ViewType,
   EventDetailContentRenderer,
@@ -44,7 +44,7 @@ const MonthView: React.FC<MonthViewProps> = ({
     .getCalendars()
     .map((c) => c.id + c.colors.lineColor)
     .join("-");
-  const previousEventsRef = useRef<Event[] | null>(null);
+  const previousEventsRef = useRef<CalendarEvent[] | null>(null);
   const DEFAULT_WEEK_HEIGHT = 119;
   // Stabilize events reference so week calculations do not rerun on every scroll frame
   const events = useMemo(() => {
@@ -63,7 +63,7 @@ const MonthView: React.FC<MonthViewProps> = ({
   }, [rawEvents]);
 
   const eventsByWeek = useMemo(() => {
-    const map = new Map<number, Event[]>();
+    const map = new Map<number, CalendarEvent[]>();
 
     const getWeekStart = (date: Date) => {
       const weekStart = new Date(date);
@@ -75,7 +75,7 @@ const MonthView: React.FC<MonthViewProps> = ({
       return weekStart;
     };
 
-    const addToWeek = (weekTime: number, event: Event) => {
+    const addToWeek = (weekTime: number, event: CalendarEvent) => {
       const bucket = map.get(weekTime);
       if (bucket) {
         bucket.push(event);
@@ -185,7 +185,7 @@ const MonthView: React.FC<MonthViewProps> = ({
     calendarRef,
     viewType: ViewType.MONTH,
     onEventsUpdate: (
-      updateFunc: (events: Event[]) => Event[],
+      updateFunc: (events: CalendarEvent[]) => CalendarEvent[],
       isResizing?: boolean,
     ) => {
       const newEvents = updateFunc(events);
@@ -227,10 +227,10 @@ const MonthView: React.FC<MonthViewProps> = ({
         app.updateEvent(event.id, event, isResizing),
       );
     },
-    onEventCreate: (event: Event) => {
+    onEventCreate: (event: CalendarEvent) => {
       app.addEvent(event);
     },
-    onEventEdit: (event: Event) => {
+    onEventEdit: (event: CalendarEvent) => {
       setNewlyCreatedEventId(event.id);
     },
     currentWeekStart,
@@ -240,7 +240,7 @@ const MonthView: React.FC<MonthViewProps> = ({
   // Use calendar drop functionality
   const { handleDrop, handleDragOver } = useCalendarDrop({
     app,
-    onEventCreated: (event: Event) => {
+    onEventCreated: (event: CalendarEvent) => {
       setNewlyCreatedEventId(event.id);
     },
   });
@@ -395,7 +395,7 @@ const MonthView: React.FC<MonthViewProps> = ({
     setWeekHeight(height);
   }, []);
 
-  const handleEventUpdate = (updatedEvent: Event) => {
+  const handleEventUpdate = (updatedEvent: CalendarEvent) => {
     app.updateEvent(updatedEvent.id, updatedEvent);
   };
 

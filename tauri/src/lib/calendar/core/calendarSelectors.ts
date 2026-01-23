@@ -16,7 +16,7 @@ export const selectVisibleEvents = (state: CalendarStore) => {
       .map(calendar => calendar.id)
   );
 
-  return state.events.filter(event => {
+  return state.calendarEvents.filter(event => {
     if (!event.calendarId) {
       return true;
     }
@@ -60,7 +60,7 @@ export const selectSwitcherMode = (state: CalendarStore) => state.switcherMode;
 /**
  * Select all events (unfiltered)
  */
-export const selectAllEvents = (state: CalendarStore) => state.events;
+export const selectAllEvents = (state: CalendarStore) => state.calendarEvents;
 
 /**
  * Select calendar version (use to detect calendar registry changes)

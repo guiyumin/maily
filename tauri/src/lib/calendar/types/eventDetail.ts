@@ -1,6 +1,6 @@
 // Event detail panel related type definitions
 
-import { Event } from './event';
+import { CalendarEvent } from './calendarEvent';
 import { EventDetailPosition } from './dragIndicator';
 import { CalendarApp } from '../types';
 
@@ -12,7 +12,7 @@ export type { EventDetailPosition } from './dragIndicator';
  */
 export interface EventDetailPanelProps {
   /** Current event data */
-  event: Event;
+  calendarEvent: CalendarEvent;
   /** Panel position information */
   position: EventDetailPosition;
   /** Panel DOM reference */
@@ -26,7 +26,7 @@ export interface EventDetailPanelProps {
   /** Selected event element reference */
   selectedEventElementRef: React.RefObject<HTMLDivElement | null>;
   /** Event update callback */
-  onEventUpdate: (updatedEvent: Event) => void;
+  onEventUpdate: (calendarEvent: CalendarEvent) => void;
   /** Event delete callback */
   onEventDelete: (eventId: string) => void;
   /** Close panel callback (optional) */
@@ -44,11 +44,11 @@ export type EventDetailPanelRenderer =
  */
 export interface EventDetailContentProps {
   /** Current event data */
-  event: Event;
+  calendarEvent: CalendarEvent;
   /** Whether the event is all-day */
   isAllDay: boolean;
   /** Event update callback */
-  onEventUpdate: (updatedEvent: Event) => void;
+  onEventUpdate: (calendarEvent: CalendarEvent) => void;
   /** Event delete callback */
   onEventDelete: (eventId: string) => void;
   /** Close panel callback (optional) */
@@ -66,13 +66,13 @@ export type EventDetailContentRenderer =
  */
 export interface EventDetailDialogProps {
   /** Current event data */
-  event: Event;
+  calendarEvent: CalendarEvent;
   /** Whether the dialog is open */
   isOpen: boolean;
   /** Whether the event is all-day */
   isAllDay: boolean;
   /** Event update callback */
-  onEventUpdate: (updatedEvent: Event) => void;
+  onEventUpdate: (calendarEvent: CalendarEvent) => void;
   /** Event delete callback */
   onEventDelete: (eventId: string) => void;
   /** Close dialog callback */

@@ -3,7 +3,7 @@ import { Temporal } from 'temporal-polyfill';
 import { CalendarApp } from '@calendar/core';
 import {
   MonthEventDragState,
-  Event,
+  CalendarEvent,
   ViewType,
   EventDetailContentRenderer,
   EventDetailDialogRenderer,
@@ -11,7 +11,7 @@ import {
 import { VirtualWeekItem } from '@calendar/types/monthView';
 import { temporalToDate } from '@calendar/utils/temporal';
 import { useLocale } from '@calendar/locale';
-import CalendarEvent from '../weekView/CalendarEvent';
+import CalendarEventCard from '../weekView/CalendarEvent';
 import { analyzeMultiDayEventsForWeek } from './util';
 import { extractHourFromDate } from '@calendar/utils/helpers';
 import { logger } from '@calendar/utils/logger';
@@ -19,7 +19,7 @@ import { logger } from '@calendar/utils/logger';
 export interface MultiDayEventSegment {
   id: string;
   originalEventId: string;
-  event: Event;
+  event: CalendarEvent;
   startDayIndex: number;
   endDayIndex: number;
   segmentType:
@@ -45,19 +45,19 @@ interface WeekComponentProps {
   isDragging: boolean;
   item: VirtualWeekItem;
   weekHeight: number; // Use this instead of item.height to avoid sync issues
-  events: Event[];
+  events: CalendarEvent[];
   dragState: MonthEventDragState;
   calendarRef: React.RefObject<HTMLDivElement>;
-  onEventUpdate: (updatedEvent: Event) => void;
+  onEventUpdate: (updatedEvent: CalendarEvent) => void;
   onEventDelete: (eventId: string) => void;
   onMoveStart: (
     e: React.MouseEvent<HTMLDivElement, MouseEvent>,
-    event: Event
+    event: CalendarEvent
   ) => void;
   onCreateStart: (e: React.MouseEvent, targetDate: Date) => void;
   onResizeStart: (
     e: React.MouseEvent<HTMLDivElement, MouseEvent>,
-    event: Event,
+    event: CalendarEvent,
     direction: string
   ) => void;
   onDetailPanelOpen: () => void;
@@ -70,7 +70,7 @@ interface WeekComponentProps {
   onDetailPanelToggle?: (eventId: string | null) => void;
   customDetailPanelContent?: EventDetailContentRenderer;
   customEventDetailDialog?: EventDetailDialogRenderer;
-  onCalendarDrop?: (e: React.DragEvent, dropDate: Date, dropHour?: number, isAllDay?: boolean) => Event | null;
+  onCalendarDrop?: (e: React.DragEvent, dropDate: Date, dropHour?: number, isAllDay?: boolean) => CalendarEvent | null;
   onCalendarDragOver?: (e: React.DragEvent) => void;
   calendarSignature?: string;
   app: CalendarApp;
@@ -177,8 +177,8 @@ const organizeMultiDaySegments = (multiDaySegments: MultiDayEventSegment[]) => {
 };
 
 // Build render event list (multi-day regular events will be rendered through segment, skipping here)
-const constructRenderEvents = (events: Event[]): Event[] => {
-  const renderEvents: Event[] = [];
+const constructRenderEvents = (events: CalendarEvent[]): CalendarEvent[] => {
+  const renderEvents: CalendarEvent[] = [];
 
   events.forEach(event => {
     // Ensure events have start and end fields
@@ -252,7 +252,7 @@ const constructRenderEvents = (events: Event[]): Event[] => {
 };
 
 // Sort events
-const sortDayEvents = (events: Event[]): Event[] => {
+const sortDayEvents = (events: CalendarEvent[]): CalendarEvent[] => {
   return [...events].sort((a, b) => {
     // All-day events first
     if (a.allDay !== b.allDay) {
@@ -394,7 +394,7 @@ const WeekComponent = React.memo<WeekComponentProps>(
     );
 
     // Get events for a specific date
-    const getEventsForDay = (dayDate: Date): Event[] => {
+    const getEventsForDay = (dayDate: Date): CalendarEvent[] => {
       return constructedRenderEvents.filter(event => {
         if (!event.start || !event.end) {
           return (
@@ -467,9 +467,9 @@ const WeekComponent = React.memo<WeekComponentProps>(
           return;
         } else {
           renderElements.push(
-            <CalendarEvent
+            <CalendarEventCard
               key={`${event.id}-${event.day}-${extractHourFromDate(event.start)}-${index}`}
-              event={event}
+              calendarEvent={event}
               isAllDay={!!event.allDay}
               isMonthView={true}
               calendarRef={calendarRef}
@@ -627,9 +627,9 @@ const WeekComponent = React.memo<WeekComponentProps>(
                 {organizedMultiDaySegments.map((layer, layerIndex) => (
                   <div key={`layer-${layerIndex}`} className="absolute inset-0">
                     {layer.map(segment => (
-                      <CalendarEvent
+                      <CalendarEventCard
                         key={segment.id}
-                        event={segment.event}
+                        calendarEvent={segment.event}
                         isAllDay={!!segment.event.allDay}
                         segment={segment}
                         segmentIndex={layerIndex}

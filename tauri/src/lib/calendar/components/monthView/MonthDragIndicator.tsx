@@ -1,11 +1,11 @@
 import React from 'react';
-import { Event } from '../../types';
+import { CalendarEvent } from '../../types';
 import { Calendar } from 'lucide-react';
 import { daysDifference } from '../../utils';
 import { useLocale } from '@calendar/locale';
 
 interface MonthDragIndicatorProps {
-  event: Event;
+  event: CalendarEvent;
   isCreating: boolean;
   targetDate: Date | null;
   isMultiDay?: boolean;

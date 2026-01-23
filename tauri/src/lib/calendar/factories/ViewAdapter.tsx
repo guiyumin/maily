@@ -6,7 +6,7 @@ import {
   EventsService,
   DragService,
 } from '../types';
-import { Event } from '../types';
+import { CalendarEvent } from '../types';
 
 export const ViewAdapter: React.FC<ViewAdapterProps> = ({
   originalComponent: OriginalComponent,
@@ -27,11 +27,11 @@ export const ViewAdapter: React.FC<ViewAdapterProps> = ({
   // Basic state
   const currentDate = app.getCurrentDate();
   const currentView = app.state.currentView;
-  const events = app.getEvents();
+  const calendarEvents = app.getEvents();
 
   // Event handlers
   const handleEventUpdate = useCallback(
-    (event: Event) => {
+    (event: CalendarEvent) => {
       if (eventsService) {
         eventsService.update(event.id, event);
       } else {
@@ -53,7 +53,7 @@ export const ViewAdapter: React.FC<ViewAdapterProps> = ({
   );
 
   const handleEventCreate = useCallback(
-    (event: Event) => {
+    (event: CalendarEvent) => {
       if (eventsService) {
         eventsService.add(event);
       } else {
@@ -99,7 +99,7 @@ export const ViewAdapter: React.FC<ViewAdapterProps> = ({
       app,
       currentDate,
       currentView,
-      events,
+      calendarEvents,
       onEventUpdate: handleEventUpdate,
       onEventDelete: handleEventDelete,
       onEventCreate: handleEventCreate,
@@ -111,7 +111,7 @@ export const ViewAdapter: React.FC<ViewAdapterProps> = ({
       app,
       currentDate,
       currentView,
-      events,
+      calendarEvents,
       handleEventUpdate,
       handleEventDelete,
       handleEventCreate,
@@ -126,11 +126,11 @@ export const ViewAdapter: React.FC<ViewAdapterProps> = ({
     // Create a calendar object compatible with the existing API
     const calendarCompat = {
       currentDate,
-      events,
-      setEvents: (newEvents: Event[]) => {
+      calendarEvents,
+      setEvents: (newEvents: CalendarEvent[]) => {
         // Clear existing events and add new events
-        events.forEach(event => handleEventDelete(event.id));
-        newEvents.forEach(event => handleEventCreate(event));
+        calendarEvents.forEach((event: CalendarEvent) => handleEventDelete(event.id));
+        newEvents.forEach((event: CalendarEvent) => handleEventCreate(event));
       },
       updateEvent: handleEventUpdate,
       deleteEvent: handleEventDelete,
@@ -188,7 +188,7 @@ export const ViewAdapter: React.FC<ViewAdapterProps> = ({
     };
   }, [
     currentDate,
-    events,
+    calendarEvents,
     currentView,
     handleEventUpdate,
     handleEventDelete,

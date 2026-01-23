@@ -2,7 +2,7 @@
 // View factory type definitions
 import React from 'react';
 import { CalendarView, ViewType, UseCalendarAppReturn } from './core';
-import { Event } from './event';
+import { CalendarEvent } from './calendarEvent';
 import { EventLayout } from './layout';
 import {
   EventDetailContentRenderer,
@@ -21,12 +21,12 @@ export interface BaseViewProps {
   // Base state
   currentDate: Date;
   currentView: ViewType;
-  events: Event[];
+  calendarEvents: CalendarEvent[];
 
   // Event management
-  onEventUpdate: (event: Event) => void;
+  onEventUpdate: (calendarEvent: CalendarEvent) => void;
   onEventDelete: (eventId: string) => void;
-  onEventCreate: (event: Event) => void;
+  onEventCreate: (calendarEvent: CalendarEvent) => void;
 
   // Navigation control
   onDateChange: (date: Date) => void;
@@ -44,8 +44,8 @@ export interface DayViewProps extends BaseViewProps {
   showMiniCalendar?: boolean;
   showAllDay?: boolean;
   scrollToCurrentTime?: boolean;
-  selectedEvent?: Event | null;
-  onEventSelect?: (event: Event | null) => void;
+  selectedCalendarEvent?: CalendarEvent | null;
+  onEventSelect?: (calendarEvent: CalendarEvent | null) => void;
 }
 
 /**
@@ -159,16 +159,16 @@ export interface DragIntegrationProps {
   viewType: ViewType;
   calendarRef: React.RefObject<HTMLDivElement>;
   allDayRowRef?: React.RefObject<HTMLDivElement>;
-  events: Event[];
-  onEventsUpdate: (updateFunc: (events: Event[]) => Event[]) => void;
-  onEventCreate: (event: Event) => void;
+  calendarEvents: CalendarEvent[];
+  onEventsUpdate: (updateFunc: (events: CalendarEvent[]) => CalendarEvent[]) => void;
+  onEventCreate: (calendarEvent: CalendarEvent) => void;
   calculateNewEventLayout?: (
     dayIndex: number,
     startHour: number,
     endHour: number
   ) => EventLayout | null;
   calculateDragLayout?: (
-    event: Event,
+    calendarEvent: CalendarEvent,
     targetDay: number,
     targetStartHour: number,
     targetEndHour: number

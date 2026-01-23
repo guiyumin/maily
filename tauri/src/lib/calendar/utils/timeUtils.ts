@@ -5,7 +5,7 @@
  * Handles 24-hour format, time rounding, and special cases like midnight crossings.
  */
 
-import { Event } from '../types';
+import { CalendarEvent } from '../types';
 import { temporalToDate } from './temporal';
 import { extractHourFromDate } from './dateTimeUtils';
 
@@ -35,7 +35,7 @@ export const formatTime = (hours: number, minutes = 0) => {
  * @param event Event object
  * @returns Formatted time range (e.g., "14:00 - 16:00" or "All day")
  */
-export const formatEventTimeRange = (event: Event) => {
+export const formatEventTimeRange = (event: CalendarEvent) => {
   const startHour = extractHourFromDate(event.start);
   const endHour = getEventEndHour(event);
   return `${formatTime(startHour)} - ${formatTime(endHour)}`;
@@ -58,7 +58,7 @@ export const roundToTimeStep = (hour: number) => {
  * @param event Event object
  * @returns End hour (0-24)
  */
-export const getEventEndHour = (event: Event): number => {
+export const getEventEndHour = (event: CalendarEvent): number => {
   if (!event.end) return 0;
 
   const endHour = extractHourFromDate(event.end);

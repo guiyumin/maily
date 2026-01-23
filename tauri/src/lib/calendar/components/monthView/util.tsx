@@ -1,10 +1,10 @@
-import { Event } from '@calendar/types';
+import { CalendarEvent } from '@calendar/types';
 import { CalendarDays, Gift, Heart, MapPin, Star } from 'lucide-react';
 import { MultiDayEventSegment } from '@calendar/components/monthView/WeekComponent';
 import { temporalToDate } from '@calendar/utils/temporal';
 import { daysDifference } from '@calendar/utils';
 
-export const getEventIcon = (event: Event) => {
+export const getEventIcon = (event: CalendarEvent) => {
   const title = event.title.toLowerCase();
 
   if (
@@ -42,7 +42,7 @@ export const getEventIcon = (event: Event) => {
 
 // Analyze multi-day events and generate segments for the current week (supports all-day events and multi-day regular events)
 export const analyzeMultiDayEventsForWeek = (
-  events: Event[],
+  events: CalendarEvent[],
   weekStart: Date
 ): MultiDayEventSegment[] => {
   const segments: MultiDayEventSegment[] = [];
@@ -202,7 +202,7 @@ export const analyzeMultiDayEventsForWeek = (
 
 // Check if a regular event spans multiple days and return time segment information for each day
 export const analyzeMultiDayRegularEvent = (
-  event: Event,
+  event: CalendarEvent,
   weekStart: Date
 ): { dayIndex: number; startHour: number; endHour: number; isFirst: boolean; isLast: boolean }[] => {
   if (event.allDay) return [];

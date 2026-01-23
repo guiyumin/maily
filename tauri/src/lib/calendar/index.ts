@@ -38,7 +38,7 @@ export {
 } from "./hooks/virtualScroll/useVirtualMonthScroll";
 
 // Components
-export { default as CalendarEvent } from "./components/weekView/CalendarEvent";
+export { default as CalendarEventCard } from "./components/weekView/CalendarEvent";
 export { default as DefaultEventDetailPanel } from "./components/common/DefaultEventDetailPanel";
 export { default as DefaultEventDetailDialog } from "./components/common/DefaultEventDetailDialog";
 export { default as EventDetailPanelWithContent } from "./components/common/EventDetailPanelWithContent";
@@ -73,7 +73,7 @@ export type {
   CalendarCallbacks,
 } from "./types/core";
 
-export type { Event } from "./types/event";
+export type { CalendarEvent } from "./types/calendarEvent";
 
 export type { DragConfig } from "./types/config";
 

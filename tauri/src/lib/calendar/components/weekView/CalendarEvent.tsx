@@ -15,7 +15,7 @@ import {
   formatTime,
 } from '@calendar/utils';
 import {
-  Event,
+  CalendarEvent as CalendarEventType,
   EventDetailPosition,
   EventLayout,
   EventDetailContentRenderer,
@@ -30,7 +30,7 @@ import ReactDOM from 'react-dom';
 import { CalendarApp } from '@calendar/core';
 
 interface CalendarEventProps {
-  event: Event;
+  calendarEvent: CalendarEventType;
   layout?: EventLayout;
   isAllDay?: boolean;
   allDayHeight?: number;
@@ -49,14 +49,14 @@ interface CalendarEventProps {
   detailPanelEventId?: string | null;
   onMoveStart?: (
     e: React.MouseEvent<HTMLDivElement, MouseEvent>,
-    event: Event
+    calendarEvent: CalendarEventType
   ) => void;
   onResizeStart?: (
     e: React.MouseEvent<HTMLDivElement, MouseEvent>,
-    event: Event,
+    calendarEvent: CalendarEventType,
     direction: string
   ) => void;
-  onEventUpdate: (updatedEvent: Event) => void;
+  onEventUpdate: (updatedEvent: CalendarEventType) => void;
   onEventDelete: (eventId: string) => void;
   onDetailPanelOpen?: () => void;
   onEventSelect?: (eventId: string | null) => void;
@@ -71,7 +71,7 @@ interface CalendarEventProps {
 }
 
 const CalendarEvent: React.FC<CalendarEventProps> = ({
-  event,
+  calendarEvent,
   layout,
   isAllDay = false,
   allDayHeight = 28,
@@ -104,10 +104,10 @@ const CalendarEvent: React.FC<CalendarEventProps> = ({
   const [isPopping, setIsPopping] = useState(false);
   const detailPanelKey =
     isMultiDay && segment
-      ? `${event.id}::${segment.id}`
+      ? `${calendarEvent.id}::${segment.id}`
       : multiDaySegmentInfo?.dayIndex !== undefined
-        ? `${event.id}::day-${multiDaySegmentInfo.dayIndex}`
-        : event.id;
+        ? `${calendarEvent.id}::day-${multiDaySegmentInfo.dayIndex}`
+        : calendarEvent.id;
   const showDetailPanel = detailPanelEventId === detailPanelKey;
   const [detailPanelPosition, setDetailPanelPosition] =
     useState<EventDetailPosition | null>(null);
@@ -121,7 +121,7 @@ const CalendarEvent: React.FC<CalendarEventProps> = ({
   const selectedDayIndexRef = useRef<number | null>(null);
 
   const isEventSelected =
-    selectedEventId !== undefined ? selectedEventId === event.id : isSelected;
+    selectedEventId !== undefined ? selectedEventId === calendarEvent.id : isSelected;
 
   const calculateEventStyle = () => {
     if (isMonthView) {
@@ -181,10 +181,10 @@ const CalendarEvent: React.FC<CalendarEventProps> = ({
     // Use segment information or extract time from event
     const startHour = multiDaySegmentInfo
       ? multiDaySegmentInfo.startHour
-      : extractHourFromDate(event.start);
+      : extractHourFromDate(calendarEvent.start);
     const endHour = multiDaySegmentInfo
       ? multiDaySegmentInfo.endHour
-      : getEventEndHour(event);
+      : getEventEndHour(calendarEvent);
 
     const top = (startHour - firstHour) * hourHeight;
     const height = Math.max(
@@ -313,14 +313,14 @@ const CalendarEvent: React.FC<CalendarEventProps> = ({
       } else if (multiDaySegmentInfo?.dayIndex !== undefined) {
         setActiveDayIndex(multiDaySegmentInfo.dayIndex);
       } else {
-        setActiveDayIndex(event.day ?? null);
+        setActiveDayIndex(calendarEvent.day ?? null);
       }
     } else {
-      setActiveDayIndex(event.day ?? null);
+      setActiveDayIndex(calendarEvent.day ?? null);
     }
 
     if (onEventSelect) {
-      onEventSelect(event.id);
+      onEventSelect(calendarEvent.id);
     } else {
       setIsSelected(true);
     }
@@ -344,10 +344,10 @@ const CalendarEvent: React.FC<CalendarEventProps> = ({
 
       const segmentStartHour = multiDaySegmentInfo
         ? multiDaySegmentInfo.startHour
-        : extractHourFromDate(event.start);
+        : extractHourFromDate(calendarEvent.start);
       const segmentEndHour = multiDaySegmentInfo
         ? multiDaySegmentInfo.endHour
-        : getEventEndHour(event);
+        : getEventEndHour(calendarEvent);
 
       const eventTop = (segmentStartHour - firstHour) * hourHeight;
       const eventHeight = Math.max(
@@ -426,10 +426,10 @@ const CalendarEvent: React.FC<CalendarEventProps> = ({
       } else if (multiDaySegmentInfo?.dayIndex !== undefined) {
         setActiveDayIndex(multiDaySegmentInfo.dayIndex);
       } else {
-        setActiveDayIndex(event.day ?? null);
+        setActiveDayIndex(calendarEvent.day ?? null);
       }
     } else {
-      setActiveDayIndex(event.day ?? null);
+      setActiveDayIndex(calendarEvent.day ?? null);
     }
 
     scrollEventToCenter().then(() => {
@@ -528,7 +528,7 @@ const CalendarEvent: React.FC<CalendarEventProps> = ({
     if (segment) {
       return segment.startDayIndex;
     }
-    return event.day ?? 0;
+    return calendarEvent.day ?? 0;
   };
 
   const updatePanelPosition = useCallback(() => {
@@ -591,10 +591,10 @@ const CalendarEvent: React.FC<CalendarEventProps> = ({
         // Calculate the logical position of the event in the calendar
         const segmentStartHour = multiDaySegmentInfo
           ? multiDaySegmentInfo.startHour
-          : extractHourFromDate(event.start);
+          : extractHourFromDate(calendarEvent.start);
         const segmentEndHour = multiDaySegmentInfo
           ? multiDaySegmentInfo.endHour
-          : getEventEndHour(event);
+          : getEventEndHour(calendarEvent);
         const eventLogicalTop = (segmentStartHour - firstHour) * hourHeight;
         const eventLogicalHeight = Math.max(
           (segmentEndHour - segmentStartHour) * hourHeight,
@@ -714,9 +714,9 @@ const CalendarEvent: React.FC<CalendarEventProps> = ({
     });
   }, [
     calendarRef,
-    event.day,
-    event.start,
-    event.end,
+    calendarEvent.day,
+    calendarEvent.start,
+    calendarEvent.end,
     eventVisibility,
     isMonthView,
     firstHour,
@@ -746,10 +746,10 @@ const CalendarEvent: React.FC<CalendarEventProps> = ({
 
     const segmentStartHour = multiDaySegmentInfo
       ? multiDaySegmentInfo.startHour
-      : extractHourFromDate(event.start);
+      : extractHourFromDate(calendarEvent.start);
     const segmentEndHour = multiDaySegmentInfo
       ? multiDaySegmentInfo.endHour
-      : getEventEndHour(event);
+      : getEventEndHour(calendarEvent);
 
     const originalTop = (segmentStartHour - firstHour) * hourHeight;
     const originalHeight = Math.max(
@@ -791,8 +791,8 @@ const CalendarEvent: React.FC<CalendarEventProps> = ({
     calendarRef,
     isAllDay,
     isMonthView,
-    extractHourFromDate(event.start),
-    getEventEndHour(event),
+    extractHourFromDate(calendarEvent.start),
+    getEventEndHour(calendarEvent),
     firstHour,
     hourHeight,
     updatePanelPosition,
@@ -879,7 +879,7 @@ const CalendarEvent: React.FC<CalendarEventProps> = ({
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
       const clickedInsideEvent = eventRef.current?.contains(target);
-      const clickedOnSameEvent = target.closest(`[data-event-id="${event.id}"]`) !== null;
+      const clickedOnSameEvent = target.closest(`[data-event-id="${calendarEvent.id}"]`) !== null;
       const clickedInsidePanel = detailPanelRef.current?.contains(target);
       const clickedInsideDetailDialog = target.closest(
         '[data-event-detail-dialog]'
@@ -918,14 +918,14 @@ const CalendarEvent: React.FC<CalendarEventProps> = ({
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [isEventSelected, showDetailPanel, onEventSelect, onDetailPanelToggle, event.id]);
+  }, [isEventSelected, showDetailPanel, onEventSelect, onDetailPanelToggle, calendarEvent.id]);
 
   useEffect(() => {
     if (isMultiDay && segment && !segment.isFirstSegment) {
       return;
     }
 
-    if (newlyCreatedEventId === event.id && !showDetailPanel) {
+    if (newlyCreatedEventId === calendarEvent.id && !showDetailPanel) {
       setTimeout(() => {
         if (eventRef.current) {
           let targetElement = eventRef.current;
@@ -944,10 +944,10 @@ const CalendarEvent: React.FC<CalendarEventProps> = ({
             } else if (multiDaySegmentInfo?.dayIndex !== undefined) {
               setActiveDayIndex(multiDaySegmentInfo.dayIndex);
             } else {
-              setActiveDayIndex(event.day ?? null);
+              setActiveDayIndex(calendarEvent.day ?? null);
             }
           } else {
-            setActiveDayIndex(event.day ?? null);
+            setActiveDayIndex(calendarEvent.day ?? null);
           }
 
           selectedEventElementRef.current = targetElement;
@@ -969,7 +969,7 @@ const CalendarEvent: React.FC<CalendarEventProps> = ({
     }
   }, [
     newlyCreatedEventId,
-    event.id,
+    calendarEvent.id,
     showDetailPanel,
     onDetailPanelOpen,
     updatePanelPosition,
@@ -981,7 +981,7 @@ const CalendarEvent: React.FC<CalendarEventProps> = ({
 
   useEffect(() => {
     let timer: NodeJS.Timeout;
-    if (isEventSelected && app?.state.highlightedEventId === event.id) {
+    if (isEventSelected && app?.state.highlightedEventId === calendarEvent.id) {
       scrollEventToCenter().then(() => {
         setIsPopping(true);
         timer = setTimeout(() => setIsPopping(false), 150);
@@ -990,7 +990,7 @@ const CalendarEvent: React.FC<CalendarEventProps> = ({
     return () => {
       if (timer) clearTimeout(timer);
     };
-  }, [isEventSelected, app?.state.highlightedEventId, event.id]);
+  }, [isEventSelected, app?.state.highlightedEventId, calendarEvent.id]);
 
   const renderDetailPanel = () => {
     if (!showDetailPanel) return null;
@@ -1007,7 +1007,7 @@ const CalendarEvent: React.FC<CalendarEventProps> = ({
     if (customEventDetailDialog) {
       const DialogComponent = customEventDetailDialog;
       const dialogProps = {
-        event,
+        calendarEvent,
         isOpen: showDetailPanel,
         isAllDay,
         onEventUpdate,
@@ -1034,7 +1034,7 @@ const CalendarEvent: React.FC<CalendarEventProps> = ({
     if (customDetailPanelContent) {
       return (
         <EventDetailPanelWithContent
-          event={event}
+          calendarEvent={calendarEvent}
           position={detailPanelPosition}
           panelRef={detailPanelRef}
           isAllDay={isAllDay}
@@ -1051,7 +1051,7 @@ const CalendarEvent: React.FC<CalendarEventProps> = ({
 
     return (
       <DefaultEventDetailPanel
-        event={event}
+        calendarEvent={calendarEvent}
         position={detailPanelPosition}
         panelRef={detailPanelRef}
         isAllDay={isAllDay}
@@ -1068,7 +1068,7 @@ const CalendarEvent: React.FC<CalendarEventProps> = ({
 
   const getDynamicPadding = () => {
     const duration =
-      getEventEndHour(event) - extractHourFromDate(event.start);
+      getEventEndHour(calendarEvent) - extractHourFromDate(calendarEvent.start);
     return duration <= 0.25 ? 'px-1 py-0' : 'p-1';
   };
 
@@ -1094,8 +1094,8 @@ const CalendarEvent: React.FC<CalendarEventProps> = ({
     }
     return (
       <div className="text-xs px-1 mb-0.5 rounded truncate cursor-pointer flex items-center">
-        {event.title.toLowerCase().includes('easter') ||
-          event.title.toLowerCase().includes('holiday') ? (
+        {calendarEvent.title.toLowerCase().includes('easter') ||
+          calendarEvent.title.toLowerCase().includes('holiday') ? (
           <span
             className={`inline-block mr-1 shrink-0 ${isEventSelected ? 'text-yellow-200' : 'text-yellow-600'}`}
           >
@@ -1107,15 +1107,15 @@ const CalendarEvent: React.FC<CalendarEventProps> = ({
           />
         )}
         <span className={`truncate ${isEventSelected ? 'text-white' : ''}`}>
-          {event.title}
+          {calendarEvent.title}
         </span>
       </div>
     );
   };
 
   const renderMonthRegularContent = () => {
-    const startTime = `${Math.floor(extractHourFromDate(event.start)).toString().padStart(2, '0')}:${Math.round(
-      (extractHourFromDate(event.start) % 1) * 60
+    const startTime = `${Math.floor(extractHourFromDate(calendarEvent.start)).toString().padStart(2, '0')}:${Math.round(
+      (extractHourFromDate(calendarEvent.start) % 1) * 60
     )
       .toString()
       .padStart(2, '0')}`;
@@ -1125,14 +1125,14 @@ const CalendarEvent: React.FC<CalendarEventProps> = ({
         <div className="flex items-center flex-1 min-w-0">
           <span
             style={{
-              backgroundColor: getLineColor(event.calendarId || 'blue', app?.getCalendarRegistry()),
+              backgroundColor: getLineColor(calendarEvent.calendarId || 'blue', app?.getCalendarRegistry()),
             }}
             className="inline-block w-0.75 h-3 mr-1 shrink-0 rounded-full"
           ></span>
           <span
             className={`truncate ${isEventSelected ? 'text-white' : ''}`}
           >
-            {event.title}
+            {calendarEvent.title}
           </span>
         </div>
         <span
@@ -1157,7 +1157,7 @@ const CalendarEvent: React.FC<CalendarEventProps> = ({
             onMouseDown={e => {
               e.preventDefault();
               e.stopPropagation();
-              onResizeStart(e, event, 'left');
+              onResizeStart(e, calendarEvent, 'left');
             }}
             onClick={e => {
               e.preventDefault();
@@ -1171,7 +1171,7 @@ const CalendarEvent: React.FC<CalendarEventProps> = ({
           className="font-medium text-xs truncate pr-1"
           style={{ lineHeight: '1.2' }}
         >
-          {event.title}
+          {calendarEvent.title}
         </div>
 
         {/* Right resize handle - only shown for single-day all-day events with onResizeStart */}
@@ -1181,7 +1181,7 @@ const CalendarEvent: React.FC<CalendarEventProps> = ({
             onMouseDown={e => {
               e.preventDefault();
               e.stopPropagation();
-              onResizeStart(e, event, 'right');
+              onResizeStart(e, calendarEvent, 'right');
             }}
             onClick={e => {
               e.preventDefault();
@@ -1196,10 +1196,10 @@ const CalendarEvent: React.FC<CalendarEventProps> = ({
   const renderRegularEventContent = () => {
     const startHour = multiDaySegmentInfo
       ? multiDaySegmentInfo.startHour
-      : extractHourFromDate(event.start);
+      : extractHourFromDate(calendarEvent.start);
     const endHour = multiDaySegmentInfo
       ? multiDaySegmentInfo.endHour
-      : getEventEndHour(event);
+      : getEventEndHour(calendarEvent);
     const duration = endHour - startHour;
     const isFirstSegment = multiDaySegmentInfo ? multiDaySegmentInfo.isFirst : true;
     const isLastSegment = multiDaySegmentInfo ? multiDaySegmentInfo.isLast : true;
@@ -1208,7 +1208,7 @@ const CalendarEvent: React.FC<CalendarEventProps> = ({
       <>
         <div
           className="absolute left-1 top-1 bottom-1 w-[3px] rounded-full"
-          style={{ backgroundColor: getLineColor(event.calendarId || 'blue', app?.getCalendarRegistry()) }}
+          style={{ backgroundColor: getLineColor(calendarEvent.calendarId || 'blue', app?.getCalendarRegistry()) }}
         />
         <div
           className={`h-full flex flex-col overflow-hidden pl-3 ${getDynamicPadding()}`}
@@ -1219,13 +1219,13 @@ const CalendarEvent: React.FC<CalendarEventProps> = ({
               lineHeight: duration <= 0.25 ? '1.2' : 'normal',
             }}
           >
-            {event.title}
+            {calendarEvent.title}
           </div>
           {duration > 0.5 && (
             <div className="text-xs opacity-80 truncate">
               {multiDaySegmentInfo
                 ? `${formatTime(startHour)} - ${formatTime(endHour)}`
-                : formatEventTimeRange(event)}
+                : formatEventTimeRange(calendarEvent)}
             </div>
           )}
         </div>
@@ -1236,14 +1236,14 @@ const CalendarEvent: React.FC<CalendarEventProps> = ({
             {isFirstSegment && (
               <div
                 className="absolute top-0 left-0 w-full h-1.5 cursor-ns-resize z-10 rounded-t-sm"
-                onMouseDown={e => onResizeStart(e, event, 'top')}
+                onMouseDown={e => onResizeStart(e, calendarEvent, 'top')}
               />
             )}
             {/* Only show bottom resize handle on the last segment */}
             {isLastSegment && (
               <div
                 className="absolute bottom-0 left-0 w-full h-1.5 cursor-ns-resize z-10 rounded-b-sm"
-                onMouseDown={e => onResizeStart(e, event, 'bottom')}
+                onMouseDown={e => onResizeStart(e, calendarEvent, 'bottom')}
               />
             )}
             {/* Right resize handle for multi-day events (only on the last segment) */}
@@ -1253,7 +1253,7 @@ const CalendarEvent: React.FC<CalendarEventProps> = ({
                 onMouseDown={e => {
                   e.preventDefault();
                   e.stopPropagation();
-                  onResizeStart(e, event, 'right');
+                  onResizeStart(e, calendarEvent, 'right');
                 }}
                 onClick={e => {
                   e.preventDefault();
@@ -1308,21 +1308,21 @@ const CalendarEvent: React.FC<CalendarEventProps> = ({
       if (isMultiDay && segment) {
         return renderMonthMultiDayContent();
       }
-      return event.allDay
+      return calendarEvent.allDay
         ? renderMonthAllDayContent()
         : renderMonthRegularContent();
     } else {
-      return event.allDay ? renderAllDayContent() : renderRegularEventContent();
+      return calendarEvent.allDay ? renderAllDayContent() : renderRegularEventContent();
     }
   };
 
-  const calendarId = event.calendarId || 'blue';
+  const calendarId = calendarEvent.calendarId || 'blue';
 
   return (
     <>
       <div
         ref={eventRef}
-        data-event-id={event.id}
+        data-event-id={calendarEvent.id}
         className={getRenderClass()}
         style={{
           ...calculateEventStyle(),
@@ -1343,14 +1343,14 @@ const CalendarEvent: React.FC<CalendarEventProps> = ({
           if (multiDaySegmentInfo) {
             // Temporarily modify the event object to make it appear to start on the current segment's day
             const adjustedEvent = {
-              ...event,
-              day: multiDaySegmentInfo.dayIndex ?? event.day,
+              ...calendarEvent,
+              day: multiDaySegmentInfo.dayIndex ?? calendarEvent.day,
               // To calculate dragging, we need to store segment information
               _segmentInfo: multiDaySegmentInfo
             };
-            onMoveStart(e, adjustedEvent as Event);
+            onMoveStart(e, adjustedEvent as CalendarEventType);
           } else {
-            onMoveStart(e, event);
+            onMoveStart(e, calendarEvent);
           }
         } : undefined}
       >

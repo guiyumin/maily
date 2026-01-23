@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import { CalendarApp } from "../core";
-import { Event, CalendarColors } from "../types";
+import { CalendarEvent, CalendarColors } from "../types";
 import { Temporal } from "temporal-polyfill";
 import { useLocale } from "@calendar/locale";
 
@@ -13,7 +13,7 @@ export interface CalendarDropData {
 
 export interface CalendarDropOptions {
   app: CalendarApp;
-  onEventCreated?: (event: Event) => void;
+  onEventCreated?: (event: CalendarEvent) => void;
 }
 
 export interface CalendarDropReturn {
@@ -22,7 +22,7 @@ export interface CalendarDropReturn {
     dropDate: Date,
     dropHour?: number,
     isAllDay?: boolean,
-  ) => Event | null;
+  ) => CalendarEvent | null;
   handleDragOver: (e: React.DragEvent) => void;
 }
 
@@ -49,7 +49,7 @@ export function useCalendarDrop(
       dropDate: Date,
       dropHour?: number,
       isAllDay?: boolean,
-    ): Event | null => {
+    ): CalendarEvent | null => {
       e.preventDefault();
 
       // Get calendar data from drag event
@@ -114,7 +114,7 @@ export function useCalendarDrop(
         const eventId = `event-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
         // Create new event
-        const newEvent: Event = {
+        const newEvent: CalendarEvent = {
           id: eventId,
           title: allDay
             ? t("newAllDayCalendarEvent", {

@@ -1,7 +1,7 @@
-import { EventLayout, Event } from '@calendar/types';
+import { EventLayout, CalendarEvent } from '@calendar/types';
 import { extractHourFromDate, getEventEndHour } from '@calendar/utils/helpers';
 
-interface LayoutWeekEvent extends Event {
+interface LayoutWeekEvent extends CalendarEvent {
   parentId?: string;
   children: string[];
   // Cached hour values to avoid repeated calculations
@@ -9,7 +9,7 @@ interface LayoutWeekEvent extends Event {
   _endHour?: number;
 }
 
-function toLayoutEvent(event: Event): LayoutWeekEvent {
+function toLayoutEvent(event: CalendarEvent): LayoutWeekEvent {
   return {
     ...event,
     parentId: undefined,
@@ -77,7 +77,7 @@ export class EventLayoutCalculator {
    * @param params Layout calculation parameters
    */
   static calculateDayEventLayouts(
-    dayEvents: Event[],
+    dayEvents: CalendarEvent[],
     params: LayoutCalculationParams = {}
   ): Map<string, EventLayout> {
     // Convert to layout events and clear parent-child relationships

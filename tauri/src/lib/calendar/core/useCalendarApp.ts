@@ -13,7 +13,7 @@ import {
   ViewType,
   CalendarType,
 } from '../types';
-import { Event } from '../types';
+import { CalendarEvent } from '../types';
 import React from 'react';
 
 /**
@@ -31,8 +31,8 @@ function createAppFromStore(store: CalendarStoreApi): CalendarApp {
     get currentDate() {
       return getState().currentDate;
     },
-    get events() {
-      return getState().events;
+    get calendarEvents() {
+      return getState().calendarEvents;
     },
     get plugins() {
       return getState()._plugins;
@@ -72,8 +72,8 @@ function createAppFromStore(store: CalendarStoreApi): CalendarApp {
     getVisibleMonth: () => getState().getVisibleMonth(),
 
     // Event management
-    addEvent: (event: Event) => getState().addEvent(event),
-    updateEvent: (id: string, event: Partial<Event>, isPending?: boolean) =>
+    addEvent: (event: CalendarEvent) => getState().addEvent(event),
+    updateEvent: (id: string, event: Partial<CalendarEvent>, isPending?: boolean) =>
       getState().updateEvent(id, event, isPending),
     deleteEvent: (id: string) => getState().deleteEvent(id),
     getEvents: () => getState().getEvents(),
@@ -134,7 +134,7 @@ export function useCalendarApp(config: CalendarAppConfig): UseCalendarAppReturn 
   const currentDate = useStore(store, state => state.currentDate);
 
   // Subscribe to raw events and calendar version
-  const rawEvents = useStore(store, state => state.events);
+  const rawEvents = useStore(store, state => state.calendarEvents);
   const calendarVersion = useStore(store, state => state._calendarVersion);
 
   // Compute visible events with useMemo to avoid creating new arrays on every render
@@ -147,7 +147,7 @@ export function useCalendarApp(config: CalendarAppConfig): UseCalendarAppReturn 
         .map(calendar => calendar.id)
     );
 
-    return rawEvents.filter(event => {
+    return rawEvents.filter((event: CalendarEvent) => {
       if (!event.calendarId) return true;
       if (!registry.has(event.calendarId)) return true;
       return visibleCalendars.has(event.calendarId);
@@ -158,18 +158,18 @@ export function useCalendarApp(config: CalendarAppConfig): UseCalendarAppReturn 
   const app = useMemo(() => createAppFromStore(store), [store]);
 
   // Track previous values to avoid unnecessary updates
-  const prevEventsRef = useRef<Event[] | undefined>(undefined);
+  const prevEventsRef = useRef<CalendarEvent[] | undefined>(undefined);
   const prevCalendarsRef = useRef<CalendarType[] | undefined>(undefined);
 
   // Sync events from config when they change
   useEffect(() => {
-    const configEvents = config.events;
+    const configEvents = config.calendarEvents;
     // Only update if events array reference changed and has content
     if (configEvents && configEvents !== prevEventsRef.current) {
       prevEventsRef.current = configEvents;
       store.getState().setEvents(configEvents);
     }
-  }, [config.events, store]);
+  }, [config.calendarEvents, store]);
 
   // Sync calendars from config when they change
   useEffect(() => {
@@ -185,7 +185,7 @@ export function useCalendarApp(config: CalendarAppConfig): UseCalendarAppReturn 
     app,
     currentView,
     currentDate,
-    events,
+    calendarEvents: events,
 
     // Expose actions directly for convenience
     changeView: store.getState().changeView,

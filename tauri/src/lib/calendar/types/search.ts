@@ -1,7 +1,7 @@
 
-import { Event } from './event';
+import { CalendarEvent } from './calendarEvent';
 
-export type CalendarSearchEvent = Event & {
+export type CalendarSearchEvent = CalendarEvent & {
   color?: string; // For calendar color
   [key: string]: any;
 };

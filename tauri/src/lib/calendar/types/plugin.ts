@@ -1,6 +1,6 @@
 // Plugin-related type definitions
 import React from 'react';
-import { Event } from './event';
+import { CalendarEvent } from './calendarEvent';
 import { EventLayout } from './layout';
 import { ViewType } from './core';
 import { MonthDragState, WeekDayDragState } from './dragIndicator';
@@ -11,26 +11,26 @@ import { MonthDragState, WeekDayDragState } from './dragIndicator';
  */
 export interface EventsService {
   // Basic event operations
-  getAll: () => Event[];
-  getById: (id: string) => Event | undefined;
-  add: (event: Event) => void;
-  update: (id: string, updates: Partial<Event>) => Event;
+  getAll: () => CalendarEvent[];
+  getById: (id: string) => CalendarEvent | undefined;
+  add: (calendarEvent: CalendarEvent) => void;
+  update: (id: string, updates: Partial<CalendarEvent>) => CalendarEvent;
   delete: (id: string) => void;
 
   // Event queries
-  getByDate: (date: Date) => Event[];
-  getByDateRange: (startDate: Date, endDate: Date) => Event[];
-  getByDay: (dayIndex: number, weekStart: Date) => Event[];
-  getAllDayEvents: (dayIndex: number, events: Event[]) => Event[];
+  getByDate: (date: Date) => CalendarEvent[];
+  getByDateRange: (startDate: Date, endDate: Date) => CalendarEvent[];
+  getByDay: (dayIndex: number, weekStart: Date) => CalendarEvent[];
+  getAllDayEvents: (dayIndex: number, events: CalendarEvent[]) => CalendarEvent[];
 
   // Event calculation and recalculation
-  recalculateEventDays: (events: Event[], weekStart: Date) => Event[];
+  recalculateEventDays: (events: CalendarEvent[], weekStart: Date) => CalendarEvent[];
 
   // Event validation
-  validateEvent: (event: Partial<Event>) => string[];
+  validateEvent: (event: Partial<CalendarEvent>) => string[];
 
   // Event filtering
-  filterEvents: (events: Event[], filter: (event: Event) => boolean) => Event[];
+  filterEvents: (events: CalendarEvent[], filter: (event: CalendarEvent) => boolean) => CalendarEvent[];
 }
 
 /**
@@ -39,7 +39,7 @@ export interface EventsService {
 export interface EventsPluginConfig {
   enableAutoRecalculate?: boolean;
   enableValidation?: boolean;
-  defaultEvents?: Event[];
+  defaultEvents?: CalendarEvent[];
   maxEventsPerDay?: number;
 }
 
@@ -50,18 +50,18 @@ export interface DragHookOptions {
   calendarRef: React.RefObject<HTMLDivElement | null>;
   allDayRowRef?: React.RefObject<HTMLDivElement | null>;
   viewType: ViewType;
-  onEventsUpdate: (updateFunc: (events: Event[]) => Event[]) => void;
-  onEventCreate: (event: Event) => void;
-  onEventEdit: (event: Event) => void;
+  onEventsUpdate: (updateFunc: (events: CalendarEvent[]) => CalendarEvent[]) => void;
+  onEventCreate: (calendarEvent: CalendarEvent) => void;
+  onEventEdit: (calendarEvent: CalendarEvent) => void;
   currentWeekStart: Date;
-  events: Event[];
+  calendarEvents: CalendarEvent[];
   calculateNewEventLayout?: (
     dayIndex: number,
     startHour: number,
     endHour: number
   ) => EventLayout | null;
   calculateDragLayout?: (
-    event: Event,
+    calendarEvent: CalendarEvent,
     targetDay: number,
     targetStartHour: number,
     targetEndHour: number
@@ -72,11 +72,11 @@ export interface DragHookOptions {
  * Drag Hook return value
  */
 export interface DragHookReturn {
-  handleMoveStart: (e: React.MouseEvent, event: Event) => void;
+  handleMoveStart: (e: React.MouseEvent, calendarEvent: CalendarEvent) => void;
   handleCreateStart: (e: React.MouseEvent, ...args: (Date | number)[]) => void;
   handleResizeStart: (
     e: React.MouseEvent,
-    event: Event,
+    calendarEvent: CalendarEvent,
     direction: string
   ) => void;
   handleCreateAllDayEvent?: (e: React.MouseEvent, dayIndex: number) => void;

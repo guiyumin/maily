@@ -19,7 +19,7 @@ interface DefaultEventDetailPanelProps extends EventDetailPanelProps {
  * Default event detail panel component
  */
 const DefaultEventDetailPanel: React.FC<DefaultEventDetailPanelProps> = ({
-  event,
+  calendarEvent,
   position,
   panelRef,
   isAllDay,
@@ -46,11 +46,11 @@ const DefaultEventDetailPanel: React.FC<DefaultEventDetailPanelProps> = ({
   }, [app, app?.getCalendars()]); // Depend on app.getCalendars() to update when calendars change
 
   const convertToAllDay = () => {
-    const plainDate = isPlainDate(event.start)
-      ? event.start
-      : event.start.toPlainDate();
+    const plainDate = isPlainDate(calendarEvent.start)
+      ? calendarEvent.start
+      : calendarEvent.start.toPlainDate();
     onEventUpdate({
-      ...event,
+      ...calendarEvent,
       allDay: true,
       start: plainDate,
       end: plainDate,
@@ -58,9 +58,9 @@ const DefaultEventDetailPanel: React.FC<DefaultEventDetailPanelProps> = ({
   };
 
   const convertToRegular = () => {
-    const plainDate = isPlainDate(event.start)
-      ? event.start
-      : event.start.toPlainDate();
+    const plainDate = isPlainDate(calendarEvent.start)
+      ? calendarEvent.start
+      : calendarEvent.start.toPlainDate();
     const start = Temporal.ZonedDateTime.from({
       year: plainDate.year,
       month: plainDate.month,
@@ -78,7 +78,7 @@ const DefaultEventDetailPanel: React.FC<DefaultEventDetailPanelProps> = ({
       timeZone: Temporal.Now.timeZoneId(),
     });
     onEventUpdate({
-      ...event,
+      ...calendarEvent,
       allDay: false,
       start,
       end,
@@ -86,31 +86,31 @@ const DefaultEventDetailPanel: React.FC<DefaultEventDetailPanelProps> = ({
   };
 
   const eventTimeZone = useMemo(() => {
-    if (!isPlainDate(event.start)) {
+    if (!isPlainDate(calendarEvent.start)) {
       return (
-        (event.start as any).timeZoneId ||
-        (event.start as Temporal.ZonedDateTime).timeZoneId ||
+        (calendarEvent.start as any).timeZoneId ||
+        (calendarEvent.start as Temporal.ZonedDateTime).timeZoneId ||
         Temporal.Now.timeZoneId()
       );
     }
 
-    if (event.end && !isPlainDate(event.end)) {
+    if (calendarEvent.end && !isPlainDate(calendarEvent.end)) {
       return (
-        (event.end as any).timeZoneId ||
-        (event.end as Temporal.ZonedDateTime).timeZoneId ||
+        (calendarEvent.end as any).timeZoneId ||
+        (calendarEvent.end as Temporal.ZonedDateTime).timeZoneId ||
         Temporal.Now.timeZoneId()
       );
     }
 
     return Temporal.Now.timeZoneId();
-  }, [event.end, event.start]);
+  }, [calendarEvent.end, calendarEvent.start]);
 
   const handleAllDayRangeChange = (
     nextRange: [Temporal.ZonedDateTime, Temporal.ZonedDateTime]
   ) => {
     const [start, end] = nextRange;
     onEventUpdate({
-      ...event,
+      ...calendarEvent,
       start: start.toPlainDate(),
       end: end.toPlainDate(),
     });
@@ -257,10 +257,10 @@ const DefaultEventDetailPanel: React.FC<DefaultEventDetailPanelProps> = ({
         <div className="flex-1">
           <input
             type="text"
-            value={event.title}
+            value={calendarEvent.title}
             onChange={e => {
               onEventUpdate({
-                ...event,
+                ...calendarEvent,
                 title: e.target.value,
               });
             }}
@@ -269,10 +269,10 @@ const DefaultEventDetailPanel: React.FC<DefaultEventDetailPanelProps> = ({
         </div>
         <ColorPicker
           options={colorOptions}
-          value={event.calendarId || 'blue'}
+          value={calendarEvent.calendarId || 'blue'}
           onChange={value => {
             onEventUpdate({
-              ...event,
+              ...calendarEvent,
               calendarId: value,
             });
           }}
@@ -284,7 +284,7 @@ const DefaultEventDetailPanel: React.FC<DefaultEventDetailPanelProps> = ({
         <div className="mb-3">
           <div className="text-xs text-gray-600 dark:text-gray-300 mb-1">{t('dateRange')}</div>
           <RangePicker
-            value={[event.start, event.end]}
+            value={[calendarEvent.start, calendarEvent.end]}
             format="YYYY-MM-DD"
             showTime={false}
             timeZone={eventTimeZone}
@@ -298,14 +298,14 @@ const DefaultEventDetailPanel: React.FC<DefaultEventDetailPanelProps> = ({
         <div className="mb-3">
           <div className="text-xs text-gray-600 dark:text-gray-300 mb-1">{t('timeRange')}</div>
           <RangePicker
-            value={[event.start, event.end]}
+            value={[calendarEvent.start, calendarEvent.end]}
             timeZone={
               eventTimeZone
             }
             onChange={(nextRange) => {
               const [start, end] = nextRange;
               onEventUpdate({
-                ...event,
+                ...calendarEvent,
                 start,
                 end,
               });
@@ -313,7 +313,7 @@ const DefaultEventDetailPanel: React.FC<DefaultEventDetailPanelProps> = ({
             onOk={(nextRange) => {
               const [start, end] = nextRange;
               onEventUpdate({
-                ...event,
+                ...calendarEvent,
                 start,
                 end,
               });
@@ -326,10 +326,10 @@ const DefaultEventDetailPanel: React.FC<DefaultEventDetailPanelProps> = ({
       <div className="mb-3">
         <span className="block text-xs text-gray-600 dark:text-gray-300 mb-1">{t('note')}</span>
         <textarea
-          value={event.description ?? ''}
+          value={calendarEvent.description ?? ''}
           onChange={e =>
             onEventUpdate({
-              ...event,
+              ...calendarEvent,
               description: e.target.value,
             })
           }
@@ -358,7 +358,7 @@ const DefaultEventDetailPanel: React.FC<DefaultEventDetailPanelProps> = ({
 
         <button
           className="px-2 py-1 bg-destructive text-destructive-foreground rounded hover:bg-destructive/90 text-xs font-medium transition"
-          onClick={() => onEventDelete(event.id)}
+          onClick={() => onEventDelete(calendarEvent.id)}
         >
           {t('delete')}
         </button>

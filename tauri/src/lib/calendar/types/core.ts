@@ -1,6 +1,6 @@
 // Core type definitions
 import React from 'react';
-import { Event } from './event';
+import { CalendarEvent } from './calendarEvent';
 import { ViewSwitcherMode } from '../components/common/ViewHeader';
 import { CalendarType, ThemeConfig, ThemeMode } from './calendarTypes';
 import { CalendarRegistry } from '../core/calendarRegistry';
@@ -43,8 +43,8 @@ export interface CalendarView {
  */
 export interface CalendarCallbacks {
   onViewChange?: (view: ViewType) => void | Promise<void>;
-  onEventCreate?: (event: Event) => void | Promise<void>;
-  onEventUpdate?: (event: Event) => void | Promise<void>;
+  onEventCreate?: (calendarEvent: CalendarEvent) => void | Promise<void>;
+  onEventUpdate?: (calendarEvent: CalendarEvent) => void | Promise<void>;
   onEventDelete?: (eventId: string) => void | Promise<void>;
   onDateChange?: (date: Date) => void | Promise<void>;
   onRender?: () => void | Promise<void>;
@@ -97,7 +97,7 @@ export interface SidebarConfig {
 export interface CalendarAppConfig {
   views: CalendarView[];
   plugins?: CalendarPlugin[];
-  events?: Event[];
+  calendarEvents?: CalendarEvent[];
   callbacks?: CalendarCallbacks;
   defaultView?: ViewType;
   initialDate?: Date;
@@ -117,7 +117,7 @@ export interface CalendarAppConfig {
 export interface CalendarAppState {
   currentView: ViewType;
   currentDate: Date;
-  events: Event[];
+  calendarEvents: CalendarEvent[];
   plugins: Map<string, CalendarPlugin>;
   views: Map<ViewType, CalendarView>;
   switcherMode?: ViewSwitcherMode;
@@ -147,11 +147,11 @@ export interface CalendarApp {
   selectDate: (date: Date) => void;
 
   // Event management
-  addEvent: (event: Event) => void;
-  updateEvent: (id: string, event: Partial<Event>, isPending?: boolean) => void;
+  addEvent: (calendarEvent: CalendarEvent) => void;
+  updateEvent: (id: string, event: Partial<CalendarEvent>, isPending?: boolean) => void;
   deleteEvent: (id: string) => void;
-  getEvents: () => Event[];
-  getAllEvents: () => Event[];
+  getEvents: () => CalendarEvent[];
+  getAllEvents: () => CalendarEvent[];
   highlightEvent: (eventId: string | null) => void;
   getCalendars: () => CalendarType[];
   reorderCalendars: (fromIndex: number, toIndex: number) => void;
@@ -198,11 +198,11 @@ export interface UseCalendarAppReturn {
   app: CalendarApp;
   currentView: ViewType;
   currentDate: Date;
-  events: Event[];
+  calendarEvents: CalendarEvent[];
   changeView: (view: ViewType) => void;
   setCurrentDate: (date: Date) => void;
-  addEvent: (event: Event) => void;
-  updateEvent: (id: string, event: Partial<Event>, isPending?: boolean) => void;
+  addEvent: (calendarEvent: CalendarEvent) => void;
+  updateEvent: (id: string, event: Partial<CalendarEvent>, isPending?: boolean) => void;
   deleteEvent: (id: string) => void;
   goToToday: () => void;
   goToPrevious: () => void;
@@ -213,7 +213,7 @@ export interface UseCalendarAppReturn {
   mergeCalendars: (sourceId: string, targetId: string) => void;
   setCalendarVisibility: (calendarId: string, visible: boolean) => void;
   setAllCalendarsVisibility: (visible: boolean) => void;
-  getAllEvents: () => Event[];
+  getAllEvents: () => CalendarEvent[];
   highlightEvent: (eventId: string | null) => void;
   setVisibleMonth: (date: Date) => void;
   getVisibleMonth: () => Date;
@@ -247,7 +247,7 @@ export interface UseCalendarReturn {
   // State
   view: ViewType;
   currentDate: Date;
-  events: Event[];
+  calendarEvents: CalendarEvent[];
   currentWeekStart: Date;
 
   // Actions
@@ -258,10 +258,10 @@ export interface UseCalendarReturn {
   selectDate: (date: Date) => void;
   updateEvent: (
     eventId: string,
-    updates: Partial<Event>,
+    updates: Partial<CalendarEvent>,
     isPending?: boolean
   ) => void;
   deleteEvent: (eventId: string) => void;
-  addEvent: (event: Omit<Event, 'id'>) => void;
-  setEvents: (events: Event[] | ((prev: Event[]) => Event[])) => void;
+  addEvent: (event: Omit<CalendarEvent, 'id'>) => void;
+  setEvents: (events: CalendarEvent[] | ((prev: CalendarEvent[]) => CalendarEvent[])) => void;
 }

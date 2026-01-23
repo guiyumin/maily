@@ -12,6 +12,7 @@ import {
   UseCalendarAppReturn,
   CalendarSidebarRenderProps,
   CalendarType,
+  CalendarEvent,
 } from "../types";
 import DefaultCalendarSidebar from "../components/sidebar/DefaultCalendarSidebar";
 import DefaultEventDetailDialog from "../components/common/DefaultEventDetailDialog";
@@ -103,6 +104,9 @@ const CalendarLayout: React.FC<MailyCalendarProps> = ({
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
   const [searchResults, setSearchResults] = useState<CalendarSearchEvent[]>([]);
+
+  // New Event Dialog State
+  const [pendingNewEvent, setPendingNewEvent] = useState<CalendarEvent | null>(null);
 
   // Keyboard shortcut for search (⌘K / Ctrl+K)
   useEffect(() => {
@@ -294,8 +298,23 @@ const CalendarLayout: React.FC<MailyCalendarProps> = ({
       calendarId: defaultCalendar?.id,
     });
 
-    app.addEvent(newEvent);
+    // Show dialog instead of immediately adding the event
+    setPendingNewEvent(newEvent);
   }, [app]);
+
+  // Handle saving the new event from the dialog
+  const handleSaveNewEvent = useCallback(
+    (calendarEvent: CalendarEvent) => {
+      app.addEvent(calendarEvent);
+      setPendingNewEvent(null);
+    },
+    [app],
+  );
+
+  // Handle closing the new event dialog without saving
+  const handleCloseNewEventDialog = useCallback(() => {
+    setPendingNewEvent(null);
+  }, []);
 
   // DOM reference for the entire calendar
   const calendarRef = useRef<HTMLDivElement>(null!);
@@ -432,6 +451,19 @@ const CalendarLayout: React.FC<MailyCalendarProps> = ({
             }}
           />
         ))}
+
+      {/* New Event Dialog */}
+      {pendingNewEvent && (
+        <DefaultEventDetailDialog
+          calendarEvent={pendingNewEvent}
+          isOpen={true}
+          isAllDay={pendingNewEvent.allDay ?? false}
+          onEventUpdate={handleSaveNewEvent}
+          onEventDelete={() => setPendingNewEvent(null)}
+          onClose={handleCloseNewEventDialog}
+          app={app}
+        />
+      )}
     </div>
   );
 };

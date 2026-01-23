@@ -18,7 +18,7 @@ interface EventDetailPanelWithContentProps extends EventDetailPanelProps {
 export const EventDetailPanelWithContent: React.FC<
   EventDetailPanelWithContentProps
 > = ({
-  event,
+  calendarEvent,
   position,
   panelRef,
   isAllDay,
@@ -174,7 +174,7 @@ export const EventDetailPanelWithContent: React.FC<
       >
         <div style={arrowStyle}></div>
         <ContentComponent
-          event={event}
+          calendarEvent={calendarEvent}
           isAllDay={isAllDay}
           onEventUpdate={onEventUpdate}
           onEventDelete={onEventDelete}

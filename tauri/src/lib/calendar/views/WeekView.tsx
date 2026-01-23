@@ -11,12 +11,12 @@ import {
 import { useLocale } from "@calendar/locale";
 import {
   EventLayout,
-  Event,
+  CalendarEvent,
   EventDetailContentRenderer,
   EventDetailDialogRenderer,
   ViewType,
 } from "@calendar/types";
-import CalendarEvent from "@calendar/components/weekView/CalendarEvent";
+import CalendarEventCard from "@calendar/components/weekView/CalendarEvent";
 import { EventLayoutCalculator } from "@calendar/components/EventLayout";
 import { useDragForView } from "@calendar/plugins/dragPlugin";
 import { ViewType as DragViewType, WeekDayDragState } from "@calendar/types";
@@ -193,7 +193,7 @@ const WeekView: React.FC<WeekViewProps> = ({
 
     for (let day = 0; day < 7; day++) {
       // Collect all events that need to participate in layout calculation for this day
-      const dayEventsForLayout: Event[] = [];
+      const dayEventsForLayout: CalendarEvent[] = [];
 
       currentWeekEvents.forEach((event) => {
         if (event.allDay) return; // Skip all-day events
@@ -209,7 +209,7 @@ const WeekView: React.FC<WeekViewProps> = ({
             const segmentEndHour =
               segment.endHour >= 24 ? 23.99 : segment.endHour;
 
-            const virtualEvent: Event = {
+            const virtualEvent: CalendarEvent = {
               ...event,
               start: dateToZonedDateTime(
                 createDateWithHour(
@@ -256,7 +256,7 @@ const WeekView: React.FC<WeekViewProps> = ({
     startDate.setHours(Math.floor(startHour), (startHour % 1) * 60, 0, 0);
     endDate.setHours(Math.floor(endHour), (endHour % 1) * 60, 0, 0);
 
-    const tempEvent: Event = {
+    const tempEvent: CalendarEvent = {
       id: "-1",
       title: "Temp",
       day: targetDay,
@@ -278,7 +278,7 @@ const WeekView: React.FC<WeekViewProps> = ({
   };
 
   const calculateDragLayout = (
-    draggedEvent: Event,
+    draggedEvent: CalendarEvent,
     targetDay: number,
     targetStartHour: number,
     targetEndHour: number,
@@ -329,7 +329,7 @@ const WeekView: React.FC<WeekViewProps> = ({
     allDayRowRef,
     viewType: DragViewType.WEEK,
     onEventsUpdate: (
-      updateFunc: (events: Event[]) => Event[],
+      updateFunc: (events: CalendarEvent[]) => CalendarEvent[],
       isResizing?: boolean,
     ) => {
       const newEvents = updateFunc(currentWeekEvents);
@@ -369,14 +369,14 @@ const WeekView: React.FC<WeekViewProps> = ({
         app.updateEvent(event.id, event, isResizing),
       );
     },
-    onEventCreate: (event: Event) => {
+    onEventCreate: (event: CalendarEvent) => {
       app.addEvent(event);
     },
     onEventEdit: () => {
       // Event edit handling (add logic here if needed)
     },
     currentWeekStart,
-    events: currentWeekEvents,
+    calendarEvents: currentWeekEvents,
     calculateNewEventLayout,
     calculateDragLayout,
   });
@@ -384,7 +384,7 @@ const WeekView: React.FC<WeekViewProps> = ({
   // Use calendar drop functionality
   const { handleDrop, handleDragOver } = useCalendarDrop({
     app,
-    onEventCreated: (event: Event) => {
+    onEventCreated: (event: CalendarEvent) => {
       setNewlyCreatedEventId(event.id);
     },
   });
@@ -417,7 +417,7 @@ const WeekView: React.FC<WeekViewProps> = ({
   }, [currentWeekStart, weekDaysLabels, locale]);
 
   // Event handling functions
-  const handleEventUpdate = (updatedEvent: Event) => {
+  const handleEventUpdate = (updatedEvent: CalendarEvent) => {
     app.updateEvent(updatedEvent.id, updatedEvent);
   };
 
@@ -451,7 +451,7 @@ const WeekView: React.FC<WeekViewProps> = ({
       />
 
       {/* Weekday titles */}
-      <div className="flex border-b border-gray-200 dark:border-gray-700 pr-[10px]">
+      <div className="flex border-b border-gray-200 dark:border-gray-700 pr-2.5">
         <div className="w-20 shrink-0"></div>
         <div className="flex flex-1">
           {weekDaysLabels.map((day, i) => (
@@ -482,10 +482,10 @@ const WeekView: React.FC<WeekViewProps> = ({
 
       {/* All-day event area */}
       <div
-        className="flex items-center border-b border-gray-200 dark:border-gray-700 sticky pr-[10px]"
+        className="flex items-center border-b border-gray-200 dark:border-gray-700 sticky pr-2.5"
         ref={allDayRowRef}
       >
-        <div className="w-20 flex-shrink-0 p-1 text-xs font-medium text-gray-500 dark:text-gray-400 flex justify-end">
+        <div className="w-20 shrink-0 p-1 text-xs font-medium text-gray-500 dark:text-gray-400 flex justify-end">
           {t("allDay")}
         </div>
         <div
@@ -512,9 +512,9 @@ const WeekView: React.FC<WeekViewProps> = ({
           {/* Multi-day event overlay */}
           <div className="absolute inset-0 pointer-events-none">
             {organizedAllDaySegments.map((segment) => (
-              <CalendarEvent
+              <CalendarEventCard
                 key={segment.id}
-                event={segment.event}
+                calendarEvent={segment.event}
                 segment={segment}
                 segmentIndex={segment.row}
                 isAllDay={true}
@@ -616,9 +616,9 @@ const WeekView: React.FC<WeekViewProps> = ({
             })()}
 
           {/* Time column */}
-          <div className="w-20 flex-shrink-0 border-gray-200 dark:border-gray-700">
+          <div className="w-20 shrink-0 border-gray-200 dark:border-gray-700">
             {timeSlots.map((slot, slotIndex) => (
-              <div key={slotIndex} className="relative h-[4.5rem] flex">
+              <div key={slotIndex} className="relative h-18 flex">
                 <div className="absolute -top-2.5 right-2 text-[12px] text-gray-500 dark:text-gray-400">
                   {slotIndex === 0 ? "" : slot.label}
                 </div>
@@ -631,7 +631,7 @@ const WeekView: React.FC<WeekViewProps> = ({
             {timeSlots.map((slot, slotIndex) => (
               <div
                 key={slotIndex}
-                className="h-[4.5rem] border-t first:border-none border-gray-200 dark:border-gray-700 flex"
+                className="h-18 border-t first:border-none border-gray-200 dark:border-gray-700 flex"
               >
                 {weekDaysLabels.map((_, dayIndex) => {
                   const dropDate = new Date(currentWeekStart);
@@ -671,7 +671,7 @@ const WeekView: React.FC<WeekViewProps> = ({
               // Collect all event segments for this day (including segments of multi-day events)
               const dayEvents = getEventsForDay(dayIndex, currentWeekEvents);
               const allEventSegments: Array<{
-                event: Event;
+                event: CalendarEvent;
                 segmentInfo?: {
                   startHour: number;
                   endHour: number;
@@ -733,11 +733,11 @@ const WeekView: React.FC<WeekViewProps> = ({
                     const eventLayout = dayLayouts?.get(event.id);
 
                     return (
-                      <CalendarEvent
+                      <CalendarEventCard
                         key={
                           segmentInfo ? `${event.id}-seg-${dayIndex}` : event.id
                         }
-                        event={event}
+                        calendarEvent={event}
                         layout={eventLayout}
                         calendarRef={calendarRef}
                         isBeingDragged={

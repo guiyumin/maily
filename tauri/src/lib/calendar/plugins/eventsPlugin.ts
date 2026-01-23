@@ -2,7 +2,7 @@
 import {
   CalendarPlugin,
   CalendarApp,
-  Event,
+  CalendarEvent,
   EventsService,
   EventsPluginConfig,
 } from '../types';
@@ -32,7 +32,7 @@ export function createEventsPlugin(
       return app.getAllEvents().find(event => event.id === id);
     },
 
-    add: (event: Event) => {
+    add: (event: CalendarEvent) => {
       // Validate event
       if (finalConfig.enableValidation) {
         const errors = eventsService.validateEvent(event);
@@ -64,11 +64,11 @@ export function createEventsPlugin(
           currentWeekStart
         );
         // Update day field for all events
-        app.state.events = recalculatedEvents;
+        app.state.calendarEvents = recalculatedEvents;
       }
     },
 
-    update: (id: string, updates: Partial<Event>) => {
+    update: (id: string, updates: Partial<CalendarEvent>) => {
       const existingEvent = eventsService.getById(id);
       if (!existingEvent) {
         throw new Error(`Event with id ${id} not found`);
@@ -93,7 +93,7 @@ export function createEventsPlugin(
           app.getAllEvents(),
           currentWeekStart
         );
-        app.state.events = recalculatedEvents;
+        app.state.calendarEvents = recalculatedEvents;
       }
 
       return app.getAllEvents().find(e => e.id === id)!;
@@ -131,15 +131,15 @@ export function createEventsPlugin(
       return app.getAllEvents().filter(event => event.day === dayIndex);
     },
 
-    getAllDayEvents: (dayIndex: number, events: Event[]) => {
+    getAllDayEvents: (dayIndex: number, events: CalendarEvent[]) => {
       return events.filter(event => event.day === dayIndex && event.allDay);
     },
 
-    recalculateEventDays: (events: Event[], weekStart: Date) => {
+    recalculateEventDays: (events: CalendarEvent[], weekStart: Date) => {
       return recalculateEventDays(events, weekStart);
     },
 
-    validateEvent: (event: Partial<Event>) => {
+    validateEvent: (event: Partial<CalendarEvent>) => {
       const errors: string[] = [];
 
       if (!event.title || event.title.trim() === '') {
@@ -175,7 +175,7 @@ export function createEventsPlugin(
       return errors;
     },
 
-    filterEvents: (events: Event[], filter: (event: Event) => boolean) => {
+    filterEvents: (events: CalendarEvent[], filter: (event: CalendarEvent) => boolean) => {
       return events.filter(filter);
     },
   };

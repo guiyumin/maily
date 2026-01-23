@@ -132,6 +132,7 @@ export function useCalendarApp(config: CalendarAppConfig): UseCalendarAppReturn 
   // This is the key improvement - only re-render when specific state changes
   const currentView = useStore(store, state => state.currentView);
   const currentDate = useStore(store, state => state.currentDate);
+  const locale = useStore(store, state => state.locale);
 
   // Subscribe to raw events and calendar version
   const rawEvents = useStore(store, state => state.calendarEvents);
@@ -193,6 +194,7 @@ export function useCalendarApp(config: CalendarAppConfig): UseCalendarAppReturn 
     currentView,
     currentDate,
     calendarEvents: events,
+    locale,
 
     // Expose actions directly for convenience
     changeView: store.getState().changeView,

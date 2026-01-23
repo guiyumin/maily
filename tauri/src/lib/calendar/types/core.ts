@@ -199,6 +199,7 @@ export interface UseCalendarAppReturn {
   currentView: ViewType;
   currentDate: Date;
   calendarEvents: CalendarEvent[];
+  locale: string | Locale;
   changeView: (view: ViewType) => void;
   setCurrentDate: (date: Date) => void;
   addEvent: (calendarEvent: CalendarEvent) => void;

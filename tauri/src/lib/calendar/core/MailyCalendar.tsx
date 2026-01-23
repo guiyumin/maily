@@ -470,11 +470,10 @@ const CalendarLayout: React.FC<MailyCalendarProps> = ({
 
 export const MailyCalendar = (props: MailyCalendarProps) => {
   const { calendar, customMessages } = props;
-  const app = calendar.app;
 
   return (
     <CalendarInternalLocaleProvider
-      locale={app.state.locale}
+      locale={calendar.locale}
       messages={customMessages}
     >
       <CalendarLayout {...props} />

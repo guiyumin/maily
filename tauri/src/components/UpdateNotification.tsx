@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useUpdater } from "@/hooks/useUpdater";
 import { Button } from "@/components/ui/button";
 import {
@@ -10,8 +11,10 @@ import {
 } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 import { Download, RefreshCw, Loader2 } from "lucide-react";
+import { useLocale } from "@/lib/i18n";
 
 export function UpdateNotification() {
+  const { t } = useLocale();
   const {
     available,
     downloading,
@@ -19,18 +22,22 @@ export function UpdateNotification() {
     update,
     downloadAndInstall,
   } = useUpdater();
+  const [dismissed, setDismissed] = useState(false);
 
-  if (!available || !update) {
+  // Don't show if no update, dismissed by user, or no update info
+  if (!available || !update || dismissed) {
     return null;
   }
 
+  const isOpen = available && !dismissed;
+
   return (
-    <Dialog open={available && !downloading}>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && setDismissed(true)}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <RefreshCw className="h-5 w-5" />
-            Update Available
+            {t("settings.about.checkForUpdates").replace("Check for ", "")} Available
           </DialogTitle>
           <DialogDescription>
             A new version of Maily is available.
@@ -50,7 +57,7 @@ export function UpdateNotification() {
           {downloading && (
             <div className="space-y-2">
               <div className="flex items-center justify-between text-sm">
-                <span>Downloading...</span>
+                <span>{t("settings.about.downloading")}</span>
                 <span>{progress}%</span>
               </div>
               <Progress value={progress} />
@@ -61,19 +68,19 @@ export function UpdateNotification() {
         <DialogFooter className="gap-2 sm:gap-0">
           {!downloading && (
             <>
-              <Button variant="outline" onClick={() => {}}>
+              <Button variant="outline" onClick={() => setDismissed(true)}>
                 Later
               </Button>
               <Button onClick={downloadAndInstall}>
                 <Download className="mr-2 h-4 w-4" />
-                Update Now
+                {t("settings.about.updateTo")} v{update.version}
               </Button>
             </>
           )}
           {downloading && (
             <Button disabled>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Installing...
+              {t("settings.about.installing")}
             </Button>
           )}
         </DialogFooter>

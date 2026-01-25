@@ -210,6 +210,11 @@ pub fn test_provider(provider_name: &str, provider_model: &str, provider_type: &
     }
 }
 
+/// Check if any AI provider is available (without making an API call)
+pub fn has_available_provider() -> bool {
+    !list_available_providers().is_empty()
+}
+
 /// List all available AI providers
 pub fn list_available_providers() -> Vec<String> {
     let mut providers = Vec::new();

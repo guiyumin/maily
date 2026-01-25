@@ -57,6 +57,12 @@ export interface IntegrationsConfig {
   github?: GitHubConfig;
 }
 
+export interface AutoTaggingConfig {
+  enabled: boolean;
+  rate_limit_ms: number;
+  max_emails_per_sync: number;
+}
+
 export interface Config {
   max_emails: number;
   default_label: string;
@@ -65,4 +71,5 @@ export interface Config {
   ai_providers: AIProvider[];
   notifications?: NotificationConfig;
   integrations?: IntegrationsConfig;
+  auto_tagging?: AutoTaggingConfig;
 }

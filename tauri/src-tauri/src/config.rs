@@ -71,6 +71,37 @@ fn default_true() -> bool {
     true
 }
 
+fn default_rate_limit_ms() -> u64 {
+    1000 // 1 second between API calls
+}
+
+fn default_max_emails_per_sync() -> usize {
+    5
+}
+
+/// Auto-tagging configuration
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct AutoTaggingConfig {
+    #[serde(default)]
+    pub enabled: bool,
+    /// Delay between AI API calls in milliseconds (default: 1000ms)
+    #[serde(default = "default_rate_limit_ms")]
+    pub rate_limit_ms: u64,
+    /// Maximum number of emails to auto-tag per sync (default: 5)
+    #[serde(default = "default_max_emails_per_sync")]
+    pub max_emails_per_sync: usize,
+}
+
+impl Default for AutoTaggingConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            rate_limit_ms: default_rate_limit_ms(),
+            max_emails_per_sync: default_max_emails_per_sync(),
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Config {
     #[serde(default = "default_max_emails")]
@@ -90,6 +121,8 @@ pub struct Config {
     pub notifications: Option<NotificationConfig>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub integrations: Option<IntegrationsConfig>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub auto_tagging: Option<AutoTaggingConfig>,
 }
 
 fn default_max_emails() -> i32 {
@@ -115,6 +148,7 @@ impl Default for Config {
             account_order: Vec::new(),
             notifications: None,
             integrations: None,
+            auto_tagging: None,
         }
     }
 }

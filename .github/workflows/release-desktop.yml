@@ -46,7 +46,15 @@ jobs:
   build-macos:
     needs: check-version
     if: needs.check-version.outputs.should_release == 'true'
-    runs-on: macos-14
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - target: aarch64-apple-darwin
+            runner: macos-14
+          - target: x86_64-apple-darwin
+            runner: macos-14
+    runs-on: ${{ matrix.runner }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -64,18 +72,19 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: aarch64-apple-darwin,x86_64-apple-darwin
+          targets: ${{ matrix.target }}
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
         with:
           workspaces: tauri/src-tauri
+          key: ${{ matrix.target }}
 
       - name: Install frontend dependencies
         working-directory: tauri
         run: bun install
 
-      - name: Build Tauri app (universal)
+      - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -83,16 +92,16 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           projectPath: tauri
-          args: --target universal-apple-darwin
+          args: --target ${{ matrix.target }}
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: macos-universal
+          name: macos-${{ matrix.target }}
           path: |
-            tauri/src-tauri/target/universal-apple-darwin/release/bundle/dmg/*.dmg
-            tauri/src-tauri/target/universal-apple-darwin/release/bundle/macos/*.app.tar.gz
-            tauri/src-tauri/target/universal-apple-darwin/release/bundle/macos/*.app.tar.gz.sig
+            tauri/src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg
+            tauri/src-tauri/target/${{ matrix.target }}/release/bundle/macos/*.app.tar.gz
+            tauri/src-tauri/target/${{ matrix.target }}/release/bundle/macos/*.app.tar.gz.sig
 
   publish:
     needs: [check-version, build-macos]
@@ -130,14 +139,18 @@ jobs:
           VERSION="${{ needs.check-version.outputs.version }}"
           RELEASE_URL="https://github.com/guiyumin/maily/releases/download/desktop-v${VERSION}"
 
-          # Read signature from universal build
-          UNIVERSAL_SIG=$(find artifacts -name "*.app.tar.gz.sig" -exec cat {} \; 2>/dev/null | head -1)
+          # Read signatures from artifact files
+          AARCH64_SIG=$(find artifacts -path "*aarch64*" -name "*.sig" -exec cat {} \; 2>/dev/null | head -1)
+          X64_SIG=$(find artifacts -path "*x86_64*" -name "*.sig" -exec cat {} \; 2>/dev/null | head -1)
 
-          # Find the actual tarball name
-          UNIVERSAL_TAR=$(find artifacts -name "*.app.tar.gz" ! -name "*.sig" -exec basename {} \; 2>/dev/null | head -1)
-          UNIVERSAL_TAR="${UNIVERSAL_TAR:-Maily.app.tar.gz}"
+          # Find the actual tarball names
+          AARCH64_TAR=$(find artifacts -path "*aarch64*" -name "*.app.tar.gz" ! -name "*.sig" -exec basename {} \; 2>/dev/null | head -1)
+          X64_TAR=$(find artifacts -path "*x86_64*" -name "*.app.tar.gz" ! -name "*.sig" -exec basename {} \; 2>/dev/null | head -1)
 
-          # Universal binary works for both architectures
+          # Default names if not found
+          AARCH64_TAR="${AARCH64_TAR:-Maily.app.tar.gz}"
+          X64_TAR="${X64_TAR:-Maily.app.tar.gz}"
+
           cat > release/latest.json << EOF
           {
             "version": "${VERSION}",
@@ -145,12 +158,12 @@ jobs:
             "pub_date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
             "platforms": {
               "darwin-aarch64": {
-                "signature": "${UNIVERSAL_SIG}",
-                "url": "${RELEASE_URL}/${UNIVERSAL_TAR}"
+                "signature": "${AARCH64_SIG}",
+                "url": "${RELEASE_URL}/${AARCH64_TAR}"
               },
               "darwin-x86_64": {
-                "signature": "${UNIVERSAL_SIG}",
-                "url": "${RELEASE_URL}/${UNIVERSAL_TAR}"
+                "signature": "${X64_SIG}",
+                "url": "${RELEASE_URL}/${X64_TAR}"
               }
             }
           }
@@ -171,9 +184,9 @@ jobs:
 
             ### Installation
 
-            **macOS (Universal):** Download `Maily_${{ needs.check-version.outputs.version }}_universal.dmg`
+            **macOS (Apple Silicon):** Download `Maily_${{ needs.check-version.outputs.version }}_aarch64.dmg`
 
-            Works on both Apple Silicon (M1/M2/M3) and Intel Macs.
+            **macOS (Intel):** Download `Maily_${{ needs.check-version.outputs.version }}_x64.dmg`
 
             ### Auto-Update
 

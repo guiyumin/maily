@@ -118,9 +118,9 @@ Configuration is stored in `~/.config/maily/`:
 
 ```yaml
 # ~/.config/maily/config.yml
-max_emails: 50        # Emails to load per page
-default_label: INBOX  # Default folder
-theme: default        # UI theme
+max_emails: 50 # Emails to load per page
+default_label: INBOX # Default folder
+theme: default # UI theme
 
 # AI accounts (OpenAI-compatible API)
 ai_accounts:
@@ -152,6 +152,7 @@ Maily supports AI-powered features through multiple providers:
 - **BYOK (Bring Your Own Key)**: Any OpenAI-compatible API (configure in `config.yml`)
 
 Features:
+
 - Email summarization (`s` key in read view)
 - Natural language calendar event creation (`n` key in calendar)
 - Event extraction from emails
@@ -166,4 +167,4 @@ Features:
 
 ## License
 
-MIT
+[Apache 2.0](LICENSE)

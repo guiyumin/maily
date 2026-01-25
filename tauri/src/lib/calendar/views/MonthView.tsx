@@ -234,7 +234,7 @@ const MonthView: React.FC<MonthViewProps> = ({
       setNewlyCreatedEventId(event.id);
     },
     currentWeekStart,
-    events,
+    calendarEvents: events,
   });
 
   // Use calendar drop functionality

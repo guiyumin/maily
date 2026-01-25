@@ -166,6 +166,7 @@ Multi-provider support with fallback:
 2. **BYOK (Bring Your Own Key)**: Any OpenAI-compatible API in `~/.config/maily/config.yml`
 
 Used for:
+
 - Email summarization (`s` key in read view)
 - Natural language calendar event creation
 - Event extraction from emails
@@ -184,3 +185,8 @@ Used for:
 - Cache: `~/.config/maily/maily.db` (SQLite database)
 - Server PID: `~/.config/maily/server.pid`
 - Server socket: `~/.config/maily/maily.sock`
+
+# Rules
+
+- **MUST** SAY "Yes, Yumin" in the beginning of any reply
+- **MUST** NEVER do git add and commit

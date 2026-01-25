@@ -27,7 +27,10 @@
       "icons/icon.ico"
     ],
     "macOS": {
-      "minimumSystemVersion": "10.15"
+      "minimumSystemVersion": "10.15",
+      "infoPlist": {
+        "NSCalendarsUsageDescription": "Maily needs access to your calendar to show events and create new ones."
+      }
     }
   },
   "plugins": {

@@ -44,37 +44,23 @@ jobs:
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
-
-      - name: Rust cache
-        uses: swatinem/rust-cache@v2
         with:
-          workspaces: tauri/src-tauri
-          prefix-key: x86_64
-
-      - name: Install x86_64 target (after cache restore)
-        run: |
-          # Use the rustup that manages the cargo we'll use for building
-          echo "Using rustup at: $HOME/.cargo/bin/rustup"
-          $HOME/.cargo/bin/rustup target add x86_64-apple-darwin
-          echo "Installed targets:"
-          $HOME/.cargo/bin/rustup target list --installed
+          targets: x86_64-apple-darwin
 
       - name: Install frontend dependencies
         working-directory: tauri
         run: bun install
-
-      - name: Verify x86_64 target before build
-        run: |
-          echo "=== Using correct rustup ==="
-          $HOME/.cargo/bin/rustup target list --installed
-          $HOME/.cargo/bin/rustup target list --installed | grep x86_64-apple-darwin || (echo "ERROR: x86_64 target not found!" && exit 1)
 
       - name: Build Tauri app
         working-directory: tauri
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        run: bun tauri build --target x86_64-apple-darwin
+        run: |
+          # Add target right before build to ensure it's there
+          rustup target add x86_64-apple-darwin
+          rustup target list --installed
+          bun tauri build --target x86_64-apple-darwin
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4

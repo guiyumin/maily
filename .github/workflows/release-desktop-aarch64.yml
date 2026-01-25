@@ -62,35 +62,22 @@ jobs:
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
-
-      - name: Rust cache
-        uses: swatinem/rust-cache@v2
         with:
-          workspaces: tauri/src-tauri
-          prefix-key: aarch64
-
-      - name: Install aarch64 target (after cache restore)
-        run: |
-          # Use the rustup that manages the cargo we'll use for building
-          $HOME/.cargo/bin/rustup target add aarch64-apple-darwin
-          echo "Installed targets:"
-          $HOME/.cargo/bin/rustup target list --installed
+          targets: aarch64-apple-darwin
 
       - name: Install frontend dependencies
         working-directory: tauri
         run: bun install
-
-      - name: Verify aarch64 target before build
-        run: |
-          echo "Verifying aarch64 target is installed..."
-          $HOME/.cargo/bin/rustup target list --installed | grep aarch64-apple-darwin || (echo "ERROR: aarch64 target not found!" && exit 1)
 
       - name: Build Tauri app
         working-directory: tauri
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        run: bun tauri build --target aarch64-apple-darwin
+        run: |
+          rustup target add aarch64-apple-darwin
+          rustup target list --installed
+          bun tauri build --target aarch64-apple-darwin
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4

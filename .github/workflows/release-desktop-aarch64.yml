@@ -71,9 +71,10 @@ jobs:
 
       - name: Install aarch64 target (after cache restore)
         run: |
-          rustup target add aarch64-apple-darwin
+          # Use the rustup that manages the cargo we'll use for building
+          $HOME/.cargo/bin/rustup target add aarch64-apple-darwin
           echo "Installed targets:"
-          rustup target list --installed
+          $HOME/.cargo/bin/rustup target list --installed
 
       - name: Install frontend dependencies
         working-directory: tauri
@@ -82,7 +83,7 @@ jobs:
       - name: Verify aarch64 target before build
         run: |
           echo "Verifying aarch64 target is installed..."
-          rustup target list --installed | grep aarch64-apple-darwin || (echo "ERROR: aarch64 target not found!" && exit 1)
+          $HOME/.cargo/bin/rustup target list --installed | grep aarch64-apple-darwin || (echo "ERROR: aarch64 target not found!" && exit 1)
 
       - name: Build Tauri app
         working-directory: tauri

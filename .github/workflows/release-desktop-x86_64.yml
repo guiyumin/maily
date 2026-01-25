@@ -53,9 +53,11 @@ jobs:
 
       - name: Install x86_64 target (after cache restore)
         run: |
-          rustup target add x86_64-apple-darwin
+          # Use the rustup that manages the cargo we'll use for building
+          echo "Using rustup at: $HOME/.cargo/bin/rustup"
+          $HOME/.cargo/bin/rustup target add x86_64-apple-darwin
           echo "Installed targets:"
-          rustup target list --installed
+          $HOME/.cargo/bin/rustup target list --installed
 
       - name: Install frontend dependencies
         working-directory: tauri
@@ -63,35 +65,16 @@ jobs:
 
       - name: Verify x86_64 target before build
         run: |
-          echo "=== Rust environment debug ==="
-          echo "which rustup: $(which rustup)"
-          echo "which cargo: $(which cargo)"
-          echo "which rustc: $(which rustc)"
-          echo "RUSTUP_HOME: $RUSTUP_HOME"
-          echo "CARGO_HOME: $CARGO_HOME"
-          echo "PATH: $PATH"
-          echo ""
-          echo "=== rustup show ==="
-          rustup show
-          echo ""
-          echo "=== Installed targets ==="
-          rustup target list --installed
-          echo ""
-          rustup target list --installed | grep x86_64-apple-darwin || (echo "ERROR: x86_64 target not found!" && exit 1)
+          echo "=== Using correct rustup ==="
+          $HOME/.cargo/bin/rustup target list --installed
+          $HOME/.cargo/bin/rustup target list --installed | grep x86_64-apple-darwin || (echo "ERROR: x86_64 target not found!" && exit 1)
 
       - name: Build Tauri app
         working-directory: tauri
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        run: |
-          echo "=== Cargo environment in build step ==="
-          which cargo
-          cargo --version
-          rustup target list --installed
-          echo ""
-          echo "=== Starting build ==="
-          bun tauri build --target x86_64-apple-darwin
+        run: bun tauri build --target x86_64-apple-darwin
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4

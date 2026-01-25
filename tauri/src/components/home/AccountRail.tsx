@@ -113,17 +113,16 @@ export function AccountRail({
     setDraggedAccount(accountName);
     e.dataTransfer.effectAllowed = "move";
     e.dataTransfer.setData("text/plain", accountName);
-    // Add a slight delay to allow the drag image to be created
-    requestAnimationFrame(() => {
-      (e.target as HTMLElement).style.opacity = "0.5";
-    });
+    // Set drag image to the current target for better visual feedback
+    if (e.currentTarget instanceof HTMLElement) {
+      e.dataTransfer.setDragImage(e.currentTarget, 20, 20);
+    }
   }, []);
 
-  const handleDragEnd = useCallback((e: React.DragEvent) => {
+  const handleDragEnd = useCallback(() => {
     setDraggedAccount(null);
     setDragOverAccount(null);
     dragCounter.current = 0;
-    (e.target as HTMLElement).style.opacity = "1";
   }, []);
 
   const handleDragEnter = useCallback((e: React.DragEvent, accountName: string) => {
@@ -191,33 +190,36 @@ export function AccountRail({
                   onDragLeave={handleDragLeave}
                   onDragOver={handleDragOver}
                   onDrop={(e) => handleDrop(e, account.name)}
+                  onClick={() => onSelectAccount(account.name)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      onSelectAccount(account.name);
+                    }
+                  }}
                   className={cn(
-                    "relative group",
-                    onOrderChange && "cursor-grab active:cursor-grabbing"
+                    "relative group select-none",
+                    onOrderChange && "cursor-grab active:cursor-grabbing",
+                    "relative size-8 rounded-full transition-all",
+                    selectedAccount === account.name
+                      ? "ring-2 ring-primary ring-offset-2 ring-offset-background"
+                      : "opacity-60 hover:opacity-100",
+                    isDragging && "opacity-50",
+                    isDragOver && "ring-2 ring-primary ring-offset-2 ring-offset-background scale-110"
                   )}
+                  style={{ WebkitUserDrag: onOrderChange ? "element" : "none" } as React.CSSProperties}
                 >
-                  <button
-                    onClick={() => onSelectAccount(account.name)}
-                    className={cn(
-                      "relative size-8 rounded-full transition-all",
-                      selectedAccount === account.name
-                        ? "ring-2 ring-primary ring-offset-2 ring-offset-background"
-                        : "opacity-60 hover:opacity-100",
-                      isDragging && "opacity-50",
-                      isDragOver && "ring-2 ring-primary ring-offset-2 ring-offset-background scale-110"
-                    )}
-                  >
-                    <Avatar className="size-8">
-                      <AvatarFallback className={cn(getAccountColor(originalIndex), "text-xs")}>
-                        {getInitials(account.name)}
-                      </AvatarFallback>
-                    </Avatar>
-                    {unread > 0 && (
-                      <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-0.5 text-[9px] font-medium text-destructive-foreground">
-                        {unread > 99 ? "99+" : unread}
-                      </span>
-                    )}
-                  </button>
+                  <Avatar className="size-8 pointer-events-none">
+                    <AvatarFallback className={cn(getAccountColor(originalIndex), "text-xs")}>
+                      {getInitials(account.name)}
+                    </AvatarFallback>
+                  </Avatar>
+                  {unread > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-0.5 text-[9px] font-medium text-destructive-foreground pointer-events-none">
+                      {unread > 99 ? "99+" : unread}
+                    </span>
+                  )}
                   {/* Drag handle indicator on hover */}
                   {onOrderChange && (
                     <div className="absolute -left-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-60 transition-opacity pointer-events-none">
@@ -270,18 +272,26 @@ export function AccountRail({
                       onDragLeave={handleDragLeave}
                       onDragOver={handleDragOver}
                       onDrop={(e) => handleDrop(e, account.name)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          handleOverflowSelect(account.name);
+                        }
+                      }}
                       className={cn(
-                        "flex w-full items-center gap-3 rounded-md px-2 py-2 text-left hover:bg-muted transition-all",
+                        "flex w-full items-center gap-3 rounded-md px-2 py-2 text-left hover:bg-muted transition-all select-none",
                         onOrderChange && "cursor-grab active:cursor-grabbing",
                         isDragging && "opacity-50",
                         isDragOver && "bg-muted ring-1 ring-primary"
                       )}
+                      style={{ WebkitUserDrag: onOrderChange ? "element" : "none" } as React.CSSProperties}
                       onClick={() => handleOverflowSelect(account.name)}
                     >
                       {onOrderChange && (
-                        <GripVertical className="h-4 w-4 text-muted-foreground/50 shrink-0" />
+                        <GripVertical className="h-4 w-4 text-muted-foreground/50 shrink-0 pointer-events-none" />
                       )}
-                      <div className="relative">
+                      <div className="relative pointer-events-none">
                         <Avatar className="size-8">
                           <AvatarFallback className={getAccountColor(originalIndex)}>
                             {getInitials(account.name)}
@@ -293,7 +303,7 @@ export function AccountRail({
                           </span>
                         )}
                       </div>
-                      <div className="min-w-0 flex-1">
+                      <div className="min-w-0 flex-1 pointer-events-none">
                         <p className="truncate text-sm font-medium">
                           {account.name}
                         </p>

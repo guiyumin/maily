@@ -55,19 +55,8 @@ jobs:
         working-directory: tauri
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
-          # Verify signing key is set (show first/last 10 chars only)
-          if [ -n "$TAURI_SIGNING_PRIVATE_KEY" ]; then
-            KEY_LEN=${#TAURI_SIGNING_PRIVATE_KEY}
-            KEY_FIRST="${TAURI_SIGNING_PRIVATE_KEY:0:10}"
-            KEY_LAST="${TAURI_SIGNING_PRIVATE_KEY: -10}"
-            echo "TAURI_SIGNING_PRIVATE_KEY is set (${KEY_LEN} chars): ${KEY_FIRST}...${KEY_LAST}"
-          else
-            echo "WARNING: TAURI_SIGNING_PRIVATE_KEY is NOT set!"
-          fi
-
-          # Add target right before build to ensure it's there
           rustup target add x86_64-apple-darwin
           rustup target list --installed
           bun tauri build --target x86_64-apple-darwin

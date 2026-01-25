@@ -49,7 +49,7 @@ maily update
 ```bash
 maily login gmail      # For Gmail
 maily login yahoo      # For Yahoo
-maily login imap       # For other IMAP providers
+maily login qq         # For qq mail
 ```
 
 2. Start the TUI:
@@ -71,7 +71,7 @@ See [docs/keybindings.md](docs/keybindings.md) for the full list of key bindings
 maily                  # Start TUI
 maily login gmail      # Add Gmail account
 maily login yahoo      # Add Yahoo account
-maily login imap       # Add other IMAP account
+maily login qq         # Add qq mail account
 maily logout           # Remove account
 maily accounts         # List accounts
 maily sync             # Manual full sync

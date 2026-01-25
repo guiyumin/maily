@@ -123,7 +123,7 @@ No optimistic UI - wait for server confirmation:
 
 ### Authentication Flow
 
-1. User runs `maily login gmail` / `maily login yahoo` / `maily login imap`
+1. User runs `maily login gmail` / `maily login yahoo` / `maily login qq`
 2. Prompts for email and App Password (password input hidden)
 3. Verifies credentials by connecting to IMAP before saving
 4. Stores in `~/.config/maily/accounts.yml`

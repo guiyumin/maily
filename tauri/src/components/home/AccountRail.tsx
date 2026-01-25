@@ -1,6 +1,25 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback } from "react";
 import { Plus, Settings, MoreHorizontal, GripVertical, Calendar } from "lucide-react";
 import { Link } from "@tanstack/react-router";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+  DragStartEvent,
+  DragOverlay,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -50,6 +69,221 @@ function getAccountColor(index: number): string {
   return colors[index % colors.length];
 }
 
+// Sortable account item for visible accounts
+interface SortableAccountProps {
+  account: Account;
+  originalIndex: number;
+  isSelected: boolean;
+  unread: number;
+  onSelect: (name: string) => void;
+  isDragging?: boolean;
+  canDrag: boolean;
+}
+
+function SortableVisibleAccount({
+  account,
+  originalIndex,
+  isSelected,
+  unread,
+  onSelect,
+  isDragging: isCurrentlyDragging,
+  canDrag,
+}: SortableAccountProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: account.name, disabled: !canDrag });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <div
+          ref={setNodeRef}
+          style={style}
+          {...attributes}
+          {...(canDrag ? listeners : {})}
+          onClick={() => onSelect(account.name)}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              onSelect(account.name);
+            }
+          }}
+          className={cn(
+            "relative group select-none",
+            canDrag && "cursor-grab active:cursor-grabbing",
+            "relative size-8 rounded-full transition-all",
+            isSelected
+              ? "ring-2 ring-primary ring-offset-2 ring-offset-background"
+              : "opacity-60 hover:opacity-100",
+            (isDragging || isCurrentlyDragging) && "opacity-50 z-50"
+          )}
+        >
+          <Avatar className="size-8 pointer-events-none">
+            <AvatarFallback className={cn(getAccountColor(originalIndex), "text-xs")}>
+              {getInitials(account.name)}
+            </AvatarFallback>
+          </Avatar>
+          {unread > 0 && (
+            <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-0.5 text-[9px] font-medium text-destructive-foreground pointer-events-none">
+              {unread > 99 ? "99+" : unread}
+            </span>
+          )}
+          {/* Drag handle indicator on hover */}
+          {canDrag && (
+            <div className="absolute -left-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-60 transition-opacity pointer-events-none">
+              <GripVertical className="h-3 w-3 text-muted-foreground" />
+            </div>
+          )}
+        </div>
+      </TooltipTrigger>
+      <TooltipContent side="right">
+        {account.name}
+        {unread > 0 && ` (${unread} unread)`}
+        {canDrag && <span className="block text-xs text-muted-foreground">Drag to reorder</span>}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
+// Sortable account item for overflow menu
+function SortableOverflowAccount({
+  account,
+  originalIndex,
+  unread,
+  onSelect,
+  isDragging: isCurrentlyDragging,
+  canDrag,
+}: SortableAccountProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: account.name, disabled: !canDrag });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...(canDrag ? listeners : {})}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          onSelect(account.name);
+        }
+      }}
+      className={cn(
+        "flex w-full items-center gap-3 rounded-md px-2 py-2 text-left hover:bg-muted transition-all select-none",
+        canDrag && "cursor-grab active:cursor-grabbing",
+        (isDragging || isCurrentlyDragging) && "opacity-50"
+      )}
+      onClick={() => {
+        if (!isDragging && !isCurrentlyDragging) {
+          onSelect(account.name);
+        }
+      }}
+    >
+      {canDrag && (
+        <GripVertical className="h-4 w-4 text-muted-foreground/50 shrink-0" />
+      )}
+      <div className="relative">
+        <Avatar className="size-8">
+          <AvatarFallback className={getAccountColor(originalIndex)}>
+            {getInitials(account.name)}
+          </AvatarFallback>
+        </Avatar>
+        {unread > 0 && (
+          <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-0.5 text-[9px] font-medium text-destructive-foreground">
+            {unread > 99 ? "99+" : unread}
+          </span>
+        )}
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-medium">
+          {account.name}
+        </p>
+        <p className="text-xs text-muted-foreground">
+          {account.provider}
+          {unread > 0 && ` · ${unread} unread`}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// Drag overlay content
+function DragOverlayContent({
+  account,
+  originalIndex,
+  unread,
+  variant,
+}: {
+  account: Account;
+  originalIndex: number;
+  unread: number;
+  variant: "visible" | "overflow";
+}) {
+  if (variant === "visible") {
+    return (
+      <div className="relative size-8 rounded-full ring-2 ring-primary ring-offset-2 ring-offset-background cursor-grabbing">
+        <Avatar className="size-8">
+          <AvatarFallback className={cn(getAccountColor(originalIndex), "text-xs")}>
+            {getInitials(account.name)}
+          </AvatarFallback>
+        </Avatar>
+        {unread > 0 && (
+          <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-0.5 text-[9px] font-medium text-destructive-foreground">
+            {unread > 99 ? "99+" : unread}
+          </span>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex w-56 items-center gap-3 rounded-md bg-background px-2 py-2 shadow-lg border cursor-grabbing">
+      <GripVertical className="h-4 w-4 text-muted-foreground/50 shrink-0" />
+      <div className="relative">
+        <Avatar className="size-8">
+          <AvatarFallback className={getAccountColor(originalIndex)}>
+            {getInitials(account.name)}
+          </AvatarFallback>
+        </Avatar>
+        {unread > 0 && (
+          <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-0.5 text-[9px] font-medium text-destructive-foreground">
+            {unread > 99 ? "99+" : unread}
+          </span>
+        )}
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-medium">
+          {account.name}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export function AccountRail({
   accounts,
   selectedAccount,
@@ -59,24 +293,29 @@ export function AccountRail({
   onOrderChange,
 }: AccountRailProps) {
   const [overflowOpen, setOverflowOpen] = useState(false);
-  const [draggedAccount, setDraggedAccount] = useState<string | null>(null);
-  const [dragOverAccount, setDragOverAccount] = useState<string | null>(null);
-  const dragCounter = useRef(0);
+  const [activeId, setActiveId] = useState<string | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // 8px movement required before drag starts
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   // Sort accounts based on accountOrder (if provided), keeping unordered accounts at the end
   const sortedAccounts = [...accounts].sort((a, b) => {
     const aIndex = accountOrder.indexOf(a.name);
     const bIndex = accountOrder.indexOf(b.name);
 
-    // If both are in order, sort by their order position
     if (aIndex !== -1 && bIndex !== -1) {
       return aIndex - bIndex;
     }
-    // If only a is in order, a comes first
     if (aIndex !== -1) return -1;
-    // If only b is in order, b comes first
     if (bIndex !== -1) return 1;
-    // If neither is in order, maintain original order
     return accounts.indexOf(a) - accounts.indexOf(b);
   });
 
@@ -89,12 +328,10 @@ export function AccountRail({
   let overflowAccounts: Account[];
 
   if (selectedInOverflow && sortedAccounts.length > MAX_VISIBLE_ACCOUNTS) {
-    // Show first 2 + selected account
     visibleAccounts = [
       ...sortedAccounts.slice(0, MAX_VISIBLE_ACCOUNTS - 1),
       sortedAccounts[selectedIndex],
     ];
-    // Overflow contains everything else
     overflowAccounts = sortedAccounts.filter(
       (_, i) => i >= MAX_VISIBLE_ACCOUNTS - 1 && i !== selectedIndex
     );
@@ -103,262 +340,180 @@ export function AccountRail({
     overflowAccounts = sortedAccounts.slice(MAX_VISIBLE_ACCOUNTS);
   }
 
-  const handleOverflowSelect = (name: string) => {
+  const handleOverflowSelect = useCallback((name: string) => {
     onSelectAccount(name);
     setOverflowOpen(false);
-  };
+  }, [onSelectAccount]);
 
-  // Drag and drop handlers
-  const handleDragStart = useCallback((e: React.DragEvent, accountName: string) => {
-    setDraggedAccount(accountName);
-    e.dataTransfer.effectAllowed = "move";
-    e.dataTransfer.setData("text/plain", accountName);
-    // Set drag image to the current target for better visual feedback
-    if (e.currentTarget instanceof HTMLElement) {
-      e.dataTransfer.setDragImage(e.currentTarget, 20, 20);
-    }
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    setActiveId(event.active.id as string);
   }, []);
 
-  const handleDragEnd = useCallback(() => {
-    setDraggedAccount(null);
-    setDragOverAccount(null);
-    dragCounter.current = 0;
-  }, []);
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveId(null);
 
-  const handleDragEnter = useCallback((e: React.DragEvent, accountName: string) => {
-    e.preventDefault();
-    dragCounter.current++;
-    if (accountName !== draggedAccount) {
-      setDragOverAccount(accountName);
-    }
-  }, [draggedAccount]);
-
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    dragCounter.current--;
-    if (dragCounter.current === 0) {
-      setDragOverAccount(null);
-    }
-  }, []);
-
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
-  }, []);
-
-  const handleDrop = useCallback((e: React.DragEvent, targetAccountName: string) => {
-    e.preventDefault();
-    setDragOverAccount(null);
-    dragCounter.current = 0;
-
-    if (!draggedAccount || draggedAccount === targetAccountName || !onOrderChange) {
+    if (!over || active.id === over.id || !onOrderChange) {
       return;
     }
 
-    // Create new order
-    const currentOrder = sortedAccounts.map(a => a.name);
-    const draggedIndex = currentOrder.indexOf(draggedAccount);
-    const targetIndex = currentOrder.indexOf(targetAccountName);
+    const currentOrder = sortedAccounts.map((a) => a.name);
+    const oldIndex = currentOrder.indexOf(active.id as string);
+    const newIndex = currentOrder.indexOf(over.id as string);
 
-    if (draggedIndex === -1 || targetIndex === -1) return;
+    if (oldIndex === -1 || newIndex === -1) return;
 
-    // Remove dragged item and insert at target position
-    const newOrder = [...currentOrder];
-    newOrder.splice(draggedIndex, 1);
-    newOrder.splice(targetIndex, 0, draggedAccount);
-
+    const newOrder = arrayMove(currentOrder, oldIndex, newIndex);
     onOrderChange(newOrder);
-    setDraggedAccount(null);
-  }, [draggedAccount, sortedAccounts, onOrderChange]);
+    setOverflowOpen(false);
+  }, [sortedAccounts, onOrderChange]);
+
+  const activeAccount = activeId
+    ? sortedAccounts.find((a) => a.name === activeId)
+    : null;
+  const activeOriginalIndex = activeAccount
+    ? sortedAccounts.findIndex((a) => a.name === activeAccount.name)
+    : 0;
+  const activeInOverflow = activeAccount
+    ? overflowAccounts.some((a) => a.name === activeAccount.name)
+    : false;
 
   return (
-    <aside className="flex w-14 shrink-0 flex-col items-center border-r bg-muted/30 py-3">
-      <div className="flex flex-col items-center gap-2">
-        {visibleAccounts.map((account) => {
-          const originalIndex = sortedAccounts.findIndex((a) => a.name === account.name);
-          const unread = unreadCounts[account.name] || 0;
-          const isDragging = draggedAccount === account.name;
-          const isDragOver = dragOverAccount === account.name;
-          return (
-            <Tooltip key={account.name}>
-              <TooltipTrigger asChild>
-                <div
-                  draggable={!!onOrderChange}
-                  onDragStart={(e) => handleDragStart(e, account.name)}
-                  onDragEnd={handleDragEnd}
-                  onDragEnter={(e) => handleDragEnter(e, account.name)}
-                  onDragLeave={handleDragLeave}
-                  onDragOver={handleDragOver}
-                  onDrop={(e) => handleDrop(e, account.name)}
-                  onClick={() => onSelectAccount(account.name)}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      onSelectAccount(account.name);
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+    >
+      <aside className="flex w-14 shrink-0 flex-col items-center border-r bg-muted/30 py-3">
+        <div className="flex flex-col items-center gap-2">
+          <SortableContext
+            items={sortedAccounts.map((a) => a.name)}
+            strategy={verticalListSortingStrategy}
+          >
+            {visibleAccounts.map((account) => {
+              const originalIndex = sortedAccounts.findIndex((a) => a.name === account.name);
+              const unread = unreadCounts[account.name] || 0;
+              return (
+                <SortableVisibleAccount
+                  key={account.name}
+                  account={account}
+                  originalIndex={originalIndex}
+                  isSelected={selectedAccount === account.name}
+                  unread={unread}
+                  onSelect={onSelectAccount}
+                  isDragging={activeId === account.name}
+                  canDrag={!!onOrderChange}
+                />
+              );
+            })}
+
+            {/* Overflow menu for additional accounts */}
+            {overflowAccounts.length > 0 && (
+              <Popover open={overflowOpen} onOpenChange={setOverflowOpen} modal={false}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <PopoverTrigger asChild>
+                      <button className="flex size-8 items-center justify-center rounded-full bg-muted/50 text-muted-foreground transition-all hover:bg-muted hover:text-foreground">
+                        <MoreHorizontal className="h-3.5 w-3.5" />
+                      </button>
+                    </PopoverTrigger>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">
+                    {overflowAccounts.length} more account{overflowAccounts.length > 1 ? "s" : ""}
+                  </TooltipContent>
+                </Tooltip>
+                <PopoverContent
+                  side="right"
+                  className="w-64 p-2"
+                  onPointerDownOutside={(e) => {
+                    if (activeId) {
+                      e.preventDefault();
                     }
                   }}
-                  className={cn(
-                    "relative group select-none",
-                    onOrderChange && "cursor-grab active:cursor-grabbing",
-                    "relative size-8 rounded-full transition-all",
-                    selectedAccount === account.name
-                      ? "ring-2 ring-primary ring-offset-2 ring-offset-background"
-                      : "opacity-60 hover:opacity-100",
-                    isDragging && "opacity-50",
-                    isDragOver && "ring-2 ring-primary ring-offset-2 ring-offset-background scale-110"
-                  )}
-                  style={{ WebkitUserDrag: onOrderChange ? "element" : "none" } as React.CSSProperties}
+                  onInteractOutside={(e) => {
+                    if (activeId) {
+                      e.preventDefault();
+                    }
+                  }}
                 >
-                  <Avatar className="size-8 pointer-events-none">
-                    <AvatarFallback className={cn(getAccountColor(originalIndex), "text-xs")}>
-                      {getInitials(account.name)}
-                    </AvatarFallback>
-                  </Avatar>
-                  {unread > 0 && (
-                    <span className="absolute -top-0.5 -right-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-0.5 text-[9px] font-medium text-destructive-foreground pointer-events-none">
-                      {unread > 99 ? "99+" : unread}
-                    </span>
-                  )}
-                  {/* Drag handle indicator on hover */}
-                  {onOrderChange && (
-                    <div className="absolute -left-1 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-60 transition-opacity pointer-events-none">
-                      <GripVertical className="h-3 w-3 text-muted-foreground" />
-                    </div>
-                  )}
-                </div>
-              </TooltipTrigger>
-              <TooltipContent side="right">
-                {account.name}
-                {unread > 0 && ` (${unread} unread)`}
-                {onOrderChange && <span className="block text-xs text-muted-foreground">Drag to reorder</span>}
-              </TooltipContent>
-            </Tooltip>
-          );
-        })}
+                  <div className="space-y-1">
+                    <p className="px-2 py-1 text-xs font-medium text-muted-foreground">
+                      More accounts {onOrderChange && <span className="text-muted-foreground/60">· Drag to reorder</span>}
+                    </p>
+                    {overflowAccounts.map((account) => {
+                      const originalIndex = sortedAccounts.findIndex((a) => a.name === account.name);
+                      const unread = unreadCounts[account.name] || 0;
+                      return (
+                        <SortableOverflowAccount
+                          key={account.name}
+                          account={account}
+                          originalIndex={originalIndex}
+                          isSelected={selectedAccount === account.name}
+                          unread={unread}
+                          onSelect={handleOverflowSelect}
+                          isDragging={activeId === account.name}
+                          canDrag={!!onOrderChange}
+                        />
+                      );
+                    })}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            )}
+          </SortableContext>
 
-        {/* Overflow menu for additional accounts */}
-        {overflowAccounts.length > 0 && (
-          <Popover open={overflowOpen} onOpenChange={setOverflowOpen}>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <PopoverTrigger asChild>
-                  <button className="flex size-8 items-center justify-center rounded-full bg-muted/50 text-muted-foreground transition-all hover:bg-muted hover:text-foreground">
-                    <MoreHorizontal className="h-3.5 w-3.5" />
-                  </button>
-                </PopoverTrigger>
-              </TooltipTrigger>
-              <TooltipContent side="right">
-                {overflowAccounts.length} more account{overflowAccounts.length > 1 ? "s" : ""}
-              </TooltipContent>
-            </Tooltip>
-            <PopoverContent side="right" className="w-64 p-2">
-              <div className="space-y-1">
-                <p className="px-2 py-1 text-xs font-medium text-muted-foreground">
-                  More accounts {onOrderChange && <span className="text-muted-foreground/60">· Drag to reorder</span>}
-                </p>
-                {overflowAccounts.map((account) => {
-                  const originalIndex = sortedAccounts.findIndex((a) => a.name === account.name);
-                  const unread = unreadCounts[account.name] || 0;
-                  const isDragging = draggedAccount === account.name;
-                  const isDragOver = dragOverAccount === account.name;
-                  return (
-                    <div
-                      key={account.name}
-                      draggable={!!onOrderChange}
-                      onDragStart={(e) => handleDragStart(e, account.name)}
-                      onDragEnd={handleDragEnd}
-                      onDragEnter={(e) => handleDragEnter(e, account.name)}
-                      onDragLeave={handleDragLeave}
-                      onDragOver={handleDragOver}
-                      onDrop={(e) => handleDrop(e, account.name)}
-                      role="button"
-                      tabIndex={0}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          handleOverflowSelect(account.name);
-                        }
-                      }}
-                      className={cn(
-                        "flex w-full items-center gap-3 rounded-md px-2 py-2 text-left hover:bg-muted transition-all select-none",
-                        onOrderChange && "cursor-grab active:cursor-grabbing",
-                        isDragging && "opacity-50",
-                        isDragOver && "bg-muted ring-1 ring-primary"
-                      )}
-                      style={{ WebkitUserDrag: onOrderChange ? "element" : "none" } as React.CSSProperties}
-                      onClick={() => handleOverflowSelect(account.name)}
-                    >
-                      {onOrderChange && (
-                        <GripVertical className="h-4 w-4 text-muted-foreground/50 shrink-0 pointer-events-none" />
-                      )}
-                      <div className="relative pointer-events-none">
-                        <Avatar className="size-8">
-                          <AvatarFallback className={getAccountColor(originalIndex)}>
-                            {getInitials(account.name)}
-                          </AvatarFallback>
-                        </Avatar>
-                        {unread > 0 && (
-                          <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-0.5 text-[9px] font-medium text-destructive-foreground">
-                            {unread > 99 ? "99+" : unread}
-                          </span>
-                        )}
-                      </div>
-                      <div className="min-w-0 flex-1 pointer-events-none">
-                        <p className="truncate text-sm font-medium">
-                          {account.name}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {account.provider}
-                          {unread > 0 && ` · ${unread} unread`}
-                        </p>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </PopoverContent>
-          </Popover>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon"
+                className="size-8 rounded-full"
+                asChild
+              >
+                <Link to="/settings">
+                  <Plus className="h-3.5 w-3.5" />
+                </Link>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="right">Add account</TooltipContent>
+          </Tooltip>
+        </div>
+
+        <div className="mt-auto flex flex-col gap-1">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon" className="size-8 rounded-full" asChild>
+                <Link to="/calendar">
+                  <Calendar className="h-3.5 w-3.5" />
+                </Link>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="right">Calendar</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon" className="size-8 rounded-full" asChild>
+                <Link to="/settings">
+                  <Settings className="h-3.5 w-3.5" />
+                </Link>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="right">Settings</TooltipContent>
+          </Tooltip>
+        </div>
+      </aside>
+
+      <DragOverlay>
+        {activeAccount && (
+          <DragOverlayContent
+            account={activeAccount}
+            originalIndex={activeOriginalIndex}
+            unread={unreadCounts[activeAccount.name] || 0}
+            variant={activeInOverflow ? "overflow" : "visible"}
+          />
         )}
-
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="outline"
-              size="icon"
-              className="size-8 rounded-full"
-              asChild
-            >
-              <Link to="/settings">
-                <Plus className="h-3.5 w-3.5" />
-              </Link>
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="right">Add account</TooltipContent>
-        </Tooltip>
-      </div>
-
-      <div className="mt-auto flex flex-col gap-1">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" className="size-8 rounded-full" asChild>
-              <Link to="/calendar">
-                <Calendar className="h-3.5 w-3.5" />
-              </Link>
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="right">Calendar</TooltipContent>
-        </Tooltip>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" className="size-8 rounded-full" asChild>
-              <Link to="/settings">
-                <Settings className="h-3.5 w-3.5" />
-              </Link>
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="right">Settings</TooltipContent>
-        </Tooltip>
-      </div>
-    </aside>
+      </DragOverlay>
+    </DndContext>
   );
 }

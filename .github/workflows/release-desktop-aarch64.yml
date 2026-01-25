@@ -1,4 +1,4 @@
-name: Release Desktop
+name: Release Desktop (Apple Silicon)
 
 on:
   push:
@@ -34,7 +34,6 @@ jobs:
           VERSION="${{ steps.version.outputs.version }}"
           RELEASE_TAG="desktop-v${VERSION}"
 
-          # Check if release already exists
           if gh release view "$RELEASE_TAG" &>/dev/null; then
             echo "Release $RELEASE_TAG already exists, skipping"
             echo "should_release=false" >> $GITHUB_OUTPUT
@@ -43,18 +42,10 @@ jobs:
             echo "should_release=true" >> $GITHUB_OUTPUT
           fi
 
-  build-macos:
+  build:
     needs: check-version
     if: needs.check-version.outputs.should_release == 'true'
-    strategy:
-      fail-fast: true
-      matrix:
-        include:
-          - target: aarch64-apple-darwin
-            runner: macos-14
-          - target: x86_64-apple-darwin
-            runner: macos-14
-    runs-on: ${{ matrix.runner }}
+    runs-on: macos-14
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -72,13 +63,13 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.target }}
+          targets: aarch64-apple-darwin
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
         with:
           workspaces: tauri/src-tauri
-          key: ${{ matrix.target }}
+          prefix-key: aarch64
 
       - name: Install frontend dependencies
         working-directory: tauri
@@ -92,64 +83,48 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           projectPath: tauri
-          args: --target ${{ matrix.target }}
+          args: --target aarch64-apple-darwin
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: macos-${{ matrix.target }}
+          name: macos-aarch64-apple-darwin
           path: |
-            tauri/src-tauri/target/${{ matrix.target }}/release/bundle/dmg/*.dmg
-            tauri/src-tauri/target/${{ matrix.target }}/release/bundle/macos/*.app.tar.gz
-            tauri/src-tauri/target/${{ matrix.target }}/release/bundle/macos/*.app.tar.gz.sig
+            tauri/src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
+            tauri/src-tauri/target/aarch64-apple-darwin/release/bundle/macos/*.app.tar.gz
+            tauri/src-tauri/target/aarch64-apple-darwin/release/bundle/macos/*.app.tar.gz.sig
 
   publish:
-    needs: [check-version, build-macos]
+    needs: [check-version, build]
     if: needs.check-version.outputs.should_release == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Download all artifacts
+      - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
           path: artifacts
 
       - name: Prepare release files
-        id: prepare
         run: |
           mkdir -p release
-          VERSION="${{ needs.check-version.outputs.version }}"
-
-          # Find and copy all build artifacts
           find artifacts -name "*.dmg" -exec cp {} release/ \;
           find artifacts -name "*.app.tar.gz" -exec cp {} release/ \;
           find artifacts -name "*.app.tar.gz.sig" -exec cp {} release/ \;
-
-          # List what we have
           echo "Release files:"
           ls -la release/
-
-          # Generate checksums
-          cd release && sha256sum * > checksums.txt || true
+          cd release && sha256sum * > checksums-aarch64.txt || true
 
       - name: Generate update manifest
         run: |
           VERSION="${{ needs.check-version.outputs.version }}"
           RELEASE_URL="https://github.com/guiyumin/maily/releases/download/desktop-v${VERSION}"
 
-          # Read signatures from artifact files
-          AARCH64_SIG=$(find artifacts -path "*aarch64*" -name "*.sig" -exec cat {} \; 2>/dev/null | head -1)
-          X64_SIG=$(find artifacts -path "*x86_64*" -name "*.sig" -exec cat {} \; 2>/dev/null | head -1)
-
-          # Find the actual tarball names
-          AARCH64_TAR=$(find artifacts -path "*aarch64*" -name "*.app.tar.gz" ! -name "*.sig" -exec basename {} \; 2>/dev/null | head -1)
-          X64_TAR=$(find artifacts -path "*x86_64*" -name "*.app.tar.gz" ! -name "*.sig" -exec basename {} \; 2>/dev/null | head -1)
-
-          # Default names if not found
+          AARCH64_SIG=$(find artifacts -name "*.app.tar.gz.sig" -exec cat {} \; 2>/dev/null | head -1)
+          AARCH64_TAR=$(find artifacts -name "*.app.tar.gz" ! -name "*.sig" -exec basename {} \; 2>/dev/null | head -1)
           AARCH64_TAR="${AARCH64_TAR:-Maily.app.tar.gz}"
-          X64_TAR="${X64_TAR:-Maily.app.tar.gz}"
 
           cat > release/latest.json << EOF
           {
@@ -160,10 +135,6 @@ jobs:
               "darwin-aarch64": {
                 "signature": "${AARCH64_SIG}",
                 "url": "${RELEASE_URL}/${AARCH64_TAR}"
-              },
-              "darwin-x86_64": {
-                "signature": "${X64_SIG}",
-                "url": "${RELEASE_URL}/${X64_TAR}"
               }
             }
           }
@@ -186,8 +157,6 @@ jobs:
 
             **macOS (Apple Silicon):** Download `Maily_${{ needs.check-version.outputs.version }}_aarch64.dmg`
 
-            **macOS (Intel):** Download `Maily_${{ needs.check-version.outputs.version }}_x64.dmg`
-
             ### Auto-Update
 
             Existing installations will automatically update to this version.
@@ -203,12 +172,8 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           VERSION="${{ needs.check-version.outputs.version }}"
-
-          # Delete existing desktop-latest release if it exists
           gh release delete desktop-latest --yes 2>/dev/null || true
           git push origin :refs/tags/desktop-latest 2>/dev/null || true
-
-          # Create new desktop-latest release pointing to the same assets
           gh release create desktop-latest \
             --title "Maily Desktop Latest" \
             --notes "Latest stable release. Current version: v${VERSION}" \

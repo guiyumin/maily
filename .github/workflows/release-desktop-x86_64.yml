@@ -1,0 +1,192 @@
+name: Release Desktop (Intel)
+
+on:
+  push:
+    tags:
+      - "desktop-v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  check-version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get version from tauri.conf.json
+        id: version
+        run: |
+          VERSION=$(jq -r '.version' tauri/src-tauri/tauri.conf.json)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Version: $VERSION"
+
+  build:
+    needs: check-version
+    runs-on: macos-14
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-apple-darwin
+
+      - name: Ensure x86_64 target is installed
+        run: rustup target add x86_64-apple-darwin
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: tauri/src-tauri
+          prefix-key: x86_64
+
+      - name: Install frontend dependencies
+        working-directory: tauri
+        run: bun install
+
+      - name: Build Tauri app
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          projectPath: tauri
+          args: --target x86_64-apple-darwin
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-x86_64-apple-darwin
+          path: |
+            tauri/src-tauri/target/x86_64-apple-darwin/release/bundle/dmg/*.dmg
+            tauri/src-tauri/target/x86_64-apple-darwin/release/bundle/macos/*.app.tar.gz
+            tauri/src-tauri/target/x86_64-apple-darwin/release/bundle/macos/*.app.tar.gz.sig
+
+  publish:
+    needs: [check-version, build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Wait for release to exist
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ needs.check-version.outputs.version }}"
+          RELEASE_TAG="desktop-v${VERSION}"
+
+          echo "Waiting for release $RELEASE_TAG to be created by aarch64 workflow..."
+          for i in {1..30}; do
+            if gh release view "$RELEASE_TAG" &>/dev/null; then
+              echo "Release found!"
+              break
+            fi
+            echo "Attempt $i: Release not found, waiting 10s..."
+            sleep 10
+          done
+
+      - name: Prepare release files
+        run: |
+          mkdir -p release
+          find artifacts -name "*.dmg" -exec cp {} release/ \;
+          find artifacts -name "*.app.tar.gz" -exec cp {} release/ \;
+          find artifacts -name "*.app.tar.gz.sig" -exec cp {} release/ \;
+          echo "Release files:"
+          ls -la release/
+          cd release && sha256sum * > checksums-x86_64.txt || true
+
+      - name: Add x86_64 artifacts to release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ needs.check-version.outputs.version }}"
+          RELEASE_TAG="desktop-v${VERSION}"
+
+          for file in release/*; do
+            echo "Uploading $file..."
+            gh release upload "$RELEASE_TAG" "$file" --clobber || true
+          done
+
+      - name: Update latest.json with x86_64
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ needs.check-version.outputs.version }}"
+          RELEASE_TAG="desktop-v${VERSION}"
+          RELEASE_URL="https://github.com/guiyumin/maily/releases/download/${RELEASE_TAG}"
+
+          # Download existing latest.json
+          gh release download "$RELEASE_TAG" -p "latest.json" -D /tmp || echo "{}" > /tmp/latest.json
+
+          # Get x86_64 signature
+          X64_SIG=$(find artifacts -name "*.app.tar.gz.sig" -exec cat {} \; 2>/dev/null | head -1)
+          X64_TAR=$(find artifacts -name "*.app.tar.gz" ! -name "*.sig" -exec basename {} \; 2>/dev/null | head -1)
+          X64_TAR="${X64_TAR:-Maily.app.tar.gz}"
+
+          # Update latest.json to add x86_64 platform
+          cat > release/latest.json << EOF
+          {
+            "version": "${VERSION}",
+            "notes": "Maily Desktop v${VERSION}",
+            "pub_date": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "platforms": {
+              "darwin-aarch64": $(jq -c '.platforms["darwin-aarch64"] // {}' /tmp/latest.json),
+              "darwin-x86_64": {
+                "signature": "${X64_SIG}",
+                "url": "${RELEASE_URL}/${X64_TAR}"
+              }
+            }
+          }
+          EOF
+
+          echo "Updated latest.json:"
+          cat release/latest.json
+
+          # Upload updated latest.json
+          gh release upload "$RELEASE_TAG" release/latest.json --clobber
+
+      - name: Update release body
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ needs.check-version.outputs.version }}"
+          RELEASE_TAG="desktop-v${VERSION}"
+
+          gh release edit "$RELEASE_TAG" --notes "## Maily Desktop v${VERSION}
+
+          ### Installation
+
+          **macOS (Apple Silicon):** Download \`Maily_${VERSION}_aarch64.dmg\`
+
+          **macOS (Intel):** Download \`Maily_${VERSION}_x64.dmg\`
+
+          ### Auto-Update
+
+          Existing installations will automatically update to this version.
+
+          ### What's New
+
+          See commit history for changes."

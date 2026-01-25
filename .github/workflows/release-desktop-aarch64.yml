@@ -70,21 +70,26 @@ jobs:
           prefix-key: aarch64
 
       - name: Install aarch64 target (after cache restore)
-        run: rustup target add aarch64-apple-darwin
+        run: |
+          rustup target add aarch64-apple-darwin
+          echo "Installed targets:"
+          rustup target list --installed
 
       - name: Install frontend dependencies
         working-directory: tauri
         run: bun install
 
+      - name: Verify aarch64 target before build
+        run: |
+          echo "Verifying aarch64 target is installed..."
+          rustup target list --installed | grep aarch64-apple-darwin || (echo "ERROR: aarch64 target not found!" && exit 1)
+
       - name: Build Tauri app
-        uses: tauri-apps/tauri-action@v0
+        working-directory: tauri
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        with:
-          projectPath: tauri
-          args: --target aarch64-apple-darwin
+        run: bun tauri build --target aarch64-apple-darwin
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4

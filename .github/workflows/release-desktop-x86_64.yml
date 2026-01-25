@@ -44,17 +44,15 @@ jobs:
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: x86_64-apple-darwin
-
-      - name: Ensure x86_64 target is installed
-        run: rustup target add x86_64-apple-darwin
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
         with:
           workspaces: tauri/src-tauri
           prefix-key: x86_64
+
+      - name: Install x86_64 target (after cache restore)
+        run: rustup target add x86_64-apple-darwin
 
       - name: Install frontend dependencies
         working-directory: tauri

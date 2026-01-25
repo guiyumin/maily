@@ -28,9 +28,7 @@
     ],
     "macOS": {
       "minimumSystemVersion": "10.15",
-      "infoPlist": {
-        "NSCalendarsUsageDescription": "Maily needs access to your calendar to show events and create new ones."
-      }
+      "infoPlist": "Info.plist"
     }
   },
   "plugins": {

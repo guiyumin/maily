@@ -25,6 +25,19 @@ settings.general.themeLight: Light
 settings.general.language: Language
 settings.general.languageAuto: Auto (detect from system)
 
+# About & Updates settings
+settings.about.title: About & Updates
+settings.about.description: Application version and updates
+settings.about.currentVersion: Current Version
+settings.about.checkForUpdates: Check for Updates
+settings.about.checking: Checking...
+settings.about.upToDate: Up to Date
+settings.about.updateTo: Update to
+settings.about.installing: Installing...
+settings.about.retry: Retry
+settings.about.downloading: Downloading...
+settings.about.whatsNew: What's New
+
 # Accounts settings
 settings.accounts.title: Accounts
 settings.accounts.description: Manage your email accounts

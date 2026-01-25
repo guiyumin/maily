@@ -25,6 +25,19 @@ settings.general.themeLight: Chiaro
 settings.general.language: Lingua
 settings.general.languageAuto: Automatico (rileva dal sistema)
 
+# About & Updates settings
+settings.about.title: Informazioni e Aggiornamenti
+settings.about.description: Versione dell'app e aggiornamenti
+settings.about.currentVersion: Versione attuale
+settings.about.checkForUpdates: Verifica aggiornamenti
+settings.about.checking: Verifica...
+settings.about.upToDate: Aggiornato
+settings.about.updateTo: Aggiorna a
+settings.about.installing: Installazione...
+settings.about.retry: Riprova
+settings.about.downloading: Download...
+settings.about.whatsNew: Novità
+
 # Accounts settings
 settings.accounts.title: Account
 settings.accounts.description: Gestisci i tuoi account email

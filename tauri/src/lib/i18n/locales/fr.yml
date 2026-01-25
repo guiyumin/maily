@@ -25,6 +25,19 @@ settings.general.themeLight: Clair
 settings.general.language: Langue
 settings.general.languageAuto: Automatique (détecter du système)
 
+# About & Updates settings
+settings.about.title: À propos et Mises à jour
+settings.about.description: Version de l'application et mises à jour
+settings.about.currentVersion: Version actuelle
+settings.about.checkForUpdates: Vérifier les mises à jour
+settings.about.checking: Vérification...
+settings.about.upToDate: À jour
+settings.about.updateTo: Mettre à jour vers
+settings.about.installing: Installation...
+settings.about.retry: Réessayer
+settings.about.downloading: Téléchargement...
+settings.about.whatsNew: Nouveautés
+
 # Accounts settings
 settings.accounts.title: Comptes
 settings.accounts.description: Gérer vos comptes email

@@ -25,6 +25,19 @@ settings.general.themeLight: ライト
 settings.general.language: 言語
 settings.general.languageAuto: 自動（システムから検出）
 
+# About & Updates settings
+settings.about.title: 概要とアップデート
+settings.about.description: アプリのバージョンと更新
+settings.about.currentVersion: 現在のバージョン
+settings.about.checkForUpdates: アップデートを確認
+settings.about.checking: 確認中...
+settings.about.upToDate: 最新です
+settings.about.updateTo: 更新先
+settings.about.installing: インストール中...
+settings.about.retry: 再試行
+settings.about.downloading: ダウンロード中...
+settings.about.whatsNew: 新機能
+
 # Accounts settings
 settings.accounts.title: アカウント
 settings.accounts.description: メールアカウントを管理

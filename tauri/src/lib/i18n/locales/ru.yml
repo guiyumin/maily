@@ -25,6 +25,19 @@ settings.general.themeLight: Светлая
 settings.general.language: Язык
 settings.general.languageAuto: Автоматически (определить из системы)
 
+# About & Updates settings
+settings.about.title: О программе и Обновления
+settings.about.description: Версия приложения и обновления
+settings.about.currentVersion: Текущая версия
+settings.about.checkForUpdates: Проверить обновления
+settings.about.checking: Проверка...
+settings.about.upToDate: Актуально
+settings.about.updateTo: Обновить до
+settings.about.installing: Установка...
+settings.about.retry: Повторить
+settings.about.downloading: Загрузка...
+settings.about.whatsNew: Что нового
+
 # Accounts settings
 settings.accounts.title: Аккаунты
 settings.accounts.description: Управление почтовыми аккаунтами

@@ -25,6 +25,18 @@ export type TranslationKey =
   | 'settings.general.themeLight'
   | 'settings.general.language'
   | 'settings.general.languageAuto'
+  // About & Updates settings
+  | 'settings.about.title'
+  | 'settings.about.description'
+  | 'settings.about.currentVersion'
+  | 'settings.about.checkForUpdates'
+  | 'settings.about.checking'
+  | 'settings.about.upToDate'
+  | 'settings.about.updateTo'
+  | 'settings.about.installing'
+  | 'settings.about.retry'
+  | 'settings.about.downloading'
+  | 'settings.about.whatsNew'
   // Accounts settings
   | 'settings.accounts.title'
   | 'settings.accounts.description'

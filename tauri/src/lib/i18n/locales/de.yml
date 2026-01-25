@@ -25,6 +25,19 @@ settings.general.themeLight: Hell
 settings.general.language: Sprache
 settings.general.languageAuto: Automatisch (vom System erkennen)
 
+# About & Updates settings
+settings.about.title: Über & Updates
+settings.about.description: App-Version und Updates
+settings.about.currentVersion: Aktuelle Version
+settings.about.checkForUpdates: Nach Updates suchen
+settings.about.checking: Suche...
+settings.about.upToDate: Aktuell
+settings.about.updateTo: Aktualisieren auf
+settings.about.installing: Installiere...
+settings.about.retry: Erneut versuchen
+settings.about.downloading: Herunterladen...
+settings.about.whatsNew: Neuigkeiten
+
 # Accounts settings
 settings.accounts.title: Konten
 settings.accounts.description: E-Mail-Konten verwalten

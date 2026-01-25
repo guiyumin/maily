@@ -25,6 +25,19 @@ settings.general.themeLight: 淺色
 settings.general.language: 語言
 settings.general.languageAuto: 自動（從系統偵測）
 
+# About & Updates settings
+settings.about.title: 關於和更新
+settings.about.description: 應用版本和更新
+settings.about.currentVersion: 目前版本
+settings.about.checkForUpdates: 檢查更新
+settings.about.checking: 檢查中...
+settings.about.upToDate: 已是最新
+settings.about.updateTo: 更新至
+settings.about.installing: 安裝中...
+settings.about.retry: 重試
+settings.about.downloading: 下載中...
+settings.about.whatsNew: 更新內容
+
 # Accounts settings
 settings.accounts.title: 帳戶
 settings.accounts.description: 管理您的郵箱帳戶

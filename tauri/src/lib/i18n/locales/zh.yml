@@ -25,6 +25,19 @@ settings.general.themeLight: 浅色
 settings.general.language: 语言
 settings.general.languageAuto: 自动（从系统检测）
 
+# About & Updates settings
+settings.about.title: 关于和更新
+settings.about.description: 应用版本和更新
+settings.about.currentVersion: 当前版本
+settings.about.checkForUpdates: 检查更新
+settings.about.checking: 检查中...
+settings.about.upToDate: 已是最新
+settings.about.updateTo: 更新到
+settings.about.installing: 安装中...
+settings.about.retry: 重试
+settings.about.downloading: 下载中...
+settings.about.whatsNew: 更新内容
+
 # Accounts settings
 settings.accounts.title: 账户
 settings.accounts.description: 管理您的邮箱账户

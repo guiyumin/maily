@@ -25,6 +25,19 @@ settings.general.themeLight: 라이트
 settings.general.language: 언어
 settings.general.languageAuto: 자동 (시스템에서 감지)
 
+# About & Updates settings
+settings.about.title: 정보 및 업데이트
+settings.about.description: 앱 버전 및 업데이트
+settings.about.currentVersion: 현재 버전
+settings.about.checkForUpdates: 업데이트 확인
+settings.about.checking: 확인 중...
+settings.about.upToDate: 최신 버전
+settings.about.updateTo: 업데이트
+settings.about.installing: 설치 중...
+settings.about.retry: 재시도
+settings.about.downloading: 다운로드 중...
+settings.about.whatsNew: 새로운 기능
+
 # Accounts settings
 settings.accounts.title: 계정
 settings.accounts.description: 이메일 계정 관리

@@ -25,6 +25,19 @@ settings.general.themeLight: Licht
 settings.general.language: Taal
 settings.general.languageAuto: Automatisch (detecteren van systeem)
 
+# About & Updates settings
+settings.about.title: Over & Updates
+settings.about.description: App-versie en updates
+settings.about.currentVersion: Huidige versie
+settings.about.checkForUpdates: Controleer op updates
+settings.about.checking: Controleren...
+settings.about.upToDate: Up-to-date
+settings.about.updateTo: Updaten naar
+settings.about.installing: Installeren...
+settings.about.retry: Opnieuw proberen
+settings.about.downloading: Downloaden...
+settings.about.whatsNew: Wat is nieuw
+
 # Accounts settings
 settings.accounts.title: Accounts
 settings.accounts.description: Beheer uw e-mailaccounts

@@ -190,3 +190,4 @@ Used for:
 
 - **MUST** SAY "Yes, Yumin" in the beginning of any reply
 - **MUST** NEVER do git add and commit
+- **MUST** USE bun, instead of npm, for tauri app

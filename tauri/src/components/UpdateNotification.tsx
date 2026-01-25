@@ -46,7 +46,7 @@ export function UpdateNotification() {
 
         <div className="space-y-4">
           <div className="rounded-lg bg-muted p-4">
-            <p className="text-sm font-medium">Version {update.version}</p>
+            <p className="text-sm font-medium">desktop-v{update.version}</p>
             {update.notes && (
               <p className="mt-1 text-sm text-muted-foreground">
                 {update.notes}
@@ -73,7 +73,7 @@ export function UpdateNotification() {
               </Button>
               <Button onClick={downloadAndInstall}>
                 <Download className="mr-2 h-4 w-4" />
-                {t("settings.about.updateTo")} v{update.version}
+                {t("settings.about.updateTo")} desktop-v{update.version}
               </Button>
             </>
           )}

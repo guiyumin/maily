@@ -194,7 +194,7 @@ export function GeneralSettings({ config, onUpdate }: GeneralSettingsProps) {
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm font-medium">{t("settings.about.currentVersion")}</p>
-            <p className="text-sm text-muted-foreground">v{version}</p>
+            <p className="text-sm text-muted-foreground">desktop-v{version}</p>
           </div>
 
           {updateState === "idle" && (
@@ -221,7 +221,7 @@ export function GeneralSettings({ config, onUpdate }: GeneralSettingsProps) {
           {updateState === "available" && (
             <Button onClick={handleDownloadAndInstall}>
               <Download className="mr-2 h-4 w-4" />
-              {t("settings.about.updateTo")} v{updateVersion}
+              {t("settings.about.updateTo")} desktop-v{updateVersion}
             </Button>
           )}
 

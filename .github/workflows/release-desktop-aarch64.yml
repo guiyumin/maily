@@ -73,8 +73,18 @@ jobs:
         working-directory: tauri
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD || '' }}
         run: |
+          # Verify signing key is set (show first/last 10 chars only)
+          if [ -n "$TAURI_SIGNING_PRIVATE_KEY" ]; then
+            KEY_LEN=${#TAURI_SIGNING_PRIVATE_KEY}
+            KEY_FIRST="${TAURI_SIGNING_PRIVATE_KEY:0:10}"
+            KEY_LAST="${TAURI_SIGNING_PRIVATE_KEY: -10}"
+            echo "TAURI_SIGNING_PRIVATE_KEY is set (${KEY_LEN} chars): ${KEY_FIRST}...${KEY_LAST}"
+          else
+            echo "WARNING: TAURI_SIGNING_PRIVATE_KEY is NOT set!"
+          fi
+
           rustup target add aarch64-apple-darwin
           rustup target list --installed
           bun tauri build --target aarch64-apple-darwin
@@ -116,9 +126,20 @@ jobs:
           VERSION="${{ needs.check-version.outputs.version }}"
           RELEASE_URL="https://github.com/guiyumin/maily/releases/download/desktop-v${VERSION}"
 
+          echo "Looking for signature files..."
+          find artifacts -name "*.sig" -type f
+          echo "---"
+
           AARCH64_SIG=$(find artifacts -name "*.app.tar.gz.sig" -exec cat {} \; 2>/dev/null | head -1)
           AARCH64_TAR=$(find artifacts -name "*.app.tar.gz" ! -name "*.sig" -exec basename {} \; 2>/dev/null | head -1)
           AARCH64_TAR="${AARCH64_TAR:-Maily.app.tar.gz}"
+
+          if [ -z "$AARCH64_SIG" ]; then
+            echo "WARNING: No signature found! Update verification will fail."
+            echo "Make sure TAURI_SIGNING_PRIVATE_KEY secret is set correctly."
+          else
+            echo "Signature found: ${AARCH64_SIG:0:50}..."
+          fi
 
           cat > release/latest.json << EOF
           {

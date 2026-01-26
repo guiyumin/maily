@@ -60,6 +60,11 @@ settings.ai.type: 类型
 settings.ai.typeCli: 命令行
 settings.ai.typeApi: API
 
+# Tags settings
+settings.tags.title: 标签
+settings.tags.description: 管理您的邮件标签和颜色
+settings.tags.noTags: 暂无标签。标签会在您添加到邮件时创建。
+
 # Notifications settings
 settings.notifications.title: 通知
 settings.notifications.description: 配置通知偏好

@@ -27,9 +27,9 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
-import { Plus, Trash2, Zap, CheckCircle, XCircle, Loader2, Pencil, Eye, EyeOff, Sparkles } from "lucide-react";
+import { Plus, Trash2, Zap, CheckCircle, XCircle, Loader2, Pencil, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
-import type { AIProvider, Config, TestResult, AutoTaggingConfig } from "./types";
+import type { AIProvider, Config, TestResult } from "./types";
 import { useLocale } from "@/lib/i18n";
 
 interface AIProvidersSettingsProps {
@@ -162,25 +162,6 @@ export function AIProvidersSettings({ config, onConfigChange }: AIProvidersSetti
       toast.error(`Failed to test provider: ${err}`);
     } finally {
       setTestingProvider(null);
-    }
-  };
-
-  // Auto-tagging configuration
-  const autoTagging = config.auto_tagging ?? {
-    enabled: false,
-    rate_limit_ms: 1000,
-    max_emails_per_sync: 5,
-  };
-
-  const updateAutoTagging = async (updates: Partial<AutoTaggingConfig>) => {
-    const newAutoTagging = { ...autoTagging, ...updates };
-    const newConfig = { ...config, auto_tagging: newAutoTagging };
-    try {
-      await invoke("save_config", { config: newConfig });
-      onConfigChange(newConfig);
-      toast.success("Auto-tagging settings saved");
-    } catch (err) {
-      toast.error(`Failed to save: ${err}`);
     }
   };
 
@@ -453,84 +434,6 @@ export function AIProvidersSettings({ config, onConfigChange }: AIProvidersSetti
       </CardContent>
     </Card>
 
-    {/* Auto-Tagging Settings */}
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Sparkles className="h-5 w-5" />
-          Auto-Tagging
-        </CardTitle>
-        <CardDescription>
-          Automatically generate tags for new emails using AI during sync.
-          Requires at least one AI provider configured above.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div className="space-y-0.5">
-            <Label htmlFor="auto-tag-enabled">Enable Auto-Tagging</Label>
-            <p className="text-sm text-muted-foreground">
-              Automatically tag new emails after sync completes
-            </p>
-          </div>
-          <Switch
-            id="auto-tag-enabled"
-            checked={autoTagging.enabled}
-            onCheckedChange={(checked) => updateAutoTagging({ enabled: checked })}
-            disabled={config.ai_providers.length === 0}
-          />
-        </div>
-
-        {autoTagging.enabled && (
-          <>
-            <div className="grid gap-2">
-              <Label htmlFor="max-emails">Max emails per sync</Label>
-              <p className="text-sm text-muted-foreground">
-                Maximum number of emails to auto-tag during each sync (1-20)
-              </p>
-              <Input
-                id="max-emails"
-                type="number"
-                min={1}
-                max={20}
-                value={autoTagging.max_emails_per_sync}
-                onChange={(e) => {
-                  const val = Math.min(20, Math.max(1, parseInt(e.target.value) || 5));
-                  updateAutoTagging({ max_emails_per_sync: val });
-                }}
-                className="w-24"
-              />
-            </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="rate-limit">Rate limit (ms)</Label>
-              <p className="text-sm text-muted-foreground">
-                Delay between AI API calls to avoid rate limiting (500-5000ms)
-              </p>
-              <Input
-                id="rate-limit"
-                type="number"
-                min={500}
-                max={5000}
-                step={100}
-                value={autoTagging.rate_limit_ms}
-                onChange={(e) => {
-                  const val = Math.min(5000, Math.max(500, parseInt(e.target.value) || 1000));
-                  updateAutoTagging({ rate_limit_ms: val });
-                }}
-                className="w-24"
-              />
-            </div>
-          </>
-        )}
-
-        {config.ai_providers.length === 0 && (
-          <p className="text-sm text-amber-600 dark:text-amber-400">
-            Add an AI provider above to enable auto-tagging.
-          </p>
-        )}
-      </CardContent>
-    </Card>
     </div>
   );
 }

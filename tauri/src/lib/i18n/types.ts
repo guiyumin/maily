@@ -57,6 +57,10 @@ export type TranslationKey =
   | 'settings.ai.type'
   | 'settings.ai.typeCli'
   | 'settings.ai.typeApi'
+  // Tags settings
+  | 'settings.tags.title'
+  | 'settings.tags.description'
+  | 'settings.tags.noTags'
   // Notifications settings
   | 'settings.notifications.title'
   | 'settings.notifications.description'

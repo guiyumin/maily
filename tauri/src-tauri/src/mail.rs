@@ -2190,6 +2190,28 @@ pub fn delete_tag(tag_id: i64) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+/// Update a tag's name and/or color
+pub fn update_tag(tag_id: i64, name: &str, color: &str) -> Result<Tag, Box<dyn std::error::Error>> {
+    let conn = DB.lock().unwrap();
+    conn.execute(
+        "UPDATE tags SET name = ?1, color = ?2 WHERE id = ?3",
+        params![name, color, tag_id]
+    )?;
+
+    let tag = conn.query_row(
+        "SELECT id, name, color, created_at FROM tags WHERE id = ?1",
+        params![tag_id],
+        |row| Ok(Tag {
+            id: row.get(0)?,
+            name: row.get(1)?,
+            color: row.get(2)?,
+            created_at: row.get(3)?,
+        })
+    )?;
+
+    Ok(tag)
+}
+
 /// Get tags for a single email
 pub fn get_email_tags(account: &str, mailbox: &str, uid: u32) -> Result<Vec<EmailTag>, Box<dyn std::error::Error>> {
     let conn = DB.lock().unwrap();
@@ -2344,63 +2366,4 @@ pub fn search_emails_by_tags(
     })?.collect::<Result<Vec<_>, _>>()?;
 
     Ok(uids)
-}
-
-/// Get email UIDs that have prefetched body but no auto-generated tags.
-/// Returns up to `limit` UIDs sorted by internal_date DESC (most recent first).
-/// Used by auto-tagging during sync.
-pub fn get_emails_for_auto_tagging(
-    account: &str,
-    mailbox: &str,
-    limit: usize,
-) -> Result<Vec<u32>, Box<dyn std::error::Error>> {
-    let conn = DB.lock().unwrap();
-
-    // Find emails with body_html NOT empty AND no auto-generated tags
-    let mut stmt = conn.prepare(
-        "SELECT e.uid FROM emails e
-         WHERE e.account = ?1 AND e.mailbox = ?2
-         AND e.body_html IS NOT NULL AND e.body_html != ''
-         AND NOT EXISTS (
-             SELECT 1 FROM email_tags et
-             WHERE et.account = e.account
-             AND et.mailbox = e.mailbox
-             AND et.email_uid = e.uid
-             AND et.auto_generated = 1
-         )
-         ORDER BY e.internal_date DESC
-         LIMIT ?3"
-    )?;
-
-    let uids = stmt.query_map(params![account, mailbox, limit as i32], |row| {
-        row.get::<_, u32>(0)
-    })?.collect::<Result<Vec<_>, _>>()?;
-
-    Ok(uids)
-}
-
-/// Get email data needed for auto-tagging (from, subject, body_html).
-/// Returns None if email not found or body not available.
-pub fn get_email_for_tagging(
-    account: &str,
-    mailbox: &str,
-    uid: u32,
-) -> Result<Option<(String, String, String)>, Box<dyn std::error::Error>> {
-    let conn = DB.lock().unwrap();
-
-    let result = conn.query_row(
-        "SELECT from_addr, subject, body_html FROM emails
-         WHERE account = ?1 AND mailbox = ?2 AND uid = ?3
-         AND body_html IS NOT NULL AND body_html != ''",
-        params![account, mailbox, uid],
-        |row| {
-            Ok((
-                row.get::<_, String>(0).unwrap_or_default(),
-                row.get::<_, String>(1).unwrap_or_default(),
-                row.get::<_, String>(2).unwrap_or_default(),
-            ))
-        }
-    ).optional()?;
-
-    Ok(result)
 }

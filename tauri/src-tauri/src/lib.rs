@@ -655,6 +655,11 @@ fn delete_tag(tag_id: i64) -> Result<(), String> {
 }
 
 #[tauri::command]
+fn update_tag(tag_id: i64, name: String, color: String) -> Result<mail::Tag, String> {
+    mail::update_tag(tag_id, &name, &color).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 fn get_email_tags(account: String, mailbox: String, uid: u32) -> Result<Vec<mail::EmailTag>, String> {
     mail::get_email_tags(&account, &mailbox, uid).map_err(|e| e.to_string())
 }
@@ -840,6 +845,7 @@ pub fn run() {
             list_tags,
             create_tag,
             delete_tag,
+            update_tag,
             get_email_tags,
             add_email_tag,
             remove_email_tag,

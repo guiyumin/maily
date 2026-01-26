@@ -2,24 +2,26 @@ import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ArrowLeft, Settings, Bot, Users, Bell, Plug } from "lucide-react";
+import { ArrowLeft, Settings, Bot, Users, Bell, Plug, Tags } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { GeneralSettings } from "./GeneralSettings";
 import { AIProvidersSettings } from "./AIProvidersSettings";
 import { AccountsSettings } from "./AccountsSettings";
 import { NotificationSettings } from "./NotificationSettings";
 import { IntegrationsSettings } from "./IntegrationsSettings";
+import { TagsSettings } from "./TagsSettings";
 import type { Account, Config } from "./types";
 import { cn } from "@/lib/utils";
 import { useLocale } from "@/lib/i18n";
 import type { TranslationKey } from "@/lib/i18n";
 
-type SettingsSection = "general" | "ai" | "accounts" | "notifications" | "integrations";
+type SettingsSection = "general" | "ai" | "accounts" | "notifications" | "integrations" | "tags";
 
 const sectionKeys: { id: SettingsSection; labelKey: TranslationKey; icon: React.ComponentType<{ className?: string }> }[] = [
   { id: "general", labelKey: "settings.general", icon: Settings },
   { id: "accounts", labelKey: "settings.accounts", icon: Users },
   { id: "ai", labelKey: "settings.aiProviders", icon: Bot },
+  { id: "tags", labelKey: "settings.tags.title", icon: Tags },
   { id: "notifications", labelKey: "settings.notifications", icon: Bell },
   { id: "integrations", labelKey: "settings.integrations", icon: Plug },
 ];
@@ -100,6 +102,8 @@ export function SettingsPage() {
         return <NotificationSettings config={config} onUpdate={updateConfig} />;
       case "integrations":
         return <IntegrationsSettings config={config} onUpdate={updateConfig} />;
+      case "tags":
+        return <TagsSettings />;
       default:
         return null;
     }

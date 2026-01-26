@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Sparkles, Plus, Loader2 } from "lucide-react";
+import { Sparkles, Plus, Loader2, X } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -13,6 +13,7 @@ import { TagBadge } from "./TagBadge";
 import {
   listTags,
   createTag,
+  deleteTag,
   addEmailTag,
   removeEmailTag,
   generateAITags,
@@ -180,9 +181,28 @@ export function TagDialog({
     }
   };
 
+  const handleDeleteTag = async (tag: Tag) => {
+    if (!confirm(`Delete tag "${tag.name}"? This will remove it from all emails.`)) {
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await deleteTag(tag.id);
+      // Remove from allTags list
+      setAllTags((prev) => prev.filter((t) => t.id !== tag.id));
+      // Also remove from current email's tags if present
+      onTagsChange(tags.filter((t) => t.tag_id !== tag.id));
+    } catch (error) {
+      console.error("Failed to delete tag:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>{t("tags.manageTags")}</DialogTitle>
         </DialogHeader>
@@ -246,18 +266,35 @@ export function TagDialog({
               <label className="text-sm font-medium text-muted-foreground">
                 {t("tags.selectExisting")}
               </label>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {availableTags.map((tag) => (
-                  <button
-                    key={tag.id}
-                    onClick={() => handleAddExistingTag(tag)}
-                    disabled={loading}
-                    className="inline-flex items-center rounded-full px-2 py-1 text-xs font-medium text-white transition-opacity hover:opacity-80 disabled:opacity-50"
-                    style={{ backgroundColor: tag.color }}
-                  >
-                    {tag.name}
-                  </button>
-                ))}
+              <div className="mt-2 max-h-48 overflow-y-auto">
+                <div className="flex flex-wrap gap-2">
+                  {availableTags.map((tag) => (
+                    <span
+                      key={tag.id}
+                      className="group inline-flex items-center rounded-full text-xs font-medium text-white"
+                      style={{ backgroundColor: tag.color }}
+                    >
+                      <button
+                        onClick={() => handleAddExistingTag(tag)}
+                        disabled={loading}
+                        className="px-2 py-1 transition-opacity hover:opacity-80 disabled:opacity-50"
+                      >
+                        {tag.name}
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteTag(tag);
+                        }}
+                        disabled={loading}
+                        className="pr-1.5 opacity-0 group-hover:opacity-100 transition-opacity hover:text-red-200 disabled:opacity-50"
+                        title="Delete tag"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
               </div>
             </div>
           )}

@@ -15,6 +15,10 @@ export async function deleteTag(tagId: number): Promise<void> {
   return invoke("delete_tag", { tagId });
 }
 
+export async function updateTag(tagId: number, name: string, color: string): Promise<Tag> {
+  return invoke<Tag>("update_tag", { tagId, name, color });
+}
+
 // Email-Tag operations
 
 export async function getEmailTags(

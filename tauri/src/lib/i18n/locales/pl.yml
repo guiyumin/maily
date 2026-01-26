@@ -60,6 +60,11 @@ settings.ai.type: Typ
 settings.ai.typeCli: CLI
 settings.ai.typeApi: API
 
+# Tags settings
+settings.tags.title: Tagi
+settings.tags.description: Zarządzaj tagami i kolorami emaili
+settings.tags.noTags: Brak tagów. Tagi są tworzone po dodaniu ich do emaili.
+
 # Notifications settings
 settings.notifications.title: Powiadomienia
 settings.notifications.description: Skonfiguruj preferencje powiadomień

@@ -60,6 +60,11 @@ settings.ai.type: タイプ
 settings.ai.typeCli: CLI
 settings.ai.typeApi: API
 
+# Tags settings
+settings.tags.title: タグ
+settings.tags.description: メールのタグと色を管理
+settings.tags.noTags: タグがありません。メールにタグを追加すると作成されます。
+
 # Notifications settings
 settings.notifications.title: 通知
 settings.notifications.description: 通知設定を構成

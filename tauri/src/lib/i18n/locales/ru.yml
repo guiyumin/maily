@@ -60,6 +60,11 @@ settings.ai.type: Тип
 settings.ai.typeCli: CLI
 settings.ai.typeApi: API
 
+# Tags settings
+settings.tags.title: Теги
+settings.tags.description: Управление тегами и цветами писем
+settings.tags.noTags: Нет тегов. Теги создаются при добавлении их к письмам.
+
 # Notifications settings
 settings.notifications.title: Уведомления
 settings.notifications.description: Настройка параметров уведомлений

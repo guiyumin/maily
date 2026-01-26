@@ -60,6 +60,11 @@ settings.ai.type: 유형
 settings.ai.typeCli: CLI
 settings.ai.typeApi: API
 
+# Tags settings
+settings.tags.title: 태그
+settings.tags.description: 이메일 태그와 색상 관리
+settings.tags.noTags: 태그가 없습니다. 이메일에 태그를 추가하면 생성됩니다.
+
 # Notifications settings
 settings.notifications.title: 알림
 settings.notifications.description: 알림 설정 구성

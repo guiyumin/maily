@@ -60,6 +60,11 @@ settings.ai.type: 類型
 settings.ai.typeCli: 命令列
 settings.ai.typeApi: API
 
+# Tags settings
+settings.tags.title: 標籤
+settings.tags.description: 管理您的郵件標籤和顏色
+settings.tags.noTags: 暫無標籤。標籤會在您新增到郵件時建立。
+
 # Notifications settings
 settings.notifications.title: 通知
 settings.notifications.description: 設定通知偏好

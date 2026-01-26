@@ -7,6 +7,6 @@
     "core:default",
     "opener:default",
     "updater:default",
-    "process:relaunch"
+    "process:allow-restart"
   ]
 }

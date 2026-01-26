@@ -151,6 +151,7 @@ interface ExtractedReminderDisplayProps {
 
 interface ExtractedEventDisplayProps {
   eventJson: string | null; // null means extraction failed or not attempted
+  extractionError?: string | null; // error message from AI provider
   emailFrom: string;
   emailSubject: string;
   emailBody: string;
@@ -179,6 +180,7 @@ function stripMarkdownCodeFences(s: string): string {
 
 function ExtractedEventDisplay({
   eventJson,
+  extractionError,
   emailFrom,
   emailSubject,
   emailBody,
@@ -199,7 +201,12 @@ function ExtractedEventDisplay({
   // Parse the event JSON and populate form fields
   useEffect(() => {
     if (!eventJson) {
-      setErrorMessage("Failed to extract event");
+      // Show the actual error from AI provider if available
+      if (extractionError) {
+        setErrorMessage(`AI error: ${extractionError}`);
+      } else {
+        setErrorMessage("Failed to extract event. Describe the event below:");
+      }
       return;
     }
 
@@ -243,7 +250,7 @@ function ExtractedEventDisplay({
       console.error("Failed to parse event JSON. Raw response:", raw, e);
       setErrorMessage("Failed to parse event. Describe the event below:");
     }
-  }, [eventJson]);
+  }, [eventJson, extractionError]);
 
   // Parse NLP input with email context
   const handleParseNlp = async () => {
@@ -779,6 +786,7 @@ export function EmailReader({
 
   const [eventDialogOpen, setEventDialogOpen] = useState(false);
   const [extractedEvent, setExtractedEvent] = useState<string | null>(null);
+  const [extractionError, setExtractionError] = useState<string | null>(null);
   const [extracting, setExtracting] = useState(false);
 
   const [reminderDialogOpen, setReminderDialogOpen] = useState(false);
@@ -1041,6 +1049,7 @@ export function EmailReader({
 
     setEventDialogOpen(true);
     setExtracting(true);
+    setExtractionError(null);
 
     try {
       const bodyText = emailFull.body_html
@@ -1056,14 +1065,17 @@ export function EmailReader({
 
       if (response.success && response.content) {
         setExtractedEvent(response.content);
+        setExtractionError(null);
       } else {
         // Don't close dialog - show NLP input for manual entry
         setExtractedEvent(null);
+        setExtractionError(response.error || "Extraction failed");
         console.error("Extract event failed:", response.error);
       }
     } catch (err) {
       // Don't close dialog - show NLP input for manual entry
       setExtractedEvent(null);
+      setExtractionError(String(err));
       console.error("Extract event error:", err);
     } finally {
       setExtracting(false);
@@ -1109,6 +1121,7 @@ export function EmailReader({
     setSummary(null);
     setSummaryModelUsed(null);
     setExtractedEvent(null);
+    setExtractionError(null);
     setExtractedReminder(null);
   }, [emailSummary?.uid]);
 
@@ -1549,6 +1562,7 @@ export function EmailReader({
             ) : emailFull ? (
               <ExtractedEventDisplay
                 eventJson={extractedEvent}
+                extractionError={extractionError}
                 emailFrom={emailFull.from}
                 emailSubject={emailFull.subject}
                 emailBody={

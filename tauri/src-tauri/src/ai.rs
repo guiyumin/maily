@@ -114,6 +114,10 @@ pub fn complete(request: CompletionRequest) -> CompletionResponse {
         },
     };
 
+    // Track errors from failed providers
+    let mut last_error: Option<String> = None;
+    let mut tried_providers: Vec<String> = Vec::new();
+
     // If a specific provider is requested, try it first
     if let Some(ref provider_name) = request.provider_name {
         // Check configured providers
@@ -128,6 +132,8 @@ pub fn complete(request: CompletionRequest) -> CompletionResponse {
                     ..result
                 };
             }
+            tried_providers.push(format!("{}/{}", provider.name, provider.model));
+            last_error = result.error;
         }
 
         // Check if it's a CLI tool
@@ -147,12 +153,20 @@ pub fn complete(request: CompletionRequest) -> CompletionResponse {
                         ..result
                     };
                 }
+                tried_providers.push(format!("{}/{}", provider_name, model));
+                last_error = result.error;
             }
         }
     }
 
     // Try configured providers in order
     for provider in &config.ai_providers {
+        let provider_id = format!("{}/{}", provider.name, provider.model);
+        // Skip if already tried
+        if tried_providers.contains(&provider_id) {
+            continue;
+        }
+
         let result = match provider.provider_type {
             AIProviderType::Cli => call_cli_provider(&provider.name, &provider.model, &request),
             AIProviderType::Api => call_api_provider(&provider.name, &provider.model, &provider.base_url, &provider.api_key, &request),
@@ -164,6 +178,8 @@ pub fn complete(request: CompletionRequest) -> CompletionResponse {
                 ..result
             };
         }
+        tried_providers.push(provider_id);
+        last_error = result.error;
     }
 
     // Try auto-detecting CLI tools
@@ -175,6 +191,12 @@ pub fn complete(request: CompletionRequest) -> CompletionResponse {
     ];
 
     for (name, model) in cli_tools {
+        let provider_id = format!("{}/{}", name, model);
+        // Skip if already tried
+        if tried_providers.contains(&provider_id) {
+            continue;
+        }
+
         if is_cli_available(name) {
             let result = call_cli_provider(name, model, &request);
             if result.success {
@@ -183,13 +205,24 @@ pub fn complete(request: CompletionRequest) -> CompletionResponse {
                     ..result
                 };
             }
+            tried_providers.push(provider_id);
+            last_error = result.error;
         }
     }
+
+    // Return the last error if we tried any provider, otherwise generic message
+    let error_msg = if let Some(err) = last_error {
+        format!("AI provider failed: {}", err)
+    } else if tried_providers.is_empty() {
+        "No AI provider available. Please configure one in Settings.".to_string()
+    } else {
+        format!("All AI providers failed. Tried: {}", tried_providers.join(", "))
+    };
 
     CompletionResponse {
         success: false,
         content: None,
-        error: Some("No AI provider available. Please configure one in Settings.".to_string()),
+        error: Some(error_msg),
         model_used: None,
     }
 }
@@ -768,8 +801,8 @@ If an event is found, respond with ONLY a JSON object (no markdown, no explanati
   "title": "event title",
   "start_time": "2024-12-25T10:00:00-08:00",
   "end_time": "2024-12-25T11:00:00-08:00",
-  "location": "location if mentioned, otherwise empty string",
-  "notes": "meeting URLs, agenda, description, or other relevant details from email",
+  "location": "physical location OR meeting URL",
+  "notes": "agenda, description, or other relevant details from email",
   "alarm_minutes_before": 0,
   "alarm_specified": false
 }}
@@ -779,8 +812,8 @@ If NO events found, respond with exactly: NO_EVENTS_FOUND
 Rules:
 - start_time and end_time must be in RFC3339 format with timezone
 - If no end time/duration specified, default to 1 hour after start
-- Extract location if mentioned
-- Extract notes: include meeting URLs (Google Meet, Zoom, Teams links), agenda, description, or other relevant context from the email
+- Location priority: use physical address if mentioned; if no physical location but there's a virtual meeting link (Zoom, Google Meet, Microsoft Teams, Webex), put the meeting URL in location
+- Extract notes: include agenda, description, or other relevant context from the email
 - Use the current date/time to interpret relative dates like "tomorrow", "next Monday"
 - Pick the most important/relevant event if multiple are mentioned
 - Set alarm_minutes_before=0 and alarm_specified=false (user will set reminder later)
@@ -891,8 +924,8 @@ Respond with ONLY a JSON object (no markdown, no explanation):
   "title": "event title",
   "start_time": "2024-12-25T10:00:00-08:00",
   "end_time": "2024-12-25T11:00:00-08:00",
-  "location": "location if mentioned, otherwise empty string",
-  "notes": "additional details, URLs, agenda, description",
+  "location": "physical location OR meeting URL",
+  "notes": "additional details, agenda, description",
   "alarm_minutes_before": 5,
   "alarm_specified": true
 }}
@@ -902,8 +935,8 @@ Rules:
 - If no duration specified, default to 1 hour
 - If user says "remind me X minutes before" or similar, set alarm_minutes_before and alarm_specified=true
 - If no reminder mentioned, set alarm_minutes_before=0 and alarm_specified=false
-- Extract location if mentioned (e.g., "at the coffee shop")
-- Extract notes: any additional details, URLs (meeting links, Google Meet, Zoom), agenda items, descriptions, or context
+- Location priority: use physical address if mentioned; if no physical location but there's a virtual meeting link (Zoom, Google Meet, Microsoft Teams, Webex), put the meeting URL in location
+- Extract notes: any additional details, agenda items, descriptions, or context
 - Use the current date/time to interpret relative dates like "tomorrow", "next Monday"
 - Use the email context to resolve references (e.g., "them" = sender, "the meeting" = subject)
 

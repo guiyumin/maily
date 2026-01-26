@@ -191,5 +191,6 @@ Used for:
 - **MUST** SAY "Yes, Yumin" in the beginning of any reply
 - **MUST** NEVER do git add and commit
 - **MUST** USE bun, instead of npm, for tauri app
+- **MUST** USE bunx, instead of npx, for tauri app
 - **MUST** DO NOT change tauri app's version
 - **MUST** DO NOT USE React.FC. Type the props instead

@@ -41,6 +41,7 @@ base64 = "0.22"
 tauri-plugin-dialog = "2"
 tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
+tauri-plugin-notification = "2"
 
 # macOS native framework bindings (objc2 ecosystem)
 [target.'cfg(target_os = "macos")'.dependencies]

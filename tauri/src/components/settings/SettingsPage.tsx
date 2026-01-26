@@ -2,7 +2,15 @@ import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ArrowLeft, Settings, Bot, Users, Bell, Plug, Tags } from "lucide-react";
+import {
+  ArrowLeft,
+  Settings,
+  Bot,
+  Users,
+  Bell,
+  Plug,
+  Tags,
+} from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { GeneralSettings } from "./GeneralSettings";
 import { AIProvidersSettings } from "./AIProvidersSettings";
@@ -15,9 +23,19 @@ import { cn } from "@/lib/utils";
 import { useLocale } from "@/lib/i18n";
 import type { TranslationKey } from "@/lib/i18n";
 
-type SettingsSection = "general" | "ai" | "accounts" | "notifications" | "integrations" | "tags";
+type SettingsSection =
+  | "general"
+  | "ai"
+  | "accounts"
+  | "notifications"
+  | "integrations"
+  | "tags";
 
-const sectionKeys: { id: SettingsSection; labelKey: TranslationKey; icon: React.ComponentType<{ className?: string }> }[] = [
+const sectionKeys: {
+  id: SettingsSection;
+  labelKey: TranslationKey;
+  icon: React.ComponentType<{ className?: string }>;
+}[] = [
   { id: "general", labelKey: "settings.general", icon: Settings },
   { id: "accounts", labelKey: "settings.accounts", icon: Users },
   { id: "ai", labelKey: "settings.aiProviders", icon: Bot },
@@ -33,7 +51,8 @@ export function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
-  const [activeSection, setActiveSection] = useState<SettingsSection>("general");
+  const [activeSection, setActiveSection] =
+    useState<SettingsSection>("general");
 
   useEffect(() => {
     Promise.all([
@@ -95,9 +114,16 @@ export function SettingsPage() {
       case "general":
         return <GeneralSettings config={config} onUpdate={updateConfig} />;
       case "ai":
-        return <AIProvidersSettings config={config} onConfigChange={setConfig} />;
+        return (
+          <AIProvidersSettings config={config} onConfigChange={setConfig} />
+        );
       case "accounts":
-        return <AccountsSettings accounts={accounts} onAccountsChange={setAccounts} />;
+        return (
+          <AccountsSettings
+            accounts={accounts}
+            onAccountsChange={setAccounts}
+          />
+        );
       case "notifications":
         return <NotificationSettings config={config} onUpdate={updateConfig} />;
       case "integrations":
@@ -135,7 +161,7 @@ export function SettingsPage() {
                       "w-full flex items-center gap-3 px-3 py-2 text-sm rounded-md transition-colors",
                       activeSection === section.id
                         ? "bg-primary text-primary-foreground"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground",
                     )}
                   >
                     <Icon className="h-4 w-4" />
@@ -148,9 +174,7 @@ export function SettingsPage() {
         </nav>
 
         <div className="p-4 border-t">
-          <p className="text-xs text-muted-foreground">
-            {t("app.desktop")}
-          </p>
+          <p className="text-xs text-muted-foreground">{t("app.desktop")}</p>
         </div>
       </aside>
 
@@ -158,11 +182,16 @@ export function SettingsPage() {
       <main className="flex-1 flex flex-col min-w-0">
         <header className="h-14 border-b flex items-center justify-between px-6 shrink-0">
           <h1 className="text-lg font-semibold">
-            {t(sectionKeys.find((s) => s.id === activeSection)?.labelKey ?? "settings.general")}
+            {t(
+              sectionKeys.find((s) => s.id === activeSection)?.labelKey ??
+                "settings.general",
+            )}
           </h1>
           <div className="flex items-center gap-3">
             {dirty && (
-              <span className="text-sm text-muted-foreground">{t("common.unsavedChanges")}</span>
+              <span className="text-sm text-muted-foreground">
+                {t("common.unsavedChanges")}
+              </span>
             )}
             <Button onClick={saveConfig} disabled={!dirty || saving} size="sm">
               {saving ? t("common.saving") : t("common.save")}
@@ -171,7 +200,7 @@ export function SettingsPage() {
         </header>
 
         <ScrollArea className="flex-1">
-          <div className="max-w-2xl p-6">
+          <div className="max-w-2xl p-4 flex flex-col gap-4">
             {renderSection()}
           </div>
         </ScrollArea>

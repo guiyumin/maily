@@ -8,8 +8,10 @@ use native_tls::TlsStream;
 use once_cell::sync::Lazy;
 use serde::Serialize;
 use tauri::{AppHandle, Emitter};
+use tauri_plugin_notification::NotificationExt;
 use tokio::sync::mpsc::{self, Sender};
 
+use crate::config::get_config;
 use crate::mail::{
     delete_email_from_cache, get_accounts, log_op, sync_emails_with_session, Account,
 };
@@ -448,6 +450,11 @@ async fn process_sync(account_name: &str, mailbox: &str) {
                     total_emails: sync_result.total_emails,
                     deleted_emails: sync_result.deleted_emails,
                 });
+
+                // Send native notification for new emails
+                if sync_result.new_emails > 0 {
+                    send_new_email_notification(app, account_name, sync_result.new_emails);
+                }
             }
         }
         Ok(Err(e)) => {
@@ -587,4 +594,48 @@ fn move_to_trash_imap(
         session.expunge()?;
         Ok(())
     })
+}
+
+// ============ NOTIFICATIONS ============
+
+/// Send a native notification for new emails
+fn send_new_email_notification(app: &AppHandle, account: &str, new_count: usize) {
+    // Check if notifications are enabled
+    let config = match get_config() {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("[notify] Failed to load config: {}", e);
+            return;
+        }
+    };
+
+    // Check notification settings
+    let should_notify = config
+        .notifications
+        .as_ref()
+        .map(|n| n.native.enabled && n.native.new_email)
+        .unwrap_or(false);
+
+    if !should_notify {
+        return;
+    }
+
+    // Build notification message
+    let title = "Maily";
+    let body = if new_count == 1 {
+        format!("1 new email in {}", account)
+    } else {
+        format!("{} new emails in {}", new_count, account)
+    };
+
+    // Send notification
+    if let Err(e) = app
+        .notification()
+        .builder()
+        .title(title)
+        .body(&body)
+        .show()
+    {
+        eprintln!("[notify] Failed to send notification: {}", e);
+    }
 }

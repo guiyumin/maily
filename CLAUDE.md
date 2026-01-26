@@ -192,3 +192,4 @@ Used for:
 - **MUST** NEVER do git add and commit
 - **MUST** USE bun, instead of npm, for tauri app
 - **MUST** DO NOT change tauri app's version
+- **MUST** DO NOT USE React.FC. Type the props instead

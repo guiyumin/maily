@@ -254,19 +254,155 @@ fn call_cli_provider(name: &str, model: &str, request: &CompletionRequest) -> Co
 
     let result = match name {
         "claude" => {
-            Command::new("claude")
-                .args(["--model", model, "-p", &prompt])
-                .output()
+            // Claude Code CLI: -p for prompt, --model after, --output-format json for structured parsing
+            let output = Command::new("claude")
+                .args(["-p", &prompt, "--model", model, "--output-format", "json"])
+                .output();
+
+            // Parse JSON response to extract result field
+            return match output {
+                Ok(out) if out.status.success() => {
+                    let stdout = String::from_utf8_lossy(&out.stdout);
+                    // Parse JSON and extract "result" field
+                    if let Ok(json) = serde_json::from_str::<serde_json::Value>(&stdout) {
+                        let is_error = json.get("is_error").and_then(|v| v.as_bool()).unwrap_or(false);
+                        if is_error {
+                            CompletionResponse {
+                                success: false,
+                                content: None,
+                                error: json.get("result").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                                model_used: None,
+                            }
+                        } else {
+                            CompletionResponse {
+                                success: true,
+                                content: json.get("result").and_then(|v| v.as_str()).map(|s| s.to_string()),
+                                error: None,
+                                model_used: Some(format!("{}/{}", name, model)),
+                            }
+                        }
+                    } else {
+                        // Fallback: use raw stdout if JSON parsing fails
+                        CompletionResponse {
+                            success: true,
+                            content: Some(stdout.trim().to_string()),
+                            error: None,
+                            model_used: Some(format!("{}/{}", name, model)),
+                        }
+                    }
+                }
+                Ok(out) => CompletionResponse {
+                    success: false,
+                    content: None,
+                    error: Some(String::from_utf8_lossy(&out.stderr).to_string()),
+                    model_used: None,
+                },
+                Err(e) => CompletionResponse {
+                    success: false,
+                    content: None,
+                    error: Some(e.to_string()),
+                    model_used: None,
+                },
+            };
         }
         "codex" => {
-            Command::new("codex")
-                .args(["-m", model, "-p", &prompt])
-                .output()
+            // Codex CLI: codex exec "prompt" --json returns NDJSON stream
+            let output = Command::new("codex")
+                .args(["exec", &prompt, "--json"])
+                .output();
+
+            // Parse NDJSON to find agent_message item
+            return match output {
+                Ok(out) if out.status.success() => {
+                    let stdout = String::from_utf8_lossy(&out.stdout);
+                    // Find the agent_message line in NDJSON stream
+                    let mut result_text: Option<String> = None;
+                    for line in stdout.lines() {
+                        if let Ok(json) = serde_json::from_str::<serde_json::Value>(line) {
+                            if json.get("type").and_then(|v| v.as_str()) == Some("item.completed") {
+                                if let Some(item) = json.get("item") {
+                                    if item.get("type").and_then(|v| v.as_str()) == Some("agent_message") {
+                                        result_text = item.get("text").and_then(|v| v.as_str()).map(|s| s.to_string());
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if let Some(text) = result_text {
+                        CompletionResponse {
+                            success: true,
+                            content: Some(text),
+                            error: None,
+                            model_used: Some(format!("codex/{}", model)),
+                        }
+                    } else {
+                        CompletionResponse {
+                            success: false,
+                            content: None,
+                            error: Some("No agent_message found in codex output".to_string()),
+                            model_used: None,
+                        }
+                    }
+                }
+                Ok(out) => CompletionResponse {
+                    success: false,
+                    content: None,
+                    error: Some(String::from_utf8_lossy(&out.stderr).to_string()),
+                    model_used: None,
+                },
+                Err(e) => CompletionResponse {
+                    success: false,
+                    content: None,
+                    error: Some(e.to_string()),
+                    model_used: None,
+                },
+            };
         }
         "gemini" => {
-            Command::new("gemini")
-                .args(["-m", model, "-p", &prompt])
-                .output()
+            // Gemini CLI: positional prompt, -m for model, -o json for output
+            let output = Command::new("gemini")
+                .args([&prompt, "-m", model, "-o", "json"])
+                .output();
+
+            // Parse JSON to extract response field
+            return match output {
+                Ok(out) if out.status.success() => {
+                    let stdout = String::from_utf8_lossy(&out.stdout);
+                    // Find JSON object (skip any non-JSON lines like "Loaded cached credentials.")
+                    let json_start = stdout.find('{');
+                    if let Some(start) = json_start {
+                        if let Ok(json) = serde_json::from_str::<serde_json::Value>(&stdout[start..]) {
+                            if let Some(response) = json.get("response").and_then(|v| v.as_str()) {
+                                return CompletionResponse {
+                                    success: true,
+                                    content: Some(response.to_string()),
+                                    error: None,
+                                    model_used: Some(format!("gemini/{}", model)),
+                                };
+                            }
+                        }
+                    }
+                    // Fallback: use raw stdout
+                    CompletionResponse {
+                        success: true,
+                        content: Some(stdout.trim().to_string()),
+                        error: None,
+                        model_used: Some(format!("gemini/{}", model)),
+                    }
+                }
+                Ok(out) => CompletionResponse {
+                    success: false,
+                    content: None,
+                    error: Some(String::from_utf8_lossy(&out.stderr).to_string()),
+                    model_used: None,
+                },
+                Err(e) => CompletionResponse {
+                    success: false,
+                    content: None,
+                    error: Some(e.to_string()),
+                    model_used: None,
+                },
+            };
         }
         "ollama" => {
             Command::new("ollama")

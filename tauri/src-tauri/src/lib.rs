@@ -103,6 +103,17 @@ fn get_email_count_days(account: String, mailbox: String, days: i64) -> Result<u
     get_emails_count_since_days(&account, &mailbox, days).map_err(|e| e.to_string())
 }
 
+/// Search emails by query string (searches subject, from, snippet)
+#[tauri::command]
+fn search_emails_cmd(
+    account: String,
+    mailbox: String,
+    query: String,
+    limit: usize,
+) -> Result<Vec<mail::EmailSummary>, String> {
+    mail::search_emails(&account, &mailbox, &query, limit).map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 fn get_email(account: String, mailbox: String, uid: u32) -> Result<Email, String> {
     fetch_email(&account, &mailbox, uid).map_err(|e| e.to_string())
@@ -779,6 +790,7 @@ pub fn run() {
             list_emails,
             list_emails_page,
             get_email_count_days,
+            search_emails_cmd,
             get_email,
             get_email_with_body,
             fetch_email_body_async,

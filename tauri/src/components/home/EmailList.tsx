@@ -1,6 +1,7 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { decode } from "he";
-import { Loader2, RefreshCw, Search } from "lucide-react";
+import { invoke } from "@tauri-apps/api/core";
+import { Loader2, RefreshCw, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -31,6 +32,21 @@ interface EmailListProps {
   hasMore: boolean;
   loadingMore: boolean;
   onLoadMore: () => void;
+  account: string;
+  mailbox: string;
+}
+
+interface SearchResult {
+  uid: number;
+  message_id: string;
+  internal_date: string;
+  from: string;
+  to: string;
+  subject: string;
+  date: string;
+  snippet: string;
+  unread: boolean;
+  has_attachments: boolean;
 }
 
 function formatDate(dateString: string): string {
@@ -92,14 +108,98 @@ export function EmailList({
   hasMore,
   loadingMore,
   onLoadMore,
+  account,
+  mailbox,
 }: EmailListProps) {
   const { t } = useLocale();
   const unreadCount = emails.filter((e) => e.unread).length;
   const loadMoreRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  // IntersectionObserver for infinite scroll
+  // Search state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<Email[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Debounced search
+  const performSearch = useCallback(async (query: string) => {
+    if (!query.trim() || !account) {
+      setSearchResults([]);
+      setIsSearching(false);
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      const results = await invoke<SearchResult[]>("search_emails_cmd", {
+        account,
+        mailbox,
+        query: query.trim(),
+        limit: 100,
+      });
+
+      // Convert SearchResult to Email format
+      setSearchResults(
+        results.map((r) => ({
+          uid: r.uid,
+          from: r.from,
+          subject: r.subject,
+          snippet: r.snippet,
+          date: r.date,
+          unread: r.unread,
+        }))
+      );
+    } catch (err) {
+      console.error("Search error:", err);
+      setSearchResults([]);
+    } finally {
+      setIsSearching(false);
+    }
+  }, [account, mailbox]);
+
+  // Handle search input change with debounce
+  const handleSearchChange = useCallback((value: string) => {
+    setSearchQuery(value);
+
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    if (!value.trim()) {
+      setSearchResults([]);
+      setIsSearching(false);
+      return;
+    }
+
+    setIsSearching(true);
+    searchTimeoutRef.current = setTimeout(() => {
+      performSearch(value);
+    }, 300);
+  }, [performSearch]);
+
+  // Clear search
+  const clearSearch = useCallback(() => {
+    setSearchQuery("");
+    setSearchResults([]);
+    setIsSearching(false);
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+  }, []);
+
+  // Reset search when account/mailbox changes
   useEffect(() => {
-    if (!hasMore || loadingMore) return;
+    clearSearch();
+  }, [account, mailbox, clearSearch]);
+
+  // Determine which emails to display
+  const displayEmails = searchQuery.trim() ? searchResults : emails;
+  const isSearchMode = searchQuery.trim().length > 0;
+
+  // IntersectionObserver for infinite scroll (only when not searching)
+  useEffect(() => {
+    if (!hasMore || loadingMore || isSearchMode) return;
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -107,7 +207,10 @@ export function EmailList({
           onLoadMore();
         }
       },
-      { threshold: 0.1 }
+      {
+        threshold: 0.1,
+        root: scrollContainerRef.current, // Observe within scroll container, not viewport
+      }
     );
 
     if (loadMoreRef.current) {
@@ -145,12 +248,27 @@ export function EmailList({
 
         <div className="relative">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input placeholder={t("mail.search")} className="pl-9" />
+          <Input
+            placeholder={t("mail.search")}
+            className="pl-9 pr-9"
+            value={searchQuery}
+            onChange={(e) => handleSearchChange(e.target.value)}
+          />
+          {searchQuery && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute right-1 top-1 h-7 w-7"
+              onClick={clearSearch}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          )}
         </div>
       </div>
 
       {/* Email list */}
-      <div className="scrollbar-thin flex-1 overflow-y-auto">
+      <div ref={scrollContainerRef} className="scrollbar-thin flex-1 overflow-y-auto">
         {loading ? (
           <div className="space-y-4 p-4">
             {[...Array(5)].map((_, i) => (
@@ -161,13 +279,28 @@ export function EmailList({
               </div>
             ))}
           </div>
-        ) : emails.length === 0 ? (
+        ) : isSearching ? (
+          <div className="flex h-64 flex-col items-center justify-center gap-2 text-muted-foreground">
+            <Loader2 className="h-6 w-6 animate-spin" />
+            <p>Searching...</p>
+          </div>
+        ) : isSearchMode && displayEmails.length === 0 ? (
+          <div className="flex h-64 flex-col items-center justify-center gap-2 text-muted-foreground">
+            <Search className="h-8 w-8 opacity-50" />
+            <p>No results found</p>
+          </div>
+        ) : displayEmails.length === 0 ? (
           <div className="flex h-64 flex-col items-center justify-center gap-2 text-muted-foreground">
             <p>{t("mail.noEmails")}</p>
           </div>
         ) : (
           <div className="EmailList flex min-w-0 flex-col">
-            {emails.map((email) => {
+            {isSearchMode && (
+              <div className="px-3 py-2 text-xs text-muted-foreground border-b">
+                {displayEmails.length} {displayEmails.length === 1 ? "result" : "results"} for "{searchQuery}"
+              </div>
+            )}
+            {displayEmails.map((email) => {
               const isSelected = selectedEmail?.uid === email.uid;
 
               return (
@@ -221,8 +354,8 @@ export function EmailList({
               );
             })}
 
-            {/* Infinite scroll sentinel */}
-            {hasMore && (
+            {/* Infinite scroll sentinel (only when not searching) */}
+            {hasMore && !isSearchMode && (
               <div
                 ref={loadMoreRef}
                 className="flex items-center justify-center p-4 text-sm text-muted-foreground"

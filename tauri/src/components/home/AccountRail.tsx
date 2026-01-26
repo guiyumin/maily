@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { Plus, Settings, MoreHorizontal, GripVertical, Calendar } from "lucide-react";
 import { Link } from "@tanstack/react-router";
+import { useLocale } from "@/lib/i18n";
 import {
   DndContext,
   closestCenter,
@@ -292,6 +293,7 @@ export function AccountRail({
   accountOrder = [],
   onOrderChange,
 }: AccountRailProps) {
+  const { t } = useLocale();
   const [overflowOpen, setOverflowOpen] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
 
@@ -471,12 +473,12 @@ export function AccountRail({
                 className="size-8 rounded-full"
                 asChild
               >
-                <Link to="/settings">
+                <Link to="/settings" search={{ section: "accounts" }}>
                   <Plus className="h-3.5 w-3.5" />
                 </Link>
               </Button>
             </TooltipTrigger>
-            <TooltipContent side="right">Add account</TooltipContent>
+            <TooltipContent side="right">{t("settings.accounts.addAccount")}</TooltipContent>
           </Tooltip>
         </div>
 

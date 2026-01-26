@@ -600,6 +600,67 @@ pub fn list_emails_paginated(
     })
 }
 
+/// Search emails by query string (searches subject, from, and snippet)
+pub fn search_emails(
+    account: &str,
+    mailbox: &str,
+    query: &str,
+    limit: usize,
+) -> Result<Vec<EmailSummary>, Box<dyn std::error::Error>> {
+    let conn = DB.lock().unwrap();
+
+    // Use LIKE for case-insensitive search
+    let search_pattern = format!("%{}%", query);
+
+    let mut stmt = conn.prepare(
+        "SELECT uid, message_id, internal_date, from_addr, to_addr, subject, date, snippet, unread,
+                EXISTS(SELECT 1 FROM attachments WHERE attachments.account = emails.account
+                       AND attachments.mailbox = emails.mailbox AND attachments.email_uid = emails.uid) as has_attachments
+         FROM emails WHERE account = ?1 AND mailbox = ?2
+         AND (subject LIKE ?3 COLLATE NOCASE OR from_addr LIKE ?3 COLLATE NOCASE OR snippet LIKE ?3 COLLATE NOCASE)
+         ORDER BY internal_date DESC
+         LIMIT ?4"
+    )?;
+
+    let emails: Vec<EmailSummary> = stmt.query_map(
+        params![account, mailbox, search_pattern, limit as i64],
+        |row| {
+            let internal_date_ts: i64 = row.get(2)?;
+            let unread: i32 = row.get(8)?;
+            let has_attachments: i32 = row.get(9)?;
+
+            // Handle date field that can be either string or integer timestamp
+            let date_value = row.get_ref(6)?;
+            let date = match date_value.data_type() {
+                rusqlite::types::Type::Integer => {
+                    let ts: i64 = row.get(6)?;
+                    chrono::DateTime::from_timestamp(ts, 0)
+                        .map(|dt| dt.format("%a, %d %b %Y %H:%M:%S %z").to_string())
+                        .unwrap_or_default()
+                }
+                _ => row.get::<_, String>(6).unwrap_or_default(),
+            };
+
+            Ok(EmailSummary {
+                uid: row.get(0)?,
+                message_id: row.get(1)?,
+                internal_date: chrono::DateTime::from_timestamp(internal_date_ts, 0)
+                    .map(|dt| dt.to_rfc3339())
+                    .unwrap_or_default(),
+                from: row.get(3)?,
+                to: row.get(4)?,
+                subject: row.get(5)?,
+                date,
+                snippet: row.get(7)?,
+                unread: unread == 1,
+                has_attachments: has_attachments == 1,
+            })
+        }
+    )?.filter_map(|r| r.ok()).collect();
+
+    Ok(emails)
+}
+
 /// Count emails within the last N days
 pub fn get_emails_count_since_days(
     account: &str,

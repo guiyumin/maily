@@ -11,7 +11,7 @@ import {
   Plug,
   Tags,
 } from "lucide-react";
-import { Link } from "@tanstack/react-router";
+import { Link, useSearch } from "@tanstack/react-router";
 import { GeneralSettings } from "./GeneralSettings";
 import { AIProvidersSettings } from "./AIProvidersSettings";
 import { AccountsSettings } from "./AccountsSettings";
@@ -46,13 +46,14 @@ const sectionKeys: {
 
 export function SettingsPage() {
   const { t } = useLocale();
+  const { section: initialSection } = useSearch({ from: "/settings" });
   const [config, setConfig] = useState<Config | null>(null);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [activeSection, setActiveSection] =
-    useState<SettingsSection>("general");
+    useState<SettingsSection>(initialSection ?? "general");
 
   useEffect(() => {
     Promise.all([

@@ -587,6 +587,8 @@ export function Home() {
           hasMore={hasMore}
           loadingMore={loadingMore}
           onLoadMore={handleLoadMore}
+          account={selectedAccount}
+          mailbox={selectedMailbox}
         />
 
         <EmailReader

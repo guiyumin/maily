@@ -15,13 +15,8 @@ import { useLocale } from "@/lib/i18n";
 
 export function UpdateNotification() {
   const { t } = useLocale();
-  const {
-    available,
-    downloading,
-    progress,
-    update,
-    downloadAndInstall,
-  } = useUpdater();
+  const { available, downloading, progress, update, downloadAndInstall } =
+    useUpdater();
   const [dismissed, setDismissed] = useState(false);
 
   // Don't show if no update, dismissed by user, or no update info
@@ -37,7 +32,8 @@ export function UpdateNotification() {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <RefreshCw className="h-5 w-5" />
-            {t("settings.about.checkForUpdates").replace("Check for ", "")} Available
+            {t("settings.about.checkForUpdates").replace("Check for ", "")}{" "}
+            Available
           </DialogTitle>
           <DialogDescription>
             A new version of Maily is available.
@@ -65,7 +61,7 @@ export function UpdateNotification() {
           )}
         </div>
 
-        <DialogFooter className="gap-2 sm:gap-0">
+        <DialogFooter className="gap-2 sm:gap-0 flex">
           {!downloading && (
             <>
               <Button variant="outline" onClick={() => setDismissed(true)}>

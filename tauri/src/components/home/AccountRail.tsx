@@ -491,7 +491,7 @@ export function AccountRail({
                 </Link>
               </Button>
             </TooltipTrigger>
-            <TooltipContent side="right">Calendar</TooltipContent>
+            <TooltipContent side="right">{t("nav.calendar")}</TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -501,7 +501,7 @@ export function AccountRail({
                 </Link>
               </Button>
             </TooltipTrigger>
-            <TooltipContent side="right">Settings</TooltipContent>
+            <TooltipContent side="right">{t("nav.settings")}</TooltipContent>
           </Tooltip>
         </div>
       </aside>

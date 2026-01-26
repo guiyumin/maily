@@ -775,6 +775,7 @@ pub fn extract_event(
     from: &str,
     subject: &str,
     body_text: &str,
+    user_timezone: &str,
 ) -> CompletionResponse {
     let body_truncated: String = body_text.chars().take(3000).collect();
 
@@ -785,6 +786,7 @@ pub fn extract_event(
         r#"Extract the most relevant calendar event, meeting, or deadline from this email.
 
 Current date/time: {}
+User's timezone: {}
 
 From: {}
 Subject: {}
@@ -805,7 +807,9 @@ If an event is found, respond with ONLY a JSON object (no markdown, no explanati
 If NO events found, respond with exactly: NO_EVENTS_FOUND
 
 Rules:
-- start_time and end_time must be in RFC3339 format with timezone
+- IMPORTANT: Convert all times to the user's timezone ({})
+- start_time and end_time must be in RFC3339 format with the user's timezone offset
+- If the email shows a time in GMT/UTC or another timezone, convert it to the user's timezone
 - If no end time/duration specified, default to 1 hour after start
 - Location priority: use physical address if mentioned; if no physical location but there's a virtual meeting link (Zoom, Google Meet, Microsoft Teams, Webex), put the meeting URL in location
 - Extract notes: include agenda, description, or other relevant context from the email
@@ -814,13 +818,13 @@ Rules:
 - Set alarm_minutes_before=0 and alarm_specified=false (user will set reminder later)
 
 Respond with ONLY the JSON or NO_EVENTS_FOUND, no other text."#,
-        now, from, subject, body_truncated
+        now, user_timezone, from, subject, body_truncated, user_timezone
     );
 
     complete(CompletionRequest {
         prompt,
         system_prompt: None,
-        max_tokens: Some(300),
+        max_tokens: Some(1000),
         provider_name: None,
     })
 }
@@ -876,7 +880,7 @@ Respond with ONLY the JSON or NO_TASK_FOUND, no other text."#,
     complete(CompletionRequest {
         prompt,
         system_prompt: None,
-        max_tokens: Some(300),
+        max_tokens: Some(1000),
         provider_name: None,
     })
 }
@@ -942,7 +946,7 @@ Respond with ONLY the JSON, no other text."#,
     complete(CompletionRequest {
         prompt,
         system_prompt: None,
-        max_tokens: Some(300),
+        max_tokens: Some(1000),
         provider_name: None,
     })
 }

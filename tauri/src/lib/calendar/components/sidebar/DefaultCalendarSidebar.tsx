@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { CalendarSidebarRenderProps } from '../../types';
+import { CalendarSidebarRenderProps, ViewType } from '../../types';
 import ContextMenu, {
   ContextMenuItem,
   ContextMenuSeparator,
@@ -192,7 +192,10 @@ const DefaultCalendarSidebar: React.FC<CalendarSidebarRenderProps> = ({
               currentDate={app.getCurrentDate()}
               showHeader={true}
               onMonthChange={handleMonthChange}
-              onDateSelect={(date) => app.setCurrentDate(date)}
+              onDateSelect={(date) => {
+                app.setCurrentDate(date);
+                app.changeView(ViewType.DAY);
+              }}
             />
           </div>
 

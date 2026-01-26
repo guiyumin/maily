@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { Temporal } from "temporal-polyfill";
 import { invoke } from "@tauri-apps/api/core";
 import {
   ChevronLeft,
@@ -158,6 +159,19 @@ interface ExtractedEventDisplayProps {
   onClose: () => void;
 }
 
+// Format date/time in user's system timezone for HTML inputs
+const USER_TIMEZONE = Temporal.Now.timeZoneId();
+const dateFormatter = new Intl.DateTimeFormat('sv-SE', { timeZone: USER_TIMEZONE, year: 'numeric', month: '2-digit', day: '2-digit' });
+const timeFormatter = new Intl.DateTimeFormat('en-GB', { timeZone: USER_TIMEZONE, hour: '2-digit', minute: '2-digit', hour12: false });
+
+function formatDateForInput(date: Date): string {
+  return dateFormatter.format(date); // YYYY-MM-DD
+}
+
+function formatTimeForInput(date: Date): string {
+  return timeFormatter.format(date); // HH:MM
+}
+
 // Strip markdown code fences from AI response
 function stripMarkdownCodeFences(s: string): string {
   s = s.trim();
@@ -233,11 +247,11 @@ function ExtractedEventDisplay({
       const endDate = new Date(event.end_time);
 
       if (!isNaN(startDate.getTime())) {
-        setDate(startDate.toISOString().split("T")[0]);
-        setStartTime(startDate.toTimeString().slice(0, 5));
+        setDate(formatDateForInput(startDate));
+        setStartTime(formatTimeForInput(startDate));
       }
       if (!isNaN(endDate.getTime())) {
-        setEndTime(endDate.toTimeString().slice(0, 5));
+        setEndTime(formatTimeForInput(endDate));
       }
 
       if (event.alarm_specified && event.alarm_minutes_before !== undefined) {
@@ -277,11 +291,11 @@ function ExtractedEventDisplay({
         const endDate = new Date(event.end_time);
 
         if (!isNaN(startDate.getTime())) {
-          setDate(startDate.toISOString().split("T")[0]);
-          setStartTime(startDate.toTimeString().slice(0, 5));
+          setDate(formatDateForInput(startDate));
+          setStartTime(formatTimeForInput(startDate));
         }
         if (!isNaN(endDate.getTime())) {
-          setEndTime(endDate.toTimeString().slice(0, 5));
+          setEndTime(formatTimeForInput(endDate));
         }
 
         if (event.alarm_specified && event.alarm_minutes_before !== undefined) {
@@ -1061,6 +1075,7 @@ export function EmailReader({
         from: emailFull.from,
         subject: emailFull.subject,
         bodyText,
+        userTimezone: USER_TIMEZONE,
       });
 
       if (response.success && response.content) {

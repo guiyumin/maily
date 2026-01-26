@@ -388,9 +388,9 @@ async fn generate_reply(
 }
 
 #[tauri::command]
-async fn extract_event(from: String, subject: String, body_text: String) -> CompletionResponse {
+async fn extract_event(from: String, subject: String, body_text: String, user_timezone: String) -> CompletionResponse {
     tauri::async_runtime::spawn_blocking(move || {
-        ai_extract_event(&from, &subject, &body_text)
+        ai_extract_event(&from, &subject, &body_text, &user_timezone)
     }).await.unwrap_or_else(|_| CompletionResponse {
         success: false,
         content: None,

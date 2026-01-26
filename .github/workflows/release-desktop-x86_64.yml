@@ -181,3 +181,17 @@ jobs:
           ### What's New
 
           See commit history for changes."
+
+      - name: Update desktop-latest release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ needs.check-version.outputs.version }}"
+
+          # Delete and recreate desktop-latest with the updated latest.json
+          gh release delete desktop-latest --yes 2>/dev/null || true
+          git push origin :refs/tags/desktop-latest 2>/dev/null || true
+          gh release create desktop-latest \
+            --title "Maily Desktop Latest" \
+            --notes "Latest stable release. Current version: v${VERSION}" \
+            release/latest.json

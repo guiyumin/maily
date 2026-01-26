@@ -57,8 +57,14 @@ export function GeneralSettings({ config, onUpdate }: GeneralSettingsProps) {
         setUpdateState("up-to-date");
       }
     } catch (error) {
+      console.error("[updater] Check failed:", error);
       setUpdateState("error");
-      setErrorMessage(error instanceof Error ? error.message : "Failed to check for updates");
+      const msg = error instanceof Error
+        ? error.message
+        : typeof error === "string"
+          ? error
+          : JSON.stringify(error);
+      setErrorMessage(msg || "Failed to check for updates");
     }
   };
 
@@ -257,8 +263,8 @@ export function GeneralSettings({ config, onUpdate }: GeneralSettingsProps) {
           </div>
         )}
 
-        {updateState === "error" && errorMessage && (
-          <p className="text-sm text-destructive">{errorMessage}</p>
+        {updateState === "error" && (
+          <p className="text-sm text-destructive">{errorMessage || "Unknown error (check console with Cmd+Option+I)"}</p>
         )}
       </CardContent>
     </Card>

@@ -728,7 +728,8 @@ pub fn run() {
                 tauri::WebviewUrl::App("index.html".into()),
             )
             .title("Maily")
-            .inner_size(1200.0, 800.0);
+            .inner_size(1200.0, 800.0)
+            .devtools(true); // Enable DevTools in release builds (Cmd+Option+I)
 
             if !init_script.is_empty() {
                 builder = builder.initialization_script(&init_script);

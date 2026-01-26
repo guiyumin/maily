@@ -48,10 +48,16 @@ export function useUpdater() {
         return null;
       }
     } catch (error) {
+      console.error("[updater] Check failed:", error);
+      const msg = error instanceof Error
+        ? error.message
+        : typeof error === "string"
+          ? error
+          : JSON.stringify(error);
       setState((s) => ({
         ...s,
         checking: false,
-        error: error instanceof Error ? error.message : "Failed to check for updates",
+        error: msg || "Failed to check for updates",
       }));
       return null;
     }

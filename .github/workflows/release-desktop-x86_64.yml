@@ -103,8 +103,15 @@ jobs:
         run: |
           mkdir -p release
           find artifacts -name "*.dmg" -exec cp {} release/ \;
-          find artifacts -name "*.app.tar.gz" -exec cp {} release/ \;
-          find artifacts -name "*.app.tar.gz.sig" -exec cp {} release/ \;
+          # Rename tar.gz to include architecture
+          TAR_FILE=$(find artifacts -name "*.app.tar.gz" ! -name "*.sig" | head -1)
+          SIG_FILE=$(find artifacts -name "*.app.tar.gz.sig" | head -1)
+          if [ -n "$TAR_FILE" ]; then
+            cp "$TAR_FILE" "release/Maily_x86_64.app.tar.gz"
+          fi
+          if [ -n "$SIG_FILE" ]; then
+            cp "$SIG_FILE" "release/Maily_x86_64.app.tar.gz.sig"
+          fi
           echo "Release files:"
           ls -la release/
           cd release && sha256sum * > checksums-x86_64.txt || true
@@ -132,10 +139,8 @@ jobs:
           # Download existing latest.json
           gh release download "$RELEASE_TAG" -p "latest.json" -D /tmp || echo "{}" > /tmp/latest.json
 
-          # Get x86_64 signature
-          X64_SIG=$(find artifacts -name "*.app.tar.gz.sig" -exec cat {} \; 2>/dev/null | head -1)
-          X64_TAR=$(find artifacts -name "*.app.tar.gz" ! -name "*.sig" -exec basename {} \; 2>/dev/null | head -1)
-          X64_TAR="${X64_TAR:-Maily.app.tar.gz}"
+          # Read from renamed file
+          X64_SIG=$(cat release/Maily_x86_64.app.tar.gz.sig 2>/dev/null || echo "")
 
           # Update latest.json to add x86_64 platform
           cat > release/latest.json << EOF
@@ -147,7 +152,7 @@ jobs:
               "darwin-aarch64": $(jq -c '.platforms["darwin-aarch64"] // {}' /tmp/latest.json),
               "darwin-x86_64": {
                 "signature": "${X64_SIG}",
-                "url": "${RELEASE_URL}/${X64_TAR}"
+                "url": "${RELEASE_URL}/Maily_x86_64.app.tar.gz"
               }
             }
           }

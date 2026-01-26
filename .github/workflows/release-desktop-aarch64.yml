@@ -105,8 +105,15 @@ jobs:
         run: |
           mkdir -p release
           find artifacts -name "*.dmg" -exec cp {} release/ \;
-          find artifacts -name "*.app.tar.gz" -exec cp {} release/ \;
-          find artifacts -name "*.app.tar.gz.sig" -exec cp {} release/ \;
+          # Rename tar.gz to include architecture to prevent overwrite by x86_64 workflow
+          TAR_FILE=$(find artifacts -name "*.app.tar.gz" ! -name "*.sig" | head -1)
+          SIG_FILE=$(find artifacts -name "*.app.tar.gz.sig" | head -1)
+          if [ -n "$TAR_FILE" ]; then
+            cp "$TAR_FILE" "release/Maily_aarch64.app.tar.gz"
+          fi
+          if [ -n "$SIG_FILE" ]; then
+            cp "$SIG_FILE" "release/Maily_aarch64.app.tar.gz.sig"
+          fi
           echo "Release files:"
           ls -la release/
           cd release && sha256sum * > checksums-aarch64.txt || true
@@ -120,9 +127,8 @@ jobs:
           find artifacts -name "*.sig" -type f
           echo "---"
 
-          AARCH64_SIG=$(find artifacts -name "*.app.tar.gz.sig" -exec cat {} \; 2>/dev/null | head -1)
-          AARCH64_TAR=$(find artifacts -name "*.app.tar.gz" ! -name "*.sig" -exec basename {} \; 2>/dev/null | head -1)
-          AARCH64_TAR="${AARCH64_TAR:-Maily.app.tar.gz}"
+          # Read from renamed file
+          AARCH64_SIG=$(cat release/Maily_aarch64.app.tar.gz.sig 2>/dev/null || echo "")
 
           if [ -z "$AARCH64_SIG" ]; then
             echo "WARNING: No signature found! Update verification will fail."
@@ -139,7 +145,7 @@ jobs:
             "platforms": {
               "darwin-aarch64": {
                 "signature": "${AARCH64_SIG}",
-                "url": "${RELEASE_URL}/${AARCH64_TAR}"
+                "url": "${RELEASE_URL}/Maily_aarch64.app.tar.gz"
               }
             }
           }

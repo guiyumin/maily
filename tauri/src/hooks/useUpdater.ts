@@ -98,10 +98,19 @@ export function useUpdater() {
       // Relaunch the app after update
       await relaunch();
     } catch (error) {
+      console.error("[updater] Install failed:", error);
+      let errorMsg = "Failed to install update";
+      if (error instanceof Error) {
+        errorMsg = error.message;
+      } else if (typeof error === "string") {
+        errorMsg = error;
+      } else if (error && typeof error === "object") {
+        errorMsg = JSON.stringify(error);
+      }
       setState((s) => ({
         ...s,
         downloading: false,
-        error: error instanceof Error ? error.message : "Failed to download update",
+        error: errorMsg,
       }));
     }
   }, []);

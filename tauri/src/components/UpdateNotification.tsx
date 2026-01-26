@@ -15,7 +15,7 @@ import { useLocale } from "@/lib/i18n";
 
 export function UpdateNotification() {
   const { t } = useLocale();
-  const { available, downloading, progress, update, downloadAndInstall } =
+  const { available, downloading, progress, error, update, downloadAndInstall } =
     useUpdater();
   const [dismissed, setDismissed] = useState(false);
 
@@ -59,10 +59,17 @@ export function UpdateNotification() {
               <Progress value={progress} />
             </div>
           )}
+
+          {error && (
+            <div className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
+              <p className="font-medium">Update failed</p>
+              <p className="mt-1 text-xs opacity-80">{error}</p>
+            </div>
+          )}
         </div>
 
         <DialogFooter className="gap-2 flex">
-          {!downloading && (
+          {!downloading && !error && (
             <>
               <Button variant="outline" onClick={() => setDismissed(true)}>
                 Later
@@ -70,6 +77,17 @@ export function UpdateNotification() {
               <Button onClick={downloadAndInstall}>
                 <Download className="mr-2 h-4 w-4" />
                 {t("settings.about.updateTo")} desktop-v{update.version}
+              </Button>
+            </>
+          )}
+          {!downloading && error && (
+            <>
+              <Button variant="outline" onClick={() => setDismissed(true)}>
+                Close
+              </Button>
+              <Button onClick={downloadAndInstall}>
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Retry
               </Button>
             </>
           )}

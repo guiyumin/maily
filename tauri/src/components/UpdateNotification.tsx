@@ -61,7 +61,7 @@ export function UpdateNotification() {
           )}
         </div>
 
-        <DialogFooter className="gap-2 sm:gap-0 flex">
+        <DialogFooter className="gap-2 flex">
           {!downloading && (
             <>
               <Button variant="outline" onClick={() => setDismissed(true)}>

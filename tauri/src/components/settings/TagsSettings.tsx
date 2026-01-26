@@ -100,20 +100,20 @@ export function TagsSettings() {
         {tags.length === 0 ? (
           <p className="text-sm text-muted-foreground">{t("settings.tags.noTags")}</p>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-1.5">
             {tags.map((tag) => (
               <div
                 key={tag.id}
-                className="flex items-center gap-3 rounded-lg border p-3"
+                className="flex items-center gap-2 rounded-md border p-2"
               >
                 {/* Color picker */}
-                <div className="flex gap-1">
+                <div className="flex gap-0.5">
                   {TAG_COLORS.map((color) => (
                     <button
                       key={color}
                       onClick={() => handleColorChange(tag, color)}
-                      className={`h-6 w-6 rounded-full transition-transform hover:scale-110 ${
-                        tag.color === color ? "ring-2 ring-offset-2 ring-primary" : ""
+                      className={`h-4 w-4 rounded-full transition-transform hover:scale-110 ${
+                        tag.color === color ? "ring-1 ring-offset-1 ring-primary" : ""
                       }`}
                       style={{ backgroundColor: color }}
                       title={color}
@@ -132,7 +132,7 @@ export function TagsSettings() {
                         if (e.key === "Enter") handleNameChange(tag);
                         if (e.key === "Escape") setEditingId(null);
                       }}
-                      className="h-8"
+                      className="h-6 text-xs"
                       autoFocus
                     />
                   ) : (
@@ -141,7 +141,7 @@ export function TagsSettings() {
                         setEditingId(tag.id);
                         setEditName(tag.name);
                       }}
-                      className="inline-flex items-center rounded-full px-3 py-1 text-sm font-medium text-white hover:opacity-80"
+                      className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium text-white hover:opacity-80"
                       style={{ backgroundColor: tag.color }}
                     >
                       {tag.name}
@@ -154,9 +154,9 @@ export function TagsSettings() {
                   variant="ghost"
                   size="icon"
                   onClick={() => handleDelete(tag)}
-                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                  className="h-6 w-6 text-muted-foreground hover:text-destructive"
                 >
-                  <Trash2 className="h-4 w-4" />
+                  <Trash2 className="h-3 w-3" />
                 </Button>
               </div>
             ))}

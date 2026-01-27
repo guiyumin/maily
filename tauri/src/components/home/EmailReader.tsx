@@ -1573,7 +1573,7 @@ export function EmailReader({
                     );
                     return (
                       <div key={i}>
-                        <div className="font-medium">{title}</div>
+                        <div className="font-medium">{title.replace(/\*\*/g, "")}</div>
                         {nonBulletItems.map((line, j) => (
                           <div
                             key={`t-${j}`}

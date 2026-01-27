@@ -11,38 +11,28 @@ export interface SummarizeEmailParams {
 export function buildSummarizePrompt(params: SummarizeEmailParams): string {
   const bodyTruncated = params.bodyText.slice(0, 4000);
 
-  return `Summarize this email comprehensively. Preserve all important details.
+  return `Summarize this email.
 
 From: ${params.from}
 Subject: ${params.subject}
 
 ${bodyTruncated}
 
-Format your response exactly like this (skip sections if not applicable):
+Format (skip sections if not applicable):
 
 Summary:
-    <2-3 sentence summary capturing the main purpose and context>
-
-Key Points:
-    - <include ALL important points mentioned>
-    - <preserve specific details: names, numbers, amounts, URLs>
-    - <don't omit information that might be needed later>
+    <1-2 sentences: what is this about>
 
 Action Items:
-    - <any actions requested or expected>
-    - <include who needs to do what>
-
-Dates/Deadlines:
-    - <ALL dates, times, and deadlines mentioned>
-    - <include timezone if specified>
+    - <what needs to be done, by whom, by when>
 
 People/Contacts:
     - <names and roles mentioned>
 
 Links/References:
-    - <any URLs, document references, or attachments mentioned>
+    - <URLs, documents, or attachments mentioned>
 
-Be thorough. Include all details that could be useful. No preamble, section titles on their own line, content indented with 4 spaces.`;
+No preamble. Be concise.`;
 }
 
 export const SUMMARIZE_MAX_TOKENS = 5000;

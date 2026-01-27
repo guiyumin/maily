@@ -123,7 +123,7 @@ mail.noEmails: メールがありません
 mail.selectEmail: 読むメールを選択
 mail.selectEmailDescription: リストからメールを選択して内容を表示
 mail.emails: 件のメール
-mail.unread: 件の未読
+mail.unread: 未読
 mail.moreEmails: 件の追加メール
 mail.of: /
 

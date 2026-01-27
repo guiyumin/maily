@@ -440,6 +440,16 @@ fn connect_imap(account: &Account) -> Result<Session<TlsStream<TcpStream>>, Box<
     Ok(session)
 }
 
+/// Helper to get text field with lossy UTF-8 conversion (handles invalid UTF-8 in email data)
+fn get_text_lossy(row: &rusqlite::Row, idx: usize) -> rusqlite::Result<String> {
+    match row.get_ref(idx)? {
+        rusqlite::types::ValueRef::Text(bytes) => Ok(String::from_utf8_lossy(bytes).into_owned()),
+        rusqlite::types::ValueRef::Blob(bytes) => Ok(String::from_utf8_lossy(bytes).into_owned()),
+        rusqlite::types::ValueRef::Null => Ok(String::new()),
+        _ => Ok(String::new()),
+    }
+}
+
 fn load_attachments(conn: &Connection, account: &str, mailbox: &str, uid: u32) -> Vec<Attachment> {
     let mut stmt = match conn.prepare(
         "SELECT part_id, filename, content_type, size, encoding FROM attachments WHERE account = ?1 AND mailbox = ?2 AND email_uid = ?3"
@@ -487,23 +497,23 @@ pub fn get_emails(account: &str, mailbox: &str) -> Result<Vec<Email>, Box<dyn st
                     .map(|dt| dt.format("%a, %d %b %Y %H:%M:%S %z").to_string())
                     .unwrap_or_default()
             }
-            _ => row.get::<_, String>(8).unwrap_or_default(),
+            _ => get_text_lossy(row, 8)?,
         };
 
         Ok(Email {
             uid,
-            message_id: row.get(1)?,
+            message_id: get_text_lossy(row, 1)?,
             internal_date: chrono::DateTime::from_timestamp(internal_date_ts, 0)
                 .map(|dt| dt.to_rfc3339())
                 .unwrap_or_default(),
-            from: row.get(3)?,
-            reply_to: row.get(4)?,
-            to: row.get(5)?,
-            cc: row.get(6)?,
-            subject: row.get(7)?,
+            from: get_text_lossy(row, 3)?,
+            reply_to: get_text_lossy(row, 4)?,
+            to: get_text_lossy(row, 5)?,
+            cc: get_text_lossy(row, 6)?,
+            subject: get_text_lossy(row, 7)?,
             date,
-            snippet: row.get(9)?,
-            body_html: row.get(10)?,
+            snippet: get_text_lossy(row, 9)?,
+            body_html: get_text_lossy(row, 10)?,
             unread: unread == 1,
             attachments: vec![], // Will be loaded separately
         })
@@ -566,26 +576,25 @@ pub fn list_emails_paginated(
             let date_value = row.get_ref(6)?;
             let date = match date_value.data_type() {
                 rusqlite::types::Type::Integer => {
-                    // Convert timestamp to RFC2822 date string
                     let ts: i64 = row.get(6)?;
                     chrono::DateTime::from_timestamp(ts, 0)
                         .map(|dt| dt.format("%a, %d %b %Y %H:%M:%S %z").to_string())
                         .unwrap_or_default()
                 }
-                _ => row.get::<_, String>(6).unwrap_or_default(),
+                _ => get_text_lossy(row, 6)?,
             };
 
             Ok(EmailSummary {
                 uid: row.get(0)?,
-                message_id: row.get(1)?,
+                message_id: get_text_lossy(row, 1)?,
                 internal_date: chrono::DateTime::from_timestamp(internal_date_ts, 0)
                     .map(|dt| dt.to_rfc3339())
                     .unwrap_or_default(),
-                from: row.get(3)?,
-                to: row.get(4)?,
-                subject: row.get(5)?,
+                from: get_text_lossy(row, 3)?,
+                to: get_text_lossy(row, 4)?,
+                subject: get_text_lossy(row, 5)?,
                 date,
-                snippet: row.get(7)?,
+                snippet: get_text_lossy(row, 7)?,
                 unread: unread == 1,
                 has_attachments: has_attachments == 1,
             })
@@ -598,6 +607,58 @@ pub fn list_emails_paginated(
         offset,
         has_more,
     })
+}
+
+/// Get all unread emails from INBOX
+pub fn list_unread_emails(
+    account: &str,
+) -> Result<Vec<EmailSummary>, Box<dyn std::error::Error>> {
+    let conn = DB.lock().unwrap();
+
+    let mut stmt = conn.prepare(
+        "SELECT uid, message_id, internal_date, from_addr, to_addr, subject, date, snippet, unread,
+                EXISTS(SELECT 1 FROM attachments WHERE attachments.account = emails.account
+                       AND attachments.mailbox = emails.mailbox AND attachments.email_uid = emails.uid) as has_attachments
+         FROM emails WHERE account = ?1 AND mailbox = 'INBOX' AND unread = 1
+         ORDER BY internal_date DESC"
+    )?;
+
+    let emails: Vec<EmailSummary> = stmt.query_map(
+        params![account],
+        |row| {
+            let internal_date_ts: i64 = row.get(2)?;
+            let unread: i32 = row.get(8)?;
+            let has_attachments: i32 = row.get(9)?;
+
+            let date_value = row.get_ref(6)?;
+            let date = match date_value.data_type() {
+                rusqlite::types::Type::Integer => {
+                    let ts: i64 = row.get(6)?;
+                    chrono::DateTime::from_timestamp(ts, 0)
+                        .map(|dt| dt.format("%a, %d %b %Y %H:%M:%S %z").to_string())
+                        .unwrap_or_default()
+                }
+                _ => get_text_lossy(row, 6)?,
+            };
+
+            Ok(EmailSummary {
+                uid: row.get(0)?,
+                message_id: get_text_lossy(row, 1)?,
+                internal_date: chrono::DateTime::from_timestamp(internal_date_ts, 0)
+                    .map(|dt| dt.to_rfc3339())
+                    .unwrap_or_default(),
+                from: get_text_lossy(row, 3)?,
+                to: get_text_lossy(row, 4)?,
+                subject: get_text_lossy(row, 5)?,
+                date,
+                snippet: get_text_lossy(row, 7)?,
+                unread: unread == 1,
+                has_attachments: has_attachments == 1,
+            })
+        }
+    )?.filter_map(|r| r.ok()).collect();
+
+    Ok(emails)
 }
 
 /// Search emails by query string (searches subject, from, and snippet)
@@ -638,20 +699,20 @@ pub fn search_emails(
                         .map(|dt| dt.format("%a, %d %b %Y %H:%M:%S %z").to_string())
                         .unwrap_or_default()
                 }
-                _ => row.get::<_, String>(6).unwrap_or_default(),
+                _ => get_text_lossy(row, 6)?,
             };
 
             Ok(EmailSummary {
                 uid: row.get(0)?,
-                message_id: row.get(1)?,
+                message_id: get_text_lossy(row, 1)?,
                 internal_date: chrono::DateTime::from_timestamp(internal_date_ts, 0)
                     .map(|dt| dt.to_rfc3339())
                     .unwrap_or_default(),
-                from: row.get(3)?,
-                to: row.get(4)?,
-                subject: row.get(5)?,
+                from: get_text_lossy(row, 3)?,
+                to: get_text_lossy(row, 4)?,
+                subject: get_text_lossy(row, 5)?,
                 date,
-                snippet: row.get(7)?,
+                snippet: get_text_lossy(row, 7)?,
                 unread: unread == 1,
                 has_attachments: has_attachments == 1,
             })
@@ -700,23 +761,23 @@ pub fn get_email(account: &str, mailbox: &str, uid: u32) -> Result<Email, Box<dy
                     .map(|dt| dt.format("%a, %d %b %Y %H:%M:%S %z").to_string())
                     .unwrap_or_default()
             }
-            _ => row.get::<_, String>(8).unwrap_or_default(),
+            _ => get_text_lossy(row, 8)?,
         };
 
         Ok(Email {
             uid: row.get(0)?,
-            message_id: row.get(1)?,
+            message_id: get_text_lossy(row, 1)?,
             internal_date: chrono::DateTime::from_timestamp(internal_date_ts, 0)
                 .map(|dt| dt.to_rfc3339())
                 .unwrap_or_default(),
-            from: row.get(3)?,
-            reply_to: row.get(4)?,
-            to: row.get(5)?,
-            cc: row.get(6)?,
-            subject: row.get(7)?,
+            from: get_text_lossy(row, 3)?,
+            reply_to: get_text_lossy(row, 4)?,
+            to: get_text_lossy(row, 5)?,
+            cc: get_text_lossy(row, 6)?,
+            subject: get_text_lossy(row, 7)?,
             date,
-            snippet: row.get(9)?,
-            body_html: row.get(10)?,
+            snippet: get_text_lossy(row, 9)?,
+            body_html: get_text_lossy(row, 10)?,
             unread: unread == 1,
             attachments: vec![],
         })

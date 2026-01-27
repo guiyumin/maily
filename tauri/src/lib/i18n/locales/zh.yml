@@ -123,7 +123,7 @@ mail.noEmails: 没有邮件
 mail.selectEmail: 选择一封邮件阅读
 mail.selectEmailDescription: 从列表中选择一封邮件查看内容
 mail.emails: 封邮件
-mail.unread: 封未读
+mail.unread: 未读邮件
 mail.moreEmails: 封更多邮件
 mail.of: /
 

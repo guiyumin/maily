@@ -105,6 +105,7 @@ export type TranslationKey =
   | 'app.desktop'
   // Mail
   | 'mail.inbox'
+  | 'mail.unread'
   | 'mail.sent'
   | 'mail.drafts'
   | 'mail.spam'
@@ -114,7 +115,6 @@ export type TranslationKey =
   | 'mail.selectEmail'
   | 'mail.selectEmailDescription'
   | 'mail.emails'
-  | 'mail.unread'
   | 'mail.moreEmails'
   | 'mail.of'
   // Tags

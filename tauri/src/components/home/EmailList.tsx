@@ -179,9 +179,7 @@ export function EmailList({
           <div>
             <h2 className="text-xl font-bold">{mailboxName}</h2>
             <span className="text-sm text-muted-foreground">
-              {emails.length === total
-                ? `${emails.length} ${t("mail.emails")}`
-                : `${emails.length} ${t("mail.of")} ${total} ${t("mail.emails")}`}
+              {`${emails.length} ${t("mail.of")} ${total} ${t("mail.emails")}`}
               {unreadCount > 0 && ` · ${unreadCount} ${t("mail.unread")}`}
             </span>
           </div>

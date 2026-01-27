@@ -87,6 +87,7 @@ fn list_emails(account: String, mailbox: String) -> Result<Vec<Email>, String> {
 }
 
 /// Paginated email list (returns lightweight summaries)
+/// Supports virtual sections like "__UNREAD__"
 #[tauri::command]
 fn list_emails_page(
     account: String,
@@ -94,6 +95,18 @@ fn list_emails_page(
     offset: usize,
     limit: usize,
 ) -> Result<ListEmailsResult, String> {
+    // Handle virtual sections
+    if mailbox == "__UNREAD__" {
+        let emails = mail::list_unread_emails(&account).map_err(|e| e.to_string())?;
+        let total = emails.len();
+        return Ok(ListEmailsResult {
+            emails,
+            total,
+            offset: 0,
+            has_more: false,
+        });
+    }
+
     list_emails_paginated(&account, &mailbox, offset, limit).map_err(|e| e.to_string())
 }
 

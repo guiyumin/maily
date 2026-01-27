@@ -66,6 +66,17 @@ interface SyncErrorEvent {
 const INITIAL_LOAD = 50;
 const BATCH_SIZE = 50;
 
+// Virtual mailbox mapping - maps virtual sections to their actual IMAP mailbox
+const VIRTUAL_MAILBOX_MAP: Record<string, string> = {
+  "__UNREAD__": "INBOX",
+  // Add more virtual sections here: "__STARRED__": "INBOX", etc.
+};
+
+// Get the actual IMAP mailbox name for operations (delete, mark read, etc.)
+function getActualMailbox(mailbox: string): string {
+  return VIRTUAL_MAILBOX_MAP[mailbox] || mailbox;
+}
+
 // Get initial state BEFORE component renders (synchronous)
 const PRELOADED_STATE = getInitialState();
 
@@ -201,13 +212,14 @@ export function Home() {
   useEffect(() => {
     if (!selectedAccount) return;
 
+    const actualMailbox = getActualMailbox(selectedMailbox);
+    const isVirtualMailbox = selectedMailbox !== actualMailbox;
+
     // Skip if this is the initial INBOX load (already loaded by get_startup_state)
     const isInitialInbox = initialLoadDoneRef.current && selectedMailbox === "INBOX";
     if (isInitialInbox) {
-      // Mark initial load as consumed, so subsequent INBOX selections will reload
       initialLoadDoneRef.current = false;
 
-      // Still start background loading for initial emails
       (async () => {
         const count = await invoke<number>("get_email_count_days", {
           account: selectedAccount,
@@ -230,12 +242,10 @@ export function Home() {
     setTotal(0);
     setHasMore(false);
     backgroundLoadingRef.current = false;
-
-    // Reset refreshing state when switching accounts/mailboxes
     setRefreshing(false);
     syncingRef.current = null;
 
-    // 1. Load first 50 emails immediately
+    // Fetch emails - backend handles virtual mailboxes like __UNREAD__
     invoke<ListEmailsResult>("list_emails_page", {
       account: selectedAccount,
       mailbox: selectedMailbox,
@@ -247,12 +257,15 @@ export function Home() {
         const emailsWithTags = await fetchAndMergeTags(
           dedupedEmails,
           selectedAccount,
-          selectedMailbox
+          actualMailbox
         );
         setEmails(emailsWithTags);
         setTotal(result.total);
         setHasMore(result.has_more);
         setLoading(false);
+
+        // Skip auto-sync and background loading for virtual mailboxes
+        if (isVirtualMailbox) return;
 
         // Auto-sync if folder is empty (never synced before)
         if (result.total === 0) {
@@ -269,7 +282,7 @@ export function Home() {
           return;
         }
 
-        // 2. Get 14-day count and start background loading
+        // Background load remaining emails
         const count = await invoke<number>("get_email_count_days", {
           account: selectedAccount,
           mailbox: selectedMailbox,
@@ -328,9 +341,9 @@ export function Home() {
     backgroundLoadingRef.current = false;
   };
 
-  // Handle "Load more" button for emails older than 14 days
+  // Handle "Load more" button for emails older than 14 days (not for virtual mailboxes)
   const handleLoadMore = useCallback(async () => {
-    if (loadingMore || !hasMore) return;
+    if (loadingMore || !hasMore || selectedMailbox !== getActualMailbox(selectedMailbox)) return;
 
     setLoadingMore(true);
     try {
@@ -341,7 +354,6 @@ export function Home() {
         limit: BATCH_SIZE,
       });
 
-      // Fetch tags for new emails
       const emailsWithTags = await fetchAndMergeTags(
         result.emails,
         selectedAccount,
@@ -378,20 +390,23 @@ export function Home() {
           const { account, mailbox, new_emails, updated_emails } = event.payload;
           console.log(`[sync] Complete: ${new_emails} new, ${updated_emails} updated`);
 
-          // Only reload if this is for the currently selected account/mailbox
-          if (account === selectedAccount && mailbox === selectedMailbox) {
-            // Stop background loading to prevent race conditions
+          // Check if this sync is for the current view
+          const actualMailbox = getActualMailbox(selectedMailbox);
+          const isCurrentView = account === selectedAccount &&
+            (mailbox === selectedMailbox || mailbox === actualMailbox);
+
+          if (isCurrentView) {
             backgroundLoadingRef.current = false;
 
-            // Reload from the beginning
+            // Reload using the selected view (backend handles virtual mailboxes)
             const result = await invoke<ListEmailsResult>("list_emails_page", {
-              account,
-              mailbox,
+              account: selectedAccount,
+              mailbox: selectedMailbox,
               offset: 0,
               limit: Math.max(emails.length, INITIAL_LOAD),
             });
             const dedupedEmails = deduplicateEmails(result.emails);
-            const emailsWithTags = await fetchAndMergeTags(dedupedEmails, account, mailbox);
+            const emailsWithTags = await fetchAndMergeTags(dedupedEmails, selectedAccount, actualMailbox);
             setEmails(emailsWithTags);
             setTotal(result.total);
             setHasMore(result.has_more);
@@ -409,7 +424,11 @@ export function Home() {
           const { account, mailbox, error } = event.payload;
           console.error(`[sync] Error for ${account}/${mailbox}: ${error}`);
 
-          if (account === selectedAccount && mailbox === selectedMailbox) {
+          const actualMailbox = getActualMailbox(selectedMailbox);
+          const isCurrentView = account === selectedAccount &&
+            (mailbox === selectedMailbox || mailbox === actualMailbox);
+
+          if (isCurrentView) {
             setRefreshing(false);
             syncingRef.current = null;
           }
@@ -427,13 +446,14 @@ export function Home() {
   const handleRefresh = useCallback(() => {
     if (!selectedAccount || refreshing) return;
 
+    const actualMailbox = getActualMailbox(selectedMailbox);
     setRefreshing(true);
-    syncingRef.current = { account: selectedAccount, mailbox: selectedMailbox };
+    syncingRef.current = { account: selectedAccount, mailbox: actualMailbox };
 
     // Queue sync - returns immediately, events will notify when done
     invoke("start_sync", {
       account: selectedAccount,
-      mailbox: selectedMailbox,
+      mailbox: actualMailbox,
     }).catch((err) => {
       console.error("Failed to start sync:", err);
       setRefreshing(false);
@@ -442,7 +462,7 @@ export function Home() {
 
     // Safety timeout - reset refreshing after 60s if sync doesn't complete
     setTimeout(() => {
-      if (syncingRef.current?.account === selectedAccount && syncingRef.current?.mailbox === selectedMailbox) {
+      if (syncingRef.current?.account === selectedAccount && syncingRef.current?.mailbox === actualMailbox) {
         setRefreshing(false);
         syncingRef.current = null;
       }
@@ -452,7 +472,7 @@ export function Home() {
   const handleEmailDeleted = useCallback((uid: number) => {
     // Check if the deleted email was unread to update count
     const deletedEmail = emails.find((e) => e.uid === uid);
-    if (deletedEmail?.unread && selectedMailbox === "INBOX") {
+    if (deletedEmail?.unread && getActualMailbox(selectedMailbox) === "INBOX") {
       setUnreadCounts((prev) => ({
         ...prev,
         [selectedAccount]: Math.max(0, (prev[selectedAccount] || 0) - 1),
@@ -464,8 +484,8 @@ export function Home() {
   }, [emails, selectedAccount, selectedMailbox]);
 
   const handleEmailReadChange = useCallback((uid: number, unread: boolean) => {
-    // Update unread count locally for INBOX
-    if (selectedMailbox === "INBOX") {
+    // Update unread count locally when viewing INBOX emails
+    if (getActualMailbox(selectedMailbox) === "INBOX") {
       const email = emails.find((e) => e.uid === uid);
       if (email && email.unread !== unread) {
         setUnreadCounts((prev) => ({
@@ -516,8 +536,6 @@ export function Home() {
   const canNavigatePrev = selectedIndex > 0;
   const canNavigateNext =
     selectedIndex !== -1 && selectedIndex < emails.length - 1;
-
-  const unreadCount = emails.filter((e) => e.unread).length;
 
   // Handle keyboard navigation
   useEffect(() => {
@@ -570,7 +588,7 @@ export function Home() {
         <MailboxNav
           selectedMailbox={selectedMailbox}
           onSelectMailbox={setSelectedMailbox}
-          unreadCount={unreadCount}
+          unreadCount={unreadCounts[selectedAccount] || 0}
           provider={accounts.find(a => a.name === selectedAccount)?.provider}
           selectedAccount={selectedAccount}
         />
@@ -582,19 +600,19 @@ export function Home() {
           loading={loading}
           refreshing={refreshing}
           onRefresh={handleRefresh}
-          mailboxName={selectedMailbox === "INBOX" ? "Inbox" : selectedMailbox}
+          mailboxName={selectedMailbox === "__UNREAD__" ? "Unread" : selectedMailbox === "INBOX" ? "Inbox" : selectedMailbox}
           total={total}
           hasMore={hasMore}
           loadingMore={loadingMore}
           onLoadMore={handleLoadMore}
           account={selectedAccount}
-          mailbox={selectedMailbox}
+          mailbox={getActualMailbox(selectedMailbox)}
         />
 
         <EmailReader
           email={selectedEmail}
           account={selectedAccount}
-          mailbox={selectedMailbox}
+          mailbox={getActualMailbox(selectedMailbox)}
           onEmailDeleted={handleEmailDeleted}
           onEmailReadChange={handleEmailReadChange}
           onSnippetUpdate={handleSnippetUpdate}
@@ -632,7 +650,7 @@ export function Home() {
                     emailUid: selectedEmail.uid,
                     emailSubject: selectedEmail.subject,
                     account: selectedAccount,
-                    mailbox: selectedMailbox,
+                    mailbox: getActualMailbox(selectedMailbox),
                   }
                 : { type: "general" }
             }

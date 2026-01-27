@@ -194,3 +194,4 @@ Used for:
 - **MUST** USE bunx, instead of npx, for tauri app
 - **MUST** DO NOT change tauri app's version
 - **MUST** DO NOT USE React.FC. Type the props instead
+- **MUST** NEVER RUN `bun run tauri dev`

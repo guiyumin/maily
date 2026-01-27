@@ -137,3 +137,26 @@ tags.selectExisting: Выбрать существующий тег
 tags.generateWithAI: Сгенерировать теги с ИИ
 tags.filterByTag: Фильтр по тегу
 tags.clearFilter: Очистить фильтр
+
+# Compose
+compose.newEmail: Новое письмо
+compose.reply: Ответить
+compose.replyAll: Ответить всем
+compose.forward: Переслать
+compose.from: От
+compose.to: Кому
+compose.subject: Тема
+compose.message: Сообщение
+compose.attachments: Вложения
+compose.attach: Прикрепить
+compose.discard: Удалить
+compose.send: Отправить
+compose.saving: Сохранение...
+compose.draftSaved: Черновик сохранён
+compose.dropFilesToAttach: Перетащите файлы для прикрепления
+compose.recipientPlaceholder: получатель@пример.ru
+compose.subjectPlaceholder: Тема письма
+compose.messagePlaceholder: Напишите сообщение...
+compose.accept: Принять
+compose.decline: Отклонить
+compose.askMore: Узнать больше

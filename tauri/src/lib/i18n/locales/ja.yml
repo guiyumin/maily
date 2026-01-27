@@ -137,3 +137,26 @@ tags.selectExisting: 既存のタグを選択
 tags.generateWithAI: AIでタグを生成
 tags.filterByTag: タグでフィルター
 tags.clearFilter: フィルターをクリア
+
+# Compose
+compose.newEmail: 新規メール
+compose.reply: 返信
+compose.replyAll: 全員に返信
+compose.forward: 転送
+compose.from: 差出人
+compose.to: 宛先
+compose.subject: 件名
+compose.message: 本文
+compose.attachments: 添付ファイル
+compose.attach: 添付
+compose.discard: 破棄
+compose.send: 送信
+compose.saving: 保存中...
+compose.draftSaved: 下書き保存済み
+compose.dropFilesToAttach: ファイルをドロップして添付
+compose.recipientPlaceholder: recipient@example.com
+compose.subjectPlaceholder: メールの件名
+compose.messagePlaceholder: メッセージを入力...
+compose.accept: 承諾
+compose.decline: 辞退
+compose.askMore: 詳細を聞く

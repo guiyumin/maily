@@ -126,7 +126,29 @@ export type TranslationKey =
   | 'tags.selectExisting'
   | 'tags.generateWithAI'
   | 'tags.filterByTag'
-  | 'tags.clearFilter';
+  | 'tags.clearFilter'
+  // Compose
+  | 'compose.newEmail'
+  | 'compose.reply'
+  | 'compose.replyAll'
+  | 'compose.forward'
+  | 'compose.from'
+  | 'compose.to'
+  | 'compose.subject'
+  | 'compose.message'
+  | 'compose.attachments'
+  | 'compose.attach'
+  | 'compose.discard'
+  | 'compose.send'
+  | 'compose.saving'
+  | 'compose.draftSaved'
+  | 'compose.dropFilesToAttach'
+  | 'compose.recipientPlaceholder'
+  | 'compose.subjectPlaceholder'
+  | 'compose.messagePlaceholder'
+  | 'compose.accept'
+  | 'compose.decline'
+  | 'compose.askMore';
 
 export type LocaleMessages = {
   [key in TranslationKey]: string;

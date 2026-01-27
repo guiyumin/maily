@@ -137,3 +137,26 @@ tags.selectExisting: 选择已有标签
 tags.generateWithAI: 使用 AI 生成标签
 tags.filterByTag: 按标签筛选
 tags.clearFilter: 清除筛选
+
+# Compose
+compose.newEmail: 新邮件
+compose.reply: 回复
+compose.replyAll: 全部回复
+compose.forward: 转发
+compose.from: 发件人
+compose.to: 收件人
+compose.subject: 主题
+compose.message: 正文
+compose.attachments: 附件
+compose.attach: 附件
+compose.discard: 丢弃
+compose.send: 发送
+compose.saving: 保存中...
+compose.draftSaved: 草稿已保存
+compose.dropFilesToAttach: 拖放文件以添加附件
+compose.recipientPlaceholder: recipient@example.com
+compose.subjectPlaceholder: 邮件主题
+compose.messagePlaceholder: 撰写邮件内容...
+compose.accept: 接受
+compose.decline: 拒绝
+compose.askMore: 询问更多

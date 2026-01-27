@@ -137,3 +137,26 @@ tags.selectExisting: 기존 태그 선택
 tags.generateWithAI: AI로 태그 생성
 tags.filterByTag: 태그로 필터
 tags.clearFilter: 필터 지우기
+
+# Compose
+compose.newEmail: 새 이메일
+compose.reply: 답장
+compose.replyAll: 전체 답장
+compose.forward: 전달
+compose.from: 보낸 사람
+compose.to: 받는 사람
+compose.subject: 제목
+compose.message: 내용
+compose.attachments: 첨부파일
+compose.attach: 첨부
+compose.discard: 삭제
+compose.send: 보내기
+compose.saving: 저장 중...
+compose.draftSaved: 임시 저장됨
+compose.dropFilesToAttach: 파일을 끌어다 놓아 첨부
+compose.recipientPlaceholder: recipient@example.com
+compose.subjectPlaceholder: 이메일 제목
+compose.messagePlaceholder: 메시지 작성...
+compose.accept: 수락
+compose.decline: 거절
+compose.askMore: 추가 문의

@@ -137,3 +137,26 @@ tags.selectExisting: 選擇現有標籤
 tags.generateWithAI: 使用 AI 產生標籤
 tags.filterByTag: 按標籤篩選
 tags.clearFilter: 清除篩選
+
+# Compose
+compose.newEmail: 新郵件
+compose.reply: 回覆
+compose.replyAll: 全部回覆
+compose.forward: 轉寄
+compose.from: 寄件人
+compose.to: 收件人
+compose.subject: 主旨
+compose.message: 內文
+compose.attachments: 附件
+compose.attach: 附件
+compose.discard: 捨棄
+compose.send: 傳送
+compose.saving: 儲存中...
+compose.draftSaved: 草稿已儲存
+compose.dropFilesToAttach: 拖放檔案以新增附件
+compose.recipientPlaceholder: recipient@example.com
+compose.subjectPlaceholder: 郵件主旨
+compose.messagePlaceholder: 撰寫郵件內容...
+compose.accept: 接受
+compose.decline: 拒絕
+compose.askMore: 詢問更多

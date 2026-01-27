@@ -137,3 +137,26 @@ tags.selectExisting: Seleziona tag esistente
 tags.generateWithAI: Genera tag con IA
 tags.filterByTag: Filtra per tag
 tags.clearFilter: Cancella filtro
+
+# Compose
+compose.newEmail: Nuova email
+compose.reply: Rispondi
+compose.replyAll: Rispondi a tutti
+compose.forward: Inoltra
+compose.from: Da
+compose.to: A
+compose.subject: Oggetto
+compose.message: Messaggio
+compose.attachments: Allegati
+compose.attach: Allega
+compose.discard: Elimina
+compose.send: Invia
+compose.saving: Salvataggio...
+compose.draftSaved: Bozza salvata
+compose.dropFilesToAttach: Trascina i file da allegare
+compose.recipientPlaceholder: destinatario@esempio.com
+compose.subjectPlaceholder: Oggetto dell'email
+compose.messagePlaceholder: Scrivi il tuo messaggio...
+compose.accept: Accetta
+compose.decline: Rifiuta
+compose.askMore: Chiedi altro

@@ -22,11 +22,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Collapsible,
-  CollapsibleContent,
-} from "@/components/ui/collapsible";
+import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
 import { toast } from "sonner";
+import { useLocale } from "@/lib/i18n/LocaleContext";
 
 interface ComposeEmail {
   to: string[];
@@ -148,6 +146,7 @@ export function Compose({
   originalEmail,
   onDraftSaved,
 }: ComposeProps) {
+  const { t } = useLocale();
   const [to, setTo] = useState(() => {
     if (mode === "reply" && originalEmail) {
       return originalEmail.from;
@@ -217,7 +216,9 @@ export function Compose({
             setSubject(draft.subject);
             setBody(draft.body_text);
             try {
-              const attachmentsData = JSON.parse(draft.attachments_json || "[]");
+              const attachmentsData = JSON.parse(
+                draft.attachments_json || "[]",
+              );
               setAttachments(attachmentsData);
             } catch {
               // Invalid JSON, ignore
@@ -229,48 +230,65 @@ export function Compose({
   }, [initialDraftId, open]);
 
   // Auto-save draft with debouncing
-  const saveDraft = useCallback(async (syncToServer = false) => {
-    // Don't save empty drafts
-    if (!to && !cc && !bcc && !subject && !body) {
-      return;
-    }
-
-    setAutoSaving(true);
-    try {
-      const draft: Draft = {
-        id: draftId,
-        account,
-        to,
-        cc,
-        bcc,
-        subject,
-        body_text: body,
-        body_html: "",
-        attachments_json: JSON.stringify(attachments),
-        reply_to_message_id: originalEmail?.message_id || null,
-        compose_mode: mode,
-        created_at: Date.now(),
-        updated_at: Date.now(),
-      };
-
-      const newId = await invoke<number>("save_draft", { draft });
-      if (!draftId) {
-        setDraftId(newId);
-        onDraftSaved?.(newId);
+  const saveDraft = useCallback(
+    async (syncToServer = false) => {
+      // Don't save empty drafts
+      if (!to && !cc && !bcc && !subject && !body) {
+        return;
       }
 
-      // Sync to IMAP server in background (don't block UI)
-      if (syncToServer) {
-        invoke("sync_draft_to_server", { draft })
-          .then(() => toast.success("Draft synced to server"))
-          .catch((err) => console.error("Failed to sync draft to server:", err));
+      setAutoSaving(true);
+      try {
+        const draft: Draft = {
+          id: draftId,
+          account,
+          to,
+          cc,
+          bcc,
+          subject,
+          body_text: body,
+          body_html: "",
+          attachments_json: JSON.stringify(attachments),
+          reply_to_message_id: originalEmail?.message_id || null,
+          compose_mode: mode,
+          created_at: Date.now(),
+          updated_at: Date.now(),
+        };
+
+        const newId = await invoke<number>("save_draft", { draft });
+        if (!draftId) {
+          setDraftId(newId);
+          onDraftSaved?.(newId);
+        }
+
+        // Sync to IMAP server in background (don't block UI)
+        if (syncToServer) {
+          invoke("sync_draft_to_server", { draft })
+            .then(() => toast.success("Draft synced to server"))
+            .catch((err) =>
+              console.error("Failed to sync draft to server:", err),
+            );
+        }
+      } catch (err) {
+        console.error("Failed to save draft:", err);
+      } finally {
+        setAutoSaving(false);
       }
-    } catch (err) {
-      console.error("Failed to save draft:", err);
-    } finally {
-      setAutoSaving(false);
-    }
-  }, [to, cc, bcc, subject, body, attachments, draftId, account, mode, originalEmail, onDraftSaved]);
+    },
+    [
+      to,
+      cc,
+      bcc,
+      subject,
+      body,
+      attachments,
+      draftId,
+      account,
+      mode,
+      originalEmail,
+      onDraftSaved,
+    ],
+  );
 
   // Trigger auto-save when content changes (debounced)
   useEffect(() => {
@@ -314,7 +332,8 @@ export function Compose({
       if (selected) {
         const files = Array.isArray(selected) ? selected : [selected];
         const newAttachments: AttachmentInfo[] = files.map((filePath) => {
-          const filename = filePath.split("/").pop() || filePath.split("\\").pop() || "file";
+          const filename =
+            filePath.split("/").pop() || filePath.split("\\").pop() || "file";
           const ext = filename.split(".").pop()?.toLowerCase() || "";
           const contentType = getContentType(ext);
           return {
@@ -341,7 +360,10 @@ export function Compose({
     e.preventDefault();
     e.stopPropagation();
     // Only set dragging to false if we're leaving the drop zone
-    if (dropZoneRef.current && !dropZoneRef.current.contains(e.relatedTarget as Node)) {
+    if (
+      dropZoneRef.current &&
+      !dropZoneRef.current.contains(e.relatedTarget as Node)
+    ) {
       setIsDragging(false);
     }
   }, []);
@@ -426,7 +448,18 @@ export function Compose({
     } finally {
       setSending(false);
     }
-  }, [to, cc, bcc, subject, body, attachments, account, originalEmail, onClose, deleteDraftIfExists]);
+  }, [
+    to,
+    cc,
+    bcc,
+    subject,
+    body,
+    attachments,
+    account,
+    originalEmail,
+    onClose,
+    deleteDraftIfExists,
+  ]);
 
   const handleGenerateReply = useCallback(
     async (intent: string) => {
@@ -454,7 +487,7 @@ export function Compose({
         setGenerating(false);
       }
     },
-    [originalEmail]
+    [originalEmail],
   );
 
   const handleRemoveAttachment = (index: number) => {
@@ -465,7 +498,8 @@ export function Compose({
     <Dialog open={open} onOpenChange={(open) => !open && onClose()}>
       <DialogContent
         ref={dropZoneRef}
-        className="max-w-2xl max-h-[90vh] flex flex-col relative"
+        className="flex flex-col overflow-hidden"
+        style={{ maxWidth: '56rem', maxHeight: '80vh' }}
         onDragEnter={handleDragEnter}
         onDragLeave={handleDragLeave}
         onDragOver={handleDragOver}
@@ -476,45 +510,47 @@ export function Compose({
           <div className="absolute inset-0 z-50 flex items-center justify-center bg-primary/10 border-2 border-dashed border-primary rounded-lg">
             <div className="text-center">
               <Upload className="h-12 w-12 mx-auto text-primary mb-2" />
-              <p className="text-lg font-medium">Drop files to attach</p>
+              <p className="text-lg font-medium">{t("compose.dropFilesToAttach")}</p>
             </div>
           </div>
         )}
 
-        <DialogHeader className="flex-shrink-0">
+        <DialogHeader className="shrink-0">
           <div className="flex items-center justify-between">
             <DialogTitle>
-              {mode === "new" && "New Email"}
-              {mode === "reply" && "Reply"}
-              {mode === "reply-all" && "Reply All"}
-              {mode === "forward" && "Forward"}
+              {mode === "new" && t("compose.newEmail")}
+              {mode === "reply" && t("compose.reply")}
+              {mode === "reply-all" && t("compose.replyAll")}
+              {mode === "forward" && t("compose.forward")}
             </DialogTitle>
             {autoSaving && (
               <span className="text-xs text-muted-foreground flex items-center gap-1">
                 <Loader2 className="h-3 w-3 animate-spin" />
-                Saving...
+                {t("compose.saving")}
               </span>
             )}
             {!autoSaving && draftId && (
-              <span className="text-xs text-muted-foreground">Draft saved</span>
+              <span className="text-xs text-muted-foreground">{t("compose.draftSaved")}</span>
             )}
           </div>
         </DialogHeader>
 
-        <div className="flex flex-col gap-4 flex-1 overflow-hidden">
+        <div className="flex flex-col gap-4 flex-1 overflow-y-auto">
           {/* From (read-only) */}
           <div className="flex items-center gap-2">
-            <Label className="w-16 text-right text-muted-foreground">From</Label>
+            <Label className="w-16 text-right text-muted-foreground">
+              {t("compose.from")}
+            </Label>
             <Input value={account} disabled className="flex-1 bg-muted" />
           </div>
 
           {/* To */}
           <div className="flex items-center gap-2">
-            <Label className="w-16 text-right">To</Label>
+            <Label className="w-16 text-right">{t("compose.to")}</Label>
             <Input
               value={to}
               onChange={(e) => setTo(e.target.value)}
-              placeholder="recipient@example.com"
+              placeholder={t("compose.recipientPlaceholder")}
               className="flex-1"
             />
             <Button
@@ -522,7 +558,11 @@ export function Compose({
               size="sm"
               onClick={() => setShowCcBcc(!showCcBcc)}
             >
-              {showCcBcc ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+              {showCcBcc ? (
+                <ChevronUp className="h-4 w-4" />
+              ) : (
+                <ChevronDown className="h-4 w-4" />
+              )}
               Cc/Bcc
             </Button>
           </div>
@@ -553,11 +593,11 @@ export function Compose({
 
           {/* Subject */}
           <div className="flex items-center gap-2">
-            <Label className="w-16 text-right">Subject</Label>
+            <Label className="w-16 text-right">{t("compose.subject")}</Label>
             <Input
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
-              placeholder="Email subject"
+              placeholder={t("compose.subjectPlaceholder")}
               className="flex-1"
             />
           </div>
@@ -565,7 +605,7 @@ export function Compose({
           {/* Body */}
           <div className="flex-1 overflow-hidden flex flex-col gap-2">
             <div className="flex items-center justify-between">
-              <Label>Message</Label>
+              <Label>{t("compose.message")}</Label>
               {(mode === "reply" || mode === "reply-all") && originalEmail && (
                 <div className="flex gap-1">
                   <Button
@@ -575,7 +615,7 @@ export function Compose({
                     disabled={generating}
                   >
                     <Sparkles className="h-3 w-3 mr-1" />
-                    Accept
+                    {t("compose.accept")}
                   </Button>
                   <Button
                     variant="outline"
@@ -584,16 +624,18 @@ export function Compose({
                     disabled={generating}
                   >
                     <Sparkles className="h-3 w-3 mr-1" />
-                    Decline
+                    {t("compose.decline")}
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => handleGenerateReply("ask for more information")}
+                    onClick={() =>
+                      handleGenerateReply("ask for more information")
+                    }
                     disabled={generating}
                   >
                     <Sparkles className="h-3 w-3 mr-1" />
-                    Ask More
+                    {t("compose.askMore")}
                   </Button>
                 </div>
               )}
@@ -601,15 +643,15 @@ export function Compose({
             <Textarea
               value={body}
               onChange={(e) => setBody(e.target.value)}
-              placeholder="Write your message..."
-              className="flex-1 min-h-[200px] resize-none"
+              placeholder={t("compose.messagePlaceholder")}
+              className="flex-1 min-h-50 resize-none"
             />
           </div>
 
           {/* Attachments */}
           {attachments.length > 0 && (
             <div className="space-y-2">
-              <Label>Attachments</Label>
+              <Label>{t("compose.attachments")}</Label>
               <div className="flex flex-wrap gap-2">
                 {attachments.map((att, index) => (
                   <div
@@ -637,13 +679,13 @@ export function Compose({
             <div className="flex gap-2">
               <Button variant="outline" size="sm" onClick={handleAttachFiles}>
                 <Paperclip className="h-4 w-4 mr-1" />
-                Attach
+                {t("compose.attach")}
               </Button>
             </div>
             <div className="flex gap-2">
               <Button variant="outline" onClick={onClose}>
                 <Trash2 className="h-4 w-4 mr-1" />
-                Discard
+                {t("compose.discard")}
               </Button>
               <Button
                 variant="outline"
@@ -655,7 +697,7 @@ export function Compose({
                 ) : (
                   <Upload className="h-4 w-4 mr-1" />
                 )}
-                Save
+                {t("common.save")}
               </Button>
               <Button onClick={handleSend} disabled={sending || generating}>
                 {sending ? (
@@ -663,7 +705,7 @@ export function Compose({
                 ) : (
                   <Send className="h-4 w-4 mr-1" />
                 )}
-                Send
+                {t("compose.send")}
               </Button>
             </div>
           </div>

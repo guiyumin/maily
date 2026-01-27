@@ -137,3 +137,26 @@ tags.selectExisting: Bestaande tag selecteren
 tags.generateWithAI: Tags genereren met AI
 tags.filterByTag: Filteren op tag
 tags.clearFilter: Filter wissen
+
+# Compose
+compose.newEmail: Nieuwe e-mail
+compose.reply: Beantwoorden
+compose.replyAll: Allen beantwoorden
+compose.forward: Doorsturen
+compose.from: Van
+compose.to: Aan
+compose.subject: Onderwerp
+compose.message: Bericht
+compose.attachments: Bijlagen
+compose.attach: Bijvoegen
+compose.discard: Verwijderen
+compose.send: Verzenden
+compose.saving: Opslaan...
+compose.draftSaved: Concept opgeslagen
+compose.dropFilesToAttach: Sleep bestanden om bij te voegen
+compose.recipientPlaceholder: ontvanger@voorbeeld.nl
+compose.subjectPlaceholder: E-mail onderwerp
+compose.messagePlaceholder: Schrijf uw bericht...
+compose.accept: Accepteren
+compose.decline: Weigeren
+compose.askMore: Meer vragen

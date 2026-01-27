@@ -34,6 +34,14 @@ func decodeHeader(s string) string {
 	return decoded
 }
 
+// toStringLossy converts bytes to a valid UTF-8 string.
+// Invalid UTF-8 sequences are replaced with the Unicode replacement character (U+FFFD).
+// This prevents issues when displaying or storing emails with non-UTF-8 encodings
+// (e.g., GB2312, Latin-1) that weren't properly decoded.
+func toStringLossy(b []byte) string {
+	return strings.ToValidUTF8(string(b), "\uFFFD")
+}
+
 // ErrEmailNotFound is returned when an email no longer exists on the server
 // (e.g., deleted from another device)
 var ErrEmailNotFound = errors.New("email not found on server")
@@ -578,9 +586,12 @@ func (c *IMAPClient) parseMessage(msg *imapclient.FetchMessageBuffer) Email {
 }
 
 func (c *IMAPClient) parseBody(body []byte) (string, string) {
-	mr, err := mail.CreateReader(strings.NewReader(string(body)))
+	// Use lossy conversion to handle emails with invalid UTF-8 sequences
+	// (e.g., from non-UTF-8 encodings like GB2312, Latin-1 that weren't properly decoded)
+	bodyStr := toStringLossy(body)
+	mr, err := mail.CreateReader(strings.NewReader(bodyStr))
 	if err != nil {
-		return string(body), truncateSnippet(stripHTML(string(body)))
+		return bodyStr, truncateSnippet(stripHTML(bodyStr))
 	}
 
 	var htmlBody string
@@ -599,10 +610,10 @@ func (c *IMAPClient) parseBody(body []byte) (string, string) {
 			contentType, _, _ := h.ContentType()
 			if strings.HasPrefix(contentType, "text/html") {
 				b, _ := io.ReadAll(part.Body)
-				htmlBody = string(b)
+				htmlBody = toStringLossy(b)
 			} else if strings.HasPrefix(contentType, "text/plain") {
 				b, _ := io.ReadAll(part.Body)
-				textBody = string(b)
+				textBody = toStringLossy(b)
 			}
 		}
 	}
@@ -619,7 +630,7 @@ func (c *IMAPClient) parseBody(body []byte) (string, string) {
 	}
 
 	// Fallback to raw body
-	return string(body), truncateSnippet(stripHTML(string(body)))
+	return bodyStr, truncateSnippet(stripHTML(bodyStr))
 }
 
 func escapeHTML(s string) string {

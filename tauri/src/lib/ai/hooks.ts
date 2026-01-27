@@ -191,6 +191,7 @@ export function useSummarize() {
           from: params.from,
           subject: params.subject,
           bodyText: params.bodyText,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         });
 
         const response = await completeWithFallback(

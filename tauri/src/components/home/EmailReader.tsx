@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import Markdown from "react-markdown";
 import { Temporal } from "temporal-polyfill";
 import { invoke } from "@tauri-apps/api/core";
 import {
@@ -170,8 +171,18 @@ interface ExtractedEventDisplayProps {
 
 // Format date/time in user's system timezone for HTML inputs
 const USER_TIMEZONE = Temporal.Now.timeZoneId();
-const dateFormatter = new Intl.DateTimeFormat('sv-SE', { timeZone: USER_TIMEZONE, year: 'numeric', month: '2-digit', day: '2-digit' });
-const timeFormatter = new Intl.DateTimeFormat('en-GB', { timeZone: USER_TIMEZONE, hour: '2-digit', minute: '2-digit', hour12: false });
+const dateFormatter = new Intl.DateTimeFormat("sv-SE", {
+  timeZone: USER_TIMEZONE,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+const timeFormatter = new Intl.DateTimeFormat("en-GB", {
+  timeZone: USER_TIMEZONE,
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false,
+});
 
 function formatDateForInput(date: Date): string {
   return dateFormatter.format(date); // YYYY-MM-DD
@@ -291,7 +302,7 @@ function ExtractedEventDisplay({
 
       const response = await completeWithFallback(
         { prompt, maxTokens: PARSE_EVENT_NLP_MAX_TOKENS },
-        providerConfigs
+        providerConfigs,
       );
 
       if (response.success && response.content) {
@@ -830,12 +841,15 @@ export function EmailReader({
   const [emailTags, setEmailTags] = useState<EmailTag[]>([]);
 
   // Handle tag changes - update local state and propagate to parent
-  const handleTagsChange = useCallback((newTags: EmailTag[]) => {
-    setEmailTags(newTags);
-    if (emailSummary && onTagsChange) {
-      onTagsChange(emailSummary.uid, newTags);
-    }
-  }, [emailSummary, onTagsChange]);
+  const handleTagsChange = useCallback(
+    (newTags: EmailTag[]) => {
+      setEmailTags(newTags);
+      if (emailSummary && onTagsChange) {
+        onTagsChange(emailSummary.uid, newTags);
+      }
+    },
+    [emailSummary, onTagsChange],
+  );
 
   const cache = useEmailCache();
 
@@ -1047,10 +1061,14 @@ export function EmailReader({
     try {
       // Check cache first (unless force refresh)
       if (!forceRefresh) {
-        const cached = await invoke<{ summary: string; model_used: string } | null>(
-          "get_email_summary",
-          { account, mailbox, uid: emailFull.uid }
-        );
+        const cached = await invoke<{
+          summary: string;
+          model_used: string;
+        } | null>("get_email_summary", {
+          account,
+          mailbox,
+          uid: emailFull.uid,
+        });
         if (cached) {
           setSummary(cached.summary);
           setSummaryModelUsed(cached.model_used);
@@ -1069,11 +1087,12 @@ export function EmailReader({
         from: emailFull.from,
         subject: emailFull.subject,
         bodyText,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       });
 
       const response = await completeWithFallback(
         { prompt, maxTokens: SUMMARIZE_MAX_TOKENS },
-        providerConfigs
+        providerConfigs,
       );
 
       if (response.success && response.content) {
@@ -1120,8 +1139,12 @@ export function EmailReader({
       });
 
       const response = await completeWithFallback(
-        { prompt, systemPrompt: EXTRACT_EVENT_SYSTEM_PROMPT, maxTokens: EXTRACT_EVENT_MAX_TOKENS },
-        providerConfigs
+        {
+          prompt,
+          systemPrompt: EXTRACT_EVENT_SYSTEM_PROMPT,
+          maxTokens: EXTRACT_EVENT_MAX_TOKENS,
+        },
+        providerConfigs,
       );
 
       if (response.success && response.content) {
@@ -1162,8 +1185,12 @@ export function EmailReader({
       });
 
       const response = await completeWithFallback(
-        { prompt, systemPrompt: EXTRACT_REMINDER_SYSTEM_PROMPT, maxTokens: EXTRACT_REMINDER_MAX_TOKENS },
-        providerConfigs
+        {
+          prompt,
+          systemPrompt: EXTRACT_REMINDER_SYSTEM_PROMPT,
+          maxTokens: EXTRACT_REMINDER_MAX_TOKENS,
+        },
+        providerConfigs,
       );
 
       if (response.success && response.content) {
@@ -1546,7 +1573,7 @@ export function EmailReader({
 
       {/* Summary dialog */}
       <Dialog open={summaryDialogOpen} onOpenChange={setSummaryDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl p-6">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Sparkles className="h-5 w-5" />
@@ -1560,38 +1587,32 @@ export function EmailReader({
               </div>
             ) : summary ? (
               <>
-                <div className="text-sm leading-relaxed space-y-3">
-                  {summary.split("\n\n").map((section, i) => {
-                    const lines = section.split("\n");
-                    const title = lines[0];
-                    const content = lines.slice(1);
-                    const bulletItems = content.filter((l) =>
-                      l.trim().startsWith("- "),
-                    );
-                    const nonBulletItems = content.filter(
-                      (l) => !l.trim().startsWith("- ") && l.trim(),
-                    );
-                    return (
-                      <div key={i}>
-                        <div className="font-medium">{title.replace(/\*\*/g, "")}</div>
-                        {nonBulletItems.map((line, j) => (
-                          <div
-                            key={`t-${j}`}
-                            className="ml-4 text-muted-foreground"
+                <div className="max-h-[60vh] overflow-y-auto pr-2">
+                  <div className="text-sm leading-relaxed prose prose-sm dark:prose-invert max-w-none">
+                    <Markdown
+                      components={{
+                        p: ({ children }) => <p className="mb-2">{children}</p>,
+                        ul: ({ children }) => (
+                          <ul className="space-y-1">{children}</ul>
+                        ),
+                        strong: ({ children }) => (
+                          <strong className="font-semibold">{children}</strong>
+                        ),
+                        a: ({ href, children }) => (
+                          <a
+                            href={href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-primary underline"
                           >
-                            {line.trim()}
-                          </div>
-                        ))}
-                        {bulletItems.length > 0 && (
-                          <ul className="ml-4 mt-1 space-y-1 text-muted-foreground list-disc list-inside">
-                            {bulletItems.map((line, j) => (
-                              <li key={`b-${j}`}>{line.trim().slice(2)}</li>
-                            ))}
-                          </ul>
-                        )}
-                      </div>
-                    );
-                  })}
+                            {children}
+                          </a>
+                        ),
+                      }}
+                    >
+                      {summary}
+                    </Markdown>
+                  </div>
                 </div>
                 <div className="flex items-center justify-between text-xs text-muted-foreground pt-2 border-t">
                   <span>Generated by {summaryModelUsed}</span>

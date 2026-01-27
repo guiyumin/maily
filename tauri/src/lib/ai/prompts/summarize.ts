@@ -6,25 +6,24 @@ export interface SummarizeEmailParams {
   from: string;
   subject: string;
   bodyText: string;
+  timezone: string;
 }
 
 export function buildSummarizePrompt(params: SummarizeEmailParams): string {
-  const bodyTruncated = params.bodyText.slice(0, 4000);
-
-  return `Summarize this email.
+  return `Summarize this email with bullet points. User's timezone: ${params.timezone}
 
 From: ${params.from}
 Subject: ${params.subject}
 
-${bodyTruncated}
+${params.bodyText}
 
 Format (skip sections if not applicable):
 
 Summary:
-    <1-2 sentences: what is this about>
+    <1-2 bullet points: what is this about>
 
 Action Items:
-    - <what needs to be done, by whom, by when>
+    - <what needs to be done, by whom, by when (convert to user's timezone)>
 
 People/Contacts:
     - <names and roles mentioned>

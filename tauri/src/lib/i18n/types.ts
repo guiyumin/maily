@@ -57,6 +57,7 @@ export type TranslationKey =
   | 'settings.ai.type'
   | 'settings.ai.typeCli'
   | 'settings.ai.typeApi'
+  | 'settings.ai.customHeaders'
   // Tags settings
   | 'settings.tags.title'
   | 'settings.tags.description'

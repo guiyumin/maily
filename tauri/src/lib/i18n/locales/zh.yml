@@ -59,6 +59,7 @@ settings.ai.apiKey: API 密钥
 settings.ai.type: 类型
 settings.ai.typeCli: 命令行
 settings.ai.typeApi: API
+settings.ai.customHeaders: 自定义请求头
 
 # Tags settings
 settings.tags.title: 标签

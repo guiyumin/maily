@@ -1,13 +1,8 @@
-use async_openai::{
-    config::OpenAIConfig,
-    types::{ChatCompletionRequestMessage, ChatCompletionRequestUserMessageArgs, ChatCompletionRequestSystemMessageArgs, CreateChatCompletionRequestArgs},
-    Client,
-};
 use rusqlite::params;
 use serde::{Deserialize, Serialize};
 use std::process::Command;
 
-use crate::config::{get_config, AIProviderType};
+use crate::config::get_config;
 use crate::mail::DB;
 
 /// Email summary stored in database
@@ -21,7 +16,7 @@ pub struct EmailSummary {
     pub created_at: i64,
 }
 
-/// AI completion request
+/// AI completion request (frontend uses this for CLI providers)
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CompletionRequest {
     pub prompt: String,
@@ -102,152 +97,11 @@ pub fn delete_summary(account: &str, mailbox: &str, uid: u32) -> Result<(), Box<
     Ok(())
 }
 
-/// Call AI provider for completion
-pub fn complete(request: CompletionRequest) -> CompletionResponse {
-    let config = match get_config() {
-        Ok(c) => c,
-        Err(e) => return CompletionResponse {
-            success: false,
-            content: None,
-            error: Some(format!("Failed to load config: {}", e)),
-            model_used: None,
-        },
-    };
-
-    // Track errors from failed providers
-    let mut last_error: Option<String> = None;
-    let mut tried_providers: Vec<String> = Vec::new();
-
-    // If a specific provider is requested, try it first
-    if let Some(ref provider_name) = request.provider_name {
-        // Check configured providers
-        if let Some(provider) = config.ai_providers.iter().find(|p| &p.name == provider_name) {
-            let result = match provider.provider_type {
-                AIProviderType::Cli => call_cli_provider(&provider.name, &provider.model, &request),
-                AIProviderType::Api => call_api_provider(&provider.name, &provider.model, &provider.base_url, &provider.api_key, &request),
-            };
-            if result.success {
-                return CompletionResponse {
-                    model_used: Some(format!("{}/{}", provider.name, provider.model)),
-                    ..result
-                };
-            }
-            tried_providers.push(format!("{}/{}", provider.name, provider.model));
-            last_error = result.error;
-        }
-
-        // Check if it's a CLI tool
-        let cli_tools = vec![
-            ("claude", "haiku"),
-            ("codex", "o4-mini"),
-            ("gemini", "flash"),
-            ("ollama", "llama3.2"),
-        ];
-
-        if let Some((_, model)) = cli_tools.iter().find(|(name, _)| name == provider_name) {
-            if is_cli_available(provider_name) {
-                let result = call_cli_provider(provider_name, model, &request);
-                if result.success {
-                    return CompletionResponse {
-                        model_used: Some(format!("{}/{}", provider_name, model)),
-                        ..result
-                    };
-                }
-                tried_providers.push(format!("{}/{}", provider_name, model));
-                last_error = result.error;
-            }
-        }
-    }
-
-    // Try configured providers in order
-    for provider in &config.ai_providers {
-        let provider_id = format!("{}/{}", provider.name, provider.model);
-        // Skip if already tried
-        if tried_providers.contains(&provider_id) {
-            continue;
-        }
-
-        let result = match provider.provider_type {
-            AIProviderType::Cli => call_cli_provider(&provider.name, &provider.model, &request),
-            AIProviderType::Api => call_api_provider(&provider.name, &provider.model, &provider.base_url, &provider.api_key, &request),
-        };
-
-        if result.success {
-            return CompletionResponse {
-                model_used: Some(format!("{}/{}", provider.name, provider.model)),
-                ..result
-            };
-        }
-        tried_providers.push(provider_id);
-        last_error = result.error;
-    }
-
-    // Try auto-detecting CLI tools
-    let cli_tools = vec![
-        ("claude", "haiku"),
-        ("codex", "o4-mini"),
-        ("gemini", "flash"),
-        ("ollama", "llama3.2"),
-    ];
-
-    for (name, model) in cli_tools {
-        let provider_id = format!("{}/{}", name, model);
-        // Skip if already tried
-        if tried_providers.contains(&provider_id) {
-            continue;
-        }
-
-        if is_cli_available(name) {
-            let result = call_cli_provider(name, model, &request);
-            if result.success {
-                return CompletionResponse {
-                    model_used: Some(format!("{}/{}", name, model)),
-                    ..result
-                };
-            }
-            tried_providers.push(provider_id);
-            last_error = result.error;
-        }
-    }
-
-    // Return the last error if we tried any provider, otherwise generic message
-    let error_msg = if let Some(err) = last_error {
-        format!("AI provider failed: {}", err)
-    } else if tried_providers.is_empty() {
-        "No AI provider available. Please configure one in Settings.".to_string()
-    } else {
-        format!("All AI providers failed. Tried: {}", tried_providers.join(", "))
-    };
-
-    CompletionResponse {
-        success: false,
-        content: None,
-        error: Some(error_msg),
-        model_used: None,
-    }
-}
-
-/// Test a specific AI provider
-pub fn test_provider(provider_name: &str, provider_model: &str, provider_type: &str, base_url: &str, api_key: &str) -> CompletionResponse {
-    let request = CompletionRequest {
-        prompt: "Say hello.".to_string(),
-        system_prompt: None,
-        max_tokens: Some(200),
-        provider_name: None,
-    };
-
-    if provider_type == "cli" {
-        call_cli_provider(provider_name, provider_model, &request)
-    } else {
-        call_api_provider(provider_name, provider_model, base_url, api_key, &request)
-    }
-}
-
-/// List all available AI providers
+/// List all available AI providers (CLI tools that are installed)
 pub fn list_available_providers() -> Vec<String> {
     let mut providers = Vec::new();
 
-    // Add configured providers
+    // Add configured providers from config
     if let Ok(config) = get_config() {
         for provider in &config.ai_providers {
             providers.push(provider.name.clone());
@@ -271,6 +125,45 @@ fn is_cli_available(name: &str) -> bool {
         .output()
         .map(|o| o.status.success())
         .unwrap_or(false)
+}
+
+/// Direct CLI completion for frontend - bypasses provider selection
+/// Used when frontend JS SDKs handle API providers, only CLI goes through Rust
+pub fn cli_complete(request: CompletionRequest, provider_name: &str, provider_model: &str) -> CompletionResponse {
+    if !is_cli_available(provider_name) {
+        return CompletionResponse {
+            success: false,
+            content: None,
+            error: Some(format!("CLI tool '{}' not found in PATH", provider_name)),
+            model_used: None,
+        };
+    }
+    call_cli_provider(provider_name, provider_model, &request)
+}
+
+/// Save email summary from frontend (used when frontend generates summaries)
+pub fn save_summary_from_frontend(
+    account: &str,
+    mailbox: &str,
+    uid: u32,
+    summary_text: &str,
+    model_used: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs() as i64;
+
+    let summary = EmailSummary {
+        email_uid: uid,
+        account: account.to_string(),
+        mailbox: mailbox.to_string(),
+        summary: summary_text.to_string(),
+        model_used: model_used.to_string(),
+        created_at: now,
+    };
+
+    save_summary(&summary)
 }
 
 fn call_cli_provider(name: &str, model: &str, request: &CompletionRequest) -> CompletionResponse {
@@ -472,483 +365,4 @@ fn call_cli_provider(name: &str, model: &str, request: &CompletionRequest) -> Co
             model_used: None,
         },
     }
-}
-
-fn call_api_provider(name: &str, model: &str, base_url: &str, api_key: &str, request: &CompletionRequest) -> CompletionResponse {
-    // Use async-openai SDK for proper OpenAI-compatible API handling
-
-    let config = OpenAIConfig::new()
-        .with_api_key(api_key)
-        .with_api_base(base_url);
-
-    let client: Client<OpenAIConfig> = Client::with_config(config);
-
-    // Build messages
-    let mut messages: Vec<ChatCompletionRequestMessage> = vec![];
-
-    if let Some(ref sys) = request.system_prompt {
-        if let Ok(msg) = ChatCompletionRequestSystemMessageArgs::default()
-            .content(sys.clone())
-            .build()
-        {
-            messages.push(msg.into());
-        }
-    }
-
-    if let Ok(msg) = ChatCompletionRequestUserMessageArgs::default()
-        .content(request.prompt.clone())
-        .build()
-    {
-        messages.push(msg.into());
-    }
-
-    // Build request
-    let mut req_builder = CreateChatCompletionRequestArgs::default();
-    req_builder.model(model).messages(messages);
-
-    if let Some(max_tokens) = request.max_tokens {
-        req_builder.max_completion_tokens(max_tokens as u32);
-    }
-
-    let chat_request = match req_builder.build() {
-        Ok(r) => r,
-        Err(e) => {
-            return CompletionResponse {
-                success: false,
-                content: None,
-                error: Some(format!("Failed to build request: {}", e)),
-                model_used: None,
-            }
-        }
-    };
-
-    // Run async request in blocking context
-    let runtime = match tokio::runtime::Handle::try_current() {
-        Ok(handle) => {
-            // We're already in a tokio runtime, use block_in_place
-            let result = tokio::task::block_in_place(|| {
-                handle.block_on(client.chat().create(chat_request))
-            });
-            return handle_api_response(result, name, model);
-        }
-        Err(_) => {
-            // Create a new runtime for blocking call
-            match tokio::runtime::Runtime::new() {
-                Ok(rt) => rt,
-                Err(e) => {
-                    return CompletionResponse {
-                        success: false,
-                        content: None,
-                        error: Some(format!("Failed to create runtime: {}", e)),
-                        model_used: None,
-                    }
-                }
-            }
-        }
-    };
-
-    let result = runtime.block_on(client.chat().create(chat_request));
-    handle_api_response(result, name, model)
-}
-
-fn handle_api_response(
-    result: Result<async_openai::types::CreateChatCompletionResponse, async_openai::error::OpenAIError>,
-    name: &str,
-    model: &str,
-) -> CompletionResponse {
-    match result {
-        Ok(response) => {
-            if let Some(choice) = response.choices.first() {
-                // Try content first, then check for refusal
-                let content = choice.message.content.clone()
-                    .or_else(|| choice.message.refusal.clone());
-
-                if let Some(content) = content {
-                    if content.is_empty() {
-                        CompletionResponse {
-                            success: false,
-                            content: None,
-                            error: Some("Response content is empty".to_string()),
-                            model_used: None,
-                        }
-                    } else {
-                        CompletionResponse {
-                            success: true,
-                            content: Some(content),
-                            error: None,
-                            model_used: Some(format!("{}/{}", name, model)),
-                        }
-                    }
-                } else {
-                    CompletionResponse {
-                        success: false,
-                        content: None,
-                        error: Some(format!("Response has no content. Finish reason: {:?}", choice.finish_reason)),
-                        model_used: None,
-                    }
-                }
-            } else {
-                CompletionResponse {
-                    success: false,
-                    content: None,
-                    error: Some("API returned no choices".to_string()),
-                    model_used: None,
-                }
-            }
-        }
-        Err(e) => {
-            CompletionResponse {
-                success: false,
-                content: None,
-                error: Some(e.to_string()),
-                model_used: None,
-            }
-        }
-    }
-}
-
-/// Summarize email content
-pub fn summarize_email(
-    account: &str,
-    mailbox: &str,
-    uid: u32,
-    subject: &str,
-    from: &str,
-    body_text: &str,
-    force_refresh: bool,
-) -> CompletionResponse {
-    // Check cache first (unless force refresh)
-    if !force_refresh {
-        if let Some(cached) = get_cached_summary(account, mailbox, uid) {
-            return CompletionResponse {
-                success: true,
-                content: Some(cached.summary),
-                error: None,
-                model_used: Some(cached.model_used),
-            };
-        }
-    }
-
-    // Truncate body if too long
-    let body_truncated: String = body_text.chars().take(4000).collect();
-
-    let prompt = format!(
-        r#"Summarize this email comprehensively. Preserve all important details.
-
-From: {}
-Subject: {}
-
-{}
-
-Format your response exactly like this (skip sections if not applicable):
-
-Summary:
-    <2-3 sentence summary capturing the main purpose and context>
-
-Key Points:
-    - <include ALL important points mentioned>
-    - <preserve specific details: names, numbers, amounts, URLs>
-    - <don't omit information that might be needed later>
-
-Action Items:
-    - <any actions requested or expected>
-    - <include who needs to do what>
-
-Dates/Deadlines:
-    - <ALL dates, times, and deadlines mentioned>
-    - <include timezone if specified>
-
-People/Contacts:
-    - <names and roles mentioned>
-
-Links/References:
-    - <any URLs, document references, or attachments mentioned>
-
-Be thorough. Include all details that could be useful. No preamble, section titles on their own line, content indented with 4 spaces."#,
-        from, subject, body_truncated
-    );
-
-    let response = complete(CompletionRequest {
-        prompt,
-        system_prompt: None,
-        max_tokens: Some(5000),
-        provider_name: None,
-    });
-
-    // Cache successful response
-    if response.success {
-        if let Some(ref content) = response.content {
-            let now = std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_secs() as i64;
-
-            let summary = EmailSummary {
-                email_uid: uid,
-                account: account.to_string(),
-                mailbox: mailbox.to_string(),
-                summary: content.clone(),
-                model_used: response.model_used.clone().unwrap_or_default(),
-                created_at: now,
-            };
-
-            let _ = save_summary(&summary);
-        }
-    }
-
-    response
-}
-
-/// Generate tags for an email using AI
-pub fn generate_email_tags(
-    from: &str,
-    subject: &str,
-    body_text: &str,
-) -> Result<Vec<String>, String> {
-    // Truncate body if too long
-    let body_truncated: String = body_text.chars().take(2000).collect();
-
-    let prompt = format!(
-        r#"Analyze this email and suggest 1-5 short tags to categorize it.
-
-From: {}
-Subject: {}
-
-{}
-
-Return ONLY a comma-separated list of short tags (1-2 words each). Examples: work, urgent, newsletter, receipt, travel, meeting, personal, finance, shipping, social
-
-Tags:"#,
-        from, subject, body_truncated
-    );
-
-    let response = complete(CompletionRequest {
-        prompt,
-        system_prompt: Some("You are a helpful assistant that categorizes emails with short, descriptive tags. Only output comma-separated tags, nothing else.".to_string()),
-        max_tokens: Some(100),
-        provider_name: None,
-    });
-
-    if response.success {
-        if let Some(content) = response.content {
-            // Parse comma-separated tags
-            let tags: Vec<String> = content
-                .split(',')
-                .map(|s| s.trim().to_lowercase())
-                .filter(|s| !s.is_empty() && s.len() <= 30)
-                .take(5)
-                .collect();
-
-            if tags.is_empty() {
-                return Err("AI returned no valid tags".to_string());
-            }
-            return Ok(tags);
-        }
-    }
-
-    Err(response.error.unwrap_or_else(|| "Failed to generate tags".to_string()))
-}
-
-/// Generate smart reply suggestions
-pub fn generate_reply(
-    original_from: &str,
-    original_subject: &str,
-    original_body: &str,
-) -> CompletionResponse {
-    let body_truncated: String = original_body.chars().take(4000).collect();
-
-    let prompt = format!(
-        r#"Analyze this email thread and write a professional reply.
-
-Replying to: {}
-Subject: {}
-
-Email thread (most recent first):
-{}
-
-Instructions:
-- Read the entire email thread to understand the full context
-- Write a reply that appropriately addresses the most recent message
-- If it's a request/invitation, acknowledge it professionally
-- If questions were asked, provide helpful answers or ask for clarification
-- If it requires scheduling/confirmation, express interest and ask for details if needed
-- Keep it concise and professional
-- Do NOT include email headers like "Subject:" or "To:" - just write the reply body
-- Do NOT include the quoted thread in your reply - just write the new message
-- Start directly with a greeting
-
-Write the reply:"#,
-        original_from, original_subject, body_truncated
-    );
-
-    complete(CompletionRequest {
-        prompt,
-        system_prompt: Some("You are a professional email assistant. Write concise, friendly, and helpful email replies. Match the tone of the conversation.".to_string()),
-        max_tokens: Some(2000),
-        provider_name: None,
-    })
-}
-
-/// Extract calendar event from email
-pub fn extract_event(
-    from: &str,
-    subject: &str,
-    body_text: &str,
-    user_timezone: &str,
-) -> CompletionResponse {
-    let body_truncated: String = body_text.chars().take(4000).collect();
-
-    // Get current time in RFC3339 format
-    let now = chrono::Local::now().format("%Y-%m-%dT%H:%M:%S%:z").to_string();
-
-    let prompt = format!(
-        r#"Current time: {}
-User timezone: {}
-
-EMAIL:
-From: {}
-Subject: {}
-
-{}
-
----
-
-Extract a calendar event from this email. Look for:
-- Meetings, calls, appointments
-- Webinars, conferences, events
-- Deadlines with specific dates/times
-- Any scheduled activity
-
-Return JSON (no markdown):
-{{"title":"...","start_time":"2024-12-25T10:00:00-08:00","end_time":"2024-12-25T11:00:00-08:00","location":"...","notes":"..."}}
-
-Rules:
-- Convert ALL times to user's timezone ({})
-- Use RFC3339 format for times
-- Default to 1 hour duration if not specified
-- Include meeting URLs (Zoom/Meet/Teams) in location
-- If NO event found, respond: NO_EVENTS_FOUND"#,
-        now, user_timezone, from, subject, body_truncated, user_timezone
-    );
-
-    complete(CompletionRequest {
-        prompt,
-        system_prompt: Some("You are an expert at extracting calendar events from emails. Be aggressive - if there's ANY mention of a date/time with an activity, extract it. Always output valid JSON or NO_EVENTS_FOUND.".to_string()),
-        max_tokens: Some(2000),
-        provider_name: None,
-    })
-}
-
-/// Extract actionable reminder/task from email
-pub fn extract_reminder(
-    from: &str,
-    subject: &str,
-    body_text: &str,
-) -> CompletionResponse {
-    let body_truncated: String = body_text.chars().take(4000).collect();
-
-    // Get current time for relative date parsing
-    let now = chrono::Local::now().format("%Y-%m-%dT%H:%M:%S%:z").to_string();
-
-    let prompt = format!(
-        r#"Current time: {}
-
-EMAIL:
-From: {}
-Subject: {}
-
-{}
-
----
-
-Extract an actionable task from this email. Look for:
-- Requests that need a response
-- Documents to review/sign
-- Deadlines to meet
-- Follow-ups needed
-- Action items mentioned
-
-Return JSON (no markdown):
-{{"title":"Reply to John about budget","notes":"context here","due_date":"2024-12-25T09:00:00-08:00","priority":5}}
-
-Rules:
-- title: Start with verb (Reply, Review, Send, Schedule, Follow up, etc.)
-- due_date: RFC3339 format. Use deadline if mentioned, otherwise tomorrow 9am
-- priority: 1=urgent, 5=normal, 9=low
-- If NO task found, respond: NO_TASK_FOUND"#,
-        now, from, subject, body_truncated
-    );
-
-    complete(CompletionRequest {
-        prompt,
-        system_prompt: Some("You are an expert at identifying actionable tasks in emails. Be aggressive - most emails that aren't pure newsletters have some action needed. Always output valid JSON or NO_TASK_FOUND.".to_string()),
-        max_tokens: Some(2000),
-        provider_name: None,
-    })
-}
-
-/// Parse natural language into a calendar event, with optional email context
-pub fn parse_event_nlp(
-    user_input: &str,
-    email_from: &str,
-    email_subject: &str,
-    email_body: &str,
-) -> CompletionResponse {
-    let now = chrono::Local::now().format("%Y-%m-%dT%H:%M:%S%:z").to_string();
-
-    // Build email context if provided
-    let email_context = if !email_from.is_empty() || !email_subject.is_empty() || !email_body.is_empty() {
-        let body_truncated: String = email_body.chars().take(1000).collect();
-        format!(
-            r#"
-Email context (use this to understand references like "them", "the meeting", etc.):
-From: {}
-Subject: {}
-Body: {}
-
-"#,
-            email_from, email_subject, body_truncated
-        )
-    } else {
-        String::new()
-    };
-
-    let prompt = format!(
-        r#"Parse this natural language into a calendar event.
-
-Current date/time: {}
-{}
-User input: "{}"
-
-Respond with ONLY a JSON object (no markdown, no explanation):
-{{
-  "title": "event title",
-  "start_time": "2024-12-25T10:00:00-08:00",
-  "end_time": "2024-12-25T11:00:00-08:00",
-  "location": "physical location OR meeting URL",
-  "notes": "additional details, agenda, description",
-  "alarm_minutes_before": 5,
-  "alarm_specified": true
-}}
-
-Rules:
-- start_time and end_time must be in RFC3339 format with timezone
-- If no duration specified, default to 1 hour
-- If user says "remind me X minutes before" or similar, set alarm_minutes_before and alarm_specified=true
-- If no reminder mentioned, set alarm_minutes_before=0 and alarm_specified=false
-- Location priority: use physical address if mentioned; if no physical location but there's a virtual meeting link (Zoom, Google Meet, Microsoft Teams, Webex), put the meeting URL in location
-- Extract notes: any additional details, agenda items, descriptions, or context
-- Use the current date/time to interpret relative dates like "tomorrow", "next Monday"
-- Use the email context to resolve references (e.g., "them" = sender, "the meeting" = subject)
-
-Respond with ONLY the JSON, no other text."#,
-        now, email_context, user_input
-    );
-
-    complete(CompletionRequest {
-        prompt,
-        system_prompt: None,
-        max_tokens: Some(1000),
-        provider_name: None,
-    })
 }

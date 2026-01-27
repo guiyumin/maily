@@ -59,6 +59,7 @@ settings.ai.apiKey: Klucz API
 settings.ai.type: Typ
 settings.ai.typeCli: CLI
 settings.ai.typeApi: API
+settings.ai.customHeaders: Niestandardowe nagłówki
 
 # Tags settings
 settings.tags.title: Tagi

@@ -59,6 +59,7 @@ settings.ai.apiKey: API-ключ
 settings.ai.type: Тип
 settings.ai.typeCli: CLI
 settings.ai.typeApi: API
+settings.ai.customHeaders: Пользовательские заголовки
 
 # Tags settings
 settings.tags.title: Теги

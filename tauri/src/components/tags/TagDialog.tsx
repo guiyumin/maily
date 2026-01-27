@@ -21,6 +21,7 @@ import {
 import type { Tag, EmailTag } from "@/types/tags";
 import { TAG_COLORS } from "@/types/tags";
 import { useLocale } from "@/lib/i18n";
+import { useAIProviders } from "@/lib/ai";
 
 interface TagDialogProps {
   open: boolean;
@@ -48,6 +49,7 @@ export function TagDialog({
   emailContext,
 }: TagDialogProps) {
   const { t } = useLocale();
+  const { providerConfigs } = useAIProviders();
   const [allTags, setAllTags] = useState<Tag[]>([]);
   const [newTagName, setNewTagName] = useState("");
   const [loading, setLoading] = useState(false);
@@ -139,6 +141,7 @@ export function TagDialog({
         emailContext.from,
         emailContext.subject,
         emailContext.bodyText,
+        providerConfigs,
       );
 
       // Create tags and add to email

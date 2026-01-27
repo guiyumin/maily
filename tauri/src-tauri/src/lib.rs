@@ -8,11 +8,8 @@ mod smtp;
 
 use tauri::WebviewWindowBuilder;
 use ai::{
-    complete as do_ai_complete, init_summaries_table, summarize_email as ai_summarize,
-    generate_reply as ai_generate_reply, extract_event as ai_extract_event,
-    extract_reminder as ai_extract_reminder, parse_event_nlp as ai_parse_event_nlp,
-    generate_email_tags as ai_generate_tags,
-    get_cached_summary, delete_summary, list_available_providers, test_provider as ai_test_provider,
+    init_summaries_table, get_cached_summary, delete_summary, list_available_providers,
+    cli_complete as do_cli_complete, save_summary_from_frontend,
     CompletionRequest, CompletionResponse, EmailSummary,
 };
 use config::{get_config as load_config, save_config as store_config, send_telegram_test, AIProvider, Config};
@@ -363,27 +360,6 @@ fn sync_draft_to_server(draft: Draft) -> Result<(), String> {
 
 // ============ AI COMMANDS ============
 
-// Use spawn_blocking for CPU-heavy/blocking AI calls to not block async runtime
-#[tauri::command]
-async fn summarize_email(
-    account: String,
-    mailbox: String,
-    uid: u32,
-    subject: String,
-    from: String,
-    body_text: String,
-    force_refresh: bool,
-) -> CompletionResponse {
-    tauri::async_runtime::spawn_blocking(move || {
-        ai_summarize(&account, &mailbox, uid, &subject, &from, &body_text, force_refresh)
-    }).await.unwrap_or_else(|_| CompletionResponse {
-        success: false,
-        content: None,
-        error: Some("Task panicked".to_string()),
-        model_used: None,
-    })
-}
-
 #[tauri::command]
 fn get_email_summary(account: String, mailbox: String, uid: u32) -> Option<EmailSummary> {
     get_cached_summary(&account, &mailbox, uid)
@@ -395,95 +371,39 @@ fn delete_email_summary(account: String, mailbox: String, uid: u32) -> Result<()
 }
 
 #[tauri::command]
-async fn generate_reply(
-    original_from: String,
-    original_subject: String,
-    original_body: String,
-) -> CompletionResponse {
-    tauri::async_runtime::spawn_blocking(move || {
-        ai_generate_reply(&original_from, &original_subject, &original_body)
-    }).await.unwrap_or_else(|_| CompletionResponse {
-        success: false,
-        content: None,
-        error: Some("Task panicked".to_string()),
-        model_used: None,
-    })
-}
-
-#[tauri::command]
-async fn extract_event(from: String, subject: String, body_text: String, user_timezone: String) -> CompletionResponse {
-    tauri::async_runtime::spawn_blocking(move || {
-        ai_extract_event(&from, &subject, &body_text, &user_timezone)
-    }).await.unwrap_or_else(|_| CompletionResponse {
-        success: false,
-        content: None,
-        error: Some("Task panicked".to_string()),
-        model_used: None,
-    })
-}
-
-#[tauri::command]
-async fn extract_reminder(from: String, subject: String, body_text: String) -> CompletionResponse {
-    tauri::async_runtime::spawn_blocking(move || {
-        ai_extract_reminder(&from, &subject, &body_text)
-    }).await.unwrap_or_else(|_| CompletionResponse {
-        success: false,
-        content: None,
-        error: Some("Task panicked".to_string()),
-        model_used: None,
-    })
-}
-
-#[tauri::command]
-async fn parse_event_nlp(
-    user_input: String,
-    email_from: String,
-    email_subject: String,
-    email_body: String,
-) -> CompletionResponse {
-    tauri::async_runtime::spawn_blocking(move || {
-        ai_parse_event_nlp(&user_input, &email_from, &email_subject, &email_body)
-    }).await.unwrap_or_else(|_| CompletionResponse {
-        success: false,
-        content: None,
-        error: Some("Task panicked".to_string()),
-        model_used: None,
-    })
-}
-
-#[tauri::command]
-async fn ai_complete(request: CompletionRequest) -> CompletionResponse {
-    tauri::async_runtime::spawn_blocking(move || {
-        do_ai_complete(request)
-    }).await.unwrap_or_else(|_| CompletionResponse {
-        success: false,
-        content: None,
-        error: Some("Task panicked".to_string()),
-        model_used: None,
-    })
-}
-
-#[tauri::command]
 fn get_available_ai_providers() -> Vec<String> {
     list_available_providers()
 }
 
+/// CLI-only completion for frontend JS SDK integration
+/// Frontend uses JS SDKs for API providers, only CLI providers go through Rust
 #[tauri::command]
-async fn test_ai_provider(
+async fn cli_complete(
+    request: CompletionRequest,
     provider_name: String,
     provider_model: String,
-    provider_type: String,
-    base_url: String,
-    api_key: String,
 ) -> CompletionResponse {
     tauri::async_runtime::spawn_blocking(move || {
-        ai_test_provider(&provider_name, &provider_model, &provider_type, &base_url, &api_key)
+        do_cli_complete(request, &provider_name, &provider_model)
     }).await.unwrap_or_else(|_| CompletionResponse {
         success: false,
         content: None,
         error: Some("Task panicked".to_string()),
         model_used: None,
     })
+}
+
+/// Save email summary from frontend (after frontend generates it via JS SDK)
+#[tauri::command]
+fn save_email_summary(
+    account: String,
+    mailbox: String,
+    uid: u32,
+    summary: String,
+    model_used: String,
+) -> Result<(), String> {
+    save_summary_from_frontend(&account, &mailbox, uid, &summary, &model_used)
+        .map_err(|e| e.to_string())
 }
 
 // ============ CALENDAR COMMANDS ============
@@ -707,16 +627,6 @@ fn search_emails_by_tags(account: String, mailbox: String, tag_ids: Vec<i64>) ->
     mail::search_emails_by_tags(&account, &mailbox, &tag_ids).map_err(|e| e.to_string())
 }
 
-/// Generate tags for an email using AI (async to not block UI)
-#[tauri::command]
-async fn generate_ai_tags(from: String, subject: String, body_text: String) -> Result<Vec<String>, String> {
-    tauri::async_runtime::spawn_blocking(move || {
-        ai_generate_tags(&from, &subject, &body_text)
-    })
-    .await
-    .map_err(|e| e.to_string())?
-}
-
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // Initialize tokio runtime for background tasks
@@ -734,6 +644,7 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_http::init())
         .setup(|app| {
             // Initialize database eagerly
             init_db();
@@ -832,17 +743,12 @@ pub fn run() {
             list_drafts,
             delete_draft,
             sync_draft_to_server,
-            // AI operations
-            summarize_email,
+            // AI operations (API calls handled by frontend JS SDKs, only CLI goes through Rust)
             get_email_summary,
             delete_email_summary,
-            generate_reply,
-            extract_event,
-            extract_reminder,
-            parse_event_nlp,
-            ai_complete,
             get_available_ai_providers,
-            test_ai_provider,
+            cli_complete,
+            save_email_summary,
             // Calendar operations
             calendar_get_auth_status,
             calendar_request_access,
@@ -875,8 +781,7 @@ pub fn run() {
             add_email_tag,
             remove_email_tag,
             get_batch_email_tags,
-            search_emails_by_tags,
-            generate_ai_tags
+            search_emails_by_tags
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

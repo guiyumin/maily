@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import {
   Send,
   Loader2,
@@ -34,13 +33,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useChatStore, type ChatSession } from "@/stores/chatStore";
 import { toast } from "sonner";
-
-interface CompletionResponse {
-  success: boolean;
-  content: string | null;
-  error: string | null;
-  model_used: string | null;
-}
+import { useAIProviders, useAIComplete } from "@/lib/ai/hooks";
 
 interface AIChatProps {
   context?: ChatSession["context"];
@@ -50,22 +43,14 @@ interface AIChatProps {
 export function AIChat({ context, trigger }: AIChatProps) {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
-  const [providers, setProviders] = useState<string[]>([]);
   const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  // Fetch available providers on mount
-  useEffect(() => {
-    invoke<string[]>("get_available_ai_providers")
-      .then((list) => {
-        setProviders(list);
-        // Don't auto-select - let it use default (first available)
-      })
-      .catch(console.error);
-  }, []);
+  // Use AI hooks
+  const { providers, providerConfigs } = useAIProviders();
+  const { executeComplete, loading } = useAIComplete();
 
   const {
     sessions,
@@ -105,7 +90,6 @@ export function AIChat({ context, trigger }: AIChatProps) {
 
     const userMessage = input.trim();
     setInput("");
-    setLoading(true);
 
     // Add user message
     addMessage(sessionId, {
@@ -135,20 +119,26 @@ export function AIChat({ context, trigger }: AIChatProps) {
         systemPrompt += `\n\nPrevious conversation:\n${history}`;
       }
 
-      const response = await invoke<CompletionResponse>("ai_complete", {
-        request: {
+      // Filter providers if a specific one is selected
+      const providersToUse = selectedProvider
+        ? providerConfigs.filter((p) => p.name === selectedProvider)
+        : providerConfigs;
+
+      const response = await executeComplete(
+        {
           prompt,
-          system_prompt: systemPrompt,
-          max_tokens: 1000,
-          provider_name: selectedProvider,
+          systemPrompt,
+          maxTokens: 1000,
+          providerName: selectedProvider || undefined,
         },
-      });
+        providersToUse.length > 0 ? providersToUse : providerConfigs
+      );
 
       if (response.success && response.content) {
         addMessage(sessionId, {
           role: "assistant",
           content: response.content,
-          modelUsed: response.model_used || undefined,
+          modelUsed: response.modelUsed || undefined,
         });
       } else {
         toast.error(response.error || "Failed to get AI response");
@@ -156,10 +146,9 @@ export function AIChat({ context, trigger }: AIChatProps) {
     } catch (err) {
       toast.error(`AI error: ${err}`);
     } finally {
-      setLoading(false);
       inputRef.current?.focus();
     }
-  }, [input, loading, activeSessionId, context, createSession, addMessage, sessions, selectedProvider]);
+  }, [input, loading, activeSessionId, context, createSession, addMessage, sessions, selectedProvider, providerConfigs, executeComplete]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {

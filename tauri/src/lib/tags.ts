@@ -1,5 +1,13 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { Tag, EmailTag } from "@/types/tags";
+import type { AIProviderConfig } from "@/lib/ai/types";
+import {
+  completeWithFallback,
+  buildTagsPrompt,
+  TAGS_SYSTEM_PROMPT,
+  TAGS_MAX_TOKENS,
+  parseTags,
+} from "@/lib/ai";
 
 // Tag CRUD operations
 
@@ -85,11 +93,20 @@ export async function searchEmailsByTags(
 export async function generateAITags(
   from: string,
   subject: string,
-  bodyText: string
+  bodyText: string,
+  providerConfigs: AIProviderConfig[]
 ): Promise<string[]> {
-  return invoke<string[]>("generate_ai_tags", {
-    from,
-    subject,
-    bodyText,
-  });
+  const prompt = buildTagsPrompt({ from, subject, bodyText });
+
+  const response = await completeWithFallback(
+    { prompt, systemPrompt: TAGS_SYSTEM_PROMPT, maxTokens: TAGS_MAX_TOKENS },
+    providerConfigs
+  );
+
+  if (response.success && response.content) {
+    return parseTags(response.content);
+  }
+
+  console.error("AI tag generation failed:", response.error);
+  return [];
 }

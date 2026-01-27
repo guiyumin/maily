@@ -59,6 +59,7 @@ settings.ai.apiKey: APIキー
 settings.ai.type: タイプ
 settings.ai.typeCli: CLI
 settings.ai.typeApi: API
+settings.ai.customHeaders: カスタムヘッダー
 
 # Tags settings
 settings.tags.title: タグ

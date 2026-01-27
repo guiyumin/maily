@@ -11,6 +11,10 @@ export interface AIProvider {
   model: string;
   base_url: string;
   api_key: string;
+  /** SDK to use for API calls: "openai" (default), "anthropic" */
+  sdk?: string;
+  /** Custom HTTP headers for API calls */
+  custom_headers?: Record<string, string>;
 }
 
 export interface Credentials {

@@ -2,6 +2,13 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open as openFileDialog } from "@tauri-apps/plugin-dialog";
 import {
+  useAIProviders,
+  completeWithFallback,
+  buildReplyPrompt,
+  REPLY_SYSTEM_PROMPT,
+  REPLY_MAX_TOKENS,
+} from "@/lib/ai";
+import {
   X,
   Send,
   Paperclip,
@@ -48,13 +55,6 @@ interface SendResult {
   success: boolean;
   message_id: string | null;
   error: string | null;
-}
-
-interface CompletionResponse {
-  success: boolean;
-  content: string | null;
-  error: string | null;
-  model_used: string | null;
 }
 
 interface Draft {
@@ -147,6 +147,7 @@ export function Compose({
   onDraftSaved,
 }: ComposeProps) {
   const { t } = useLocale();
+  const { providerConfigs } = useAIProviders();
   const [to, setTo] = useState(() => {
     if (mode === "reply" && originalEmail) {
       return originalEmail.from;
@@ -468,17 +469,22 @@ export function Compose({
 
     try {
       // Send the full body which contains the quoted email thread
-      const response = await invoke<CompletionResponse>("generate_reply", {
+      const prompt = buildReplyPrompt({
         originalFrom: originalEmail.from,
         originalSubject: originalEmail.subject,
         originalBody: body, // Full thread context including quoted messages
       });
 
+      const response = await completeWithFallback(
+        { prompt, systemPrompt: REPLY_SYSTEM_PROMPT, maxTokens: REPLY_MAX_TOKENS },
+        providerConfigs
+      );
+
       if (response.success && response.content) {
         // Prepend AI reply to the quoted thread
         const quotedThread = body.trim();
         setBody(response.content + "\n\n" + quotedThread);
-        toast.success(`Generated with ${response.model_used}`);
+        toast.success(`Generated with ${response.modelUsed}`);
       } else {
         toast.error(response.error || "Failed to generate reply");
       }
@@ -487,7 +493,7 @@ export function Compose({
     } finally {
       setGenerating(false);
     }
-  }, [originalEmail, body]);
+  }, [originalEmail, body, providerConfigs]);
 
   const handleRemoveAttachment = (index: number) => {
     setAttachments((prev) => prev.filter((_, i) => i !== index));

@@ -10,6 +10,12 @@
     "updater:default",
     "process:allow-restart",
     "process:allow-exit",
-    "notification:default"
+    "notification:default",
+    {
+      "identifier": "http:default",
+      "allow": [
+        { "url": "https://*" }
+      ]
+    }
   ]
 }

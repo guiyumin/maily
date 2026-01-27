@@ -59,6 +59,7 @@ settings.ai.apiKey: API-sleutel
 settings.ai.type: Type
 settings.ai.typeCli: CLI
 settings.ai.typeApi: API
+settings.ai.customHeaders: Aangepaste headers
 
 # Tags settings
 settings.tags.title: Tags

@@ -2,6 +2,20 @@ import { useEffect, useState, useCallback } from "react";
 import { Temporal } from "temporal-polyfill";
 import { invoke } from "@tauri-apps/api/core";
 import {
+  useAIProviders,
+  completeWithFallback,
+  buildSummarizePrompt,
+  SUMMARIZE_MAX_TOKENS,
+  buildExtractEventPrompt,
+  EXTRACT_EVENT_SYSTEM_PROMPT,
+  EXTRACT_EVENT_MAX_TOKENS,
+  buildExtractReminderPrompt,
+  EXTRACT_REMINDER_SYSTEM_PROMPT,
+  EXTRACT_REMINDER_MAX_TOKENS,
+  buildParseEventNlpPrompt,
+  PARSE_EVENT_NLP_MAX_TOKENS,
+} from "@/lib/ai";
+import {
   ChevronLeft,
   ChevronRight,
   Download,
@@ -66,6 +80,7 @@ import { TagDialog } from "@/components/tags/TagDialog";
 import { TagList } from "@/components/tags/TagList";
 import { getEmailTags } from "@/lib/tags";
 import type { EmailTag } from "@/types/tags";
+import type { AIProviderConfig } from "@/lib/ai/types";
 
 interface Attachment {
   part_id: string;
@@ -120,13 +135,6 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-interface CompletionResponse {
-  success: boolean;
-  content: string | null;
-  error: string | null;
-  model_used: string | null;
-}
-
 interface ExtractedEvent {
   title: string;
   start_time: string;
@@ -156,6 +164,7 @@ interface ExtractedEventDisplayProps {
   emailFrom: string;
   emailSubject: string;
   emailBody: string;
+  providerConfigs: AIProviderConfig[];
   onClose: () => void;
 }
 
@@ -198,6 +207,7 @@ function ExtractedEventDisplay({
   emailFrom,
   emailSubject,
   emailBody,
+  providerConfigs,
   onClose,
 }: ExtractedEventDisplayProps) {
   const [adding, setAdding] = useState(false);
@@ -272,12 +282,17 @@ function ExtractedEventDisplay({
 
     setNlpProcessing(true);
     try {
-      const response = await invoke<CompletionResponse>("parse_event_nlp", {
+      const prompt = buildParseEventNlpPrompt({
         userInput: nlpInput,
         emailFrom,
         emailSubject,
         emailBody,
       });
+
+      const response = await completeWithFallback(
+        { prompt, maxTokens: PARSE_EVENT_NLP_MAX_TOKENS },
+        providerConfigs
+      );
 
       if (response.success && response.content) {
         const cleaned = stripMarkdownCodeFences(response.content);
@@ -780,6 +795,7 @@ export function EmailReader({
   canNavigateNext,
 }: EmailReaderProps) {
   const { t } = useLocale();
+  const { providerConfigs } = useAIProviders();
   const [emailFull, setEmailFull] = useState<EmailFull | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -1020,7 +1036,7 @@ export function EmailReader({
     setComposeOpen(true);
   }, []);
 
-  // AI handlers - commands use #[tauri::command(async)] so they don't block UI
+  // AI handlers - use JS SDK for API providers, Rust for CLI
   const handleSummarize = async (forceRefresh = false) => {
     if (!emailFull) return;
 
@@ -1029,26 +1045,48 @@ export function EmailReader({
     setSummarizing(true);
 
     try {
-      // 3. Fetch from cache or generate
+      // Check cache first (unless force refresh)
+      if (!forceRefresh) {
+        const cached = await invoke<{ summary: string; model_used: string } | null>(
+          "get_email_summary",
+          { account, mailbox, uid: emailFull.uid }
+        );
+        if (cached) {
+          setSummary(cached.summary);
+          setSummaryModelUsed(cached.model_used);
+          setSummarizing(false);
+          return;
+        }
+      }
+
+      // Generate new summary via JS SDK
       const bodyText = emailFull.body_html
         ? new DOMParser().parseFromString(emailFull.body_html, "text/html").body
             .textContent || ""
         : "";
 
-      const response = await invoke<CompletionResponse>("summarize_email", {
-        account,
-        mailbox,
-        uid: emailFull.uid,
-        subject: emailFull.subject,
+      const prompt = buildSummarizePrompt({
         from: emailFull.from,
+        subject: emailFull.subject,
         bodyText,
-        forceRefresh,
       });
 
-      // 4. Set summary and loading false
+      const response = await completeWithFallback(
+        { prompt, maxTokens: SUMMARIZE_MAX_TOKENS },
+        providerConfigs
+      );
+
       if (response.success && response.content) {
         setSummary(response.content);
-        setSummaryModelUsed(response.model_used);
+        setSummaryModelUsed(response.modelUsed);
+        // Cache the summary
+        await invoke("save_email_summary", {
+          account,
+          mailbox,
+          uid: emailFull.uid,
+          summary: response.content,
+          modelUsed: response.modelUsed || "unknown",
+        });
       } else {
         toast.error(response.error || "Failed to summarize email");
         setSummaryDialogOpen(false);
@@ -1074,12 +1112,17 @@ export function EmailReader({
             .textContent || ""
         : "";
 
-      const response = await invoke<CompletionResponse>("extract_event", {
+      const prompt = buildExtractEventPrompt({
         from: emailFull.from,
         subject: emailFull.subject,
         bodyText,
         userTimezone: USER_TIMEZONE,
       });
+
+      const response = await completeWithFallback(
+        { prompt, systemPrompt: EXTRACT_EVENT_SYSTEM_PROMPT, maxTokens: EXTRACT_EVENT_MAX_TOKENS },
+        providerConfigs
+      );
 
       if (response.success && response.content) {
         setExtractedEvent(response.content);
@@ -1112,11 +1155,16 @@ export function EmailReader({
             .textContent || ""
         : "";
 
-      const response = await invoke<CompletionResponse>("extract_reminder", {
+      const prompt = buildExtractReminderPrompt({
         from: emailFull.from,
         subject: emailFull.subject,
         bodyText,
       });
+
+      const response = await completeWithFallback(
+        { prompt, systemPrompt: EXTRACT_REMINDER_SYSTEM_PROMPT, maxTokens: EXTRACT_REMINDER_MAX_TOKENS },
+        providerConfigs
+      );
 
       if (response.success && response.content) {
         setExtractedReminder(response.content);
@@ -1591,6 +1639,7 @@ export function EmailReader({
                       ).body.textContent || ""
                     : ""
                 }
+                providerConfigs={providerConfigs}
                 onClose={() => setEventDialogOpen(false)}
               />
             ) : null}

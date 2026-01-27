@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 
@@ -19,6 +20,12 @@ pub struct AIProvider {
     pub base_url: String,
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub api_key: String,
+    /// SDK to use for API calls: "openai" (default), "anthropic"
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sdk: Option<String>,
+    /// Custom HTTP headers for API calls
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub custom_headers: Option<HashMap<String, String>>,
 }
 
 // Notification settings

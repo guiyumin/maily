@@ -59,6 +59,7 @@ settings.ai.apiKey: API 키
 settings.ai.type: 유형
 settings.ai.typeCli: CLI
 settings.ai.typeApi: API
+settings.ai.customHeaders: 사용자 정의 헤더
 
 # Tags settings
 settings.tags.title: 태그

@@ -59,6 +59,7 @@ settings.ai.apiKey: Chiave API
 settings.ai.type: Tipo
 settings.ai.typeCli: CLI
 settings.ai.typeApi: API
+settings.ai.customHeaders: Intestazioni personalizzate
 
 # Tags settings
 settings.tags.title: Tag

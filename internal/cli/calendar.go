@@ -9,8 +9,10 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
+	"maily/config"
 	"maily/internal/ai"
 	"maily/internal/calendar"
+	"maily/internal/i18n"
 	"maily/internal/ui"
 )
 
@@ -274,6 +276,16 @@ func truncate(s string, maxLen int) string {
 }
 
 func runCalendarTUI() {
+	// Load config and initialize i18n
+	cfg, err := config.Load()
+	if err != nil {
+		fmt.Printf("Error loading config: %v\n", err)
+		os.Exit(1)
+	}
+	if err := i18n.Init(cfg.Language); err != nil {
+		fmt.Printf("Warning: i18n initialization failed: %v\n", err)
+	}
+
 	// Check calendar access first
 	status := calendar.GetAuthStatus()
 	switch status {

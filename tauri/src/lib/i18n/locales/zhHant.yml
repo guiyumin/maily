@@ -157,6 +157,4 @@ compose.dropFilesToAttach: 拖放檔案以新增附件
 compose.recipientPlaceholder: recipient@example.com
 compose.subjectPlaceholder: 郵件主旨
 compose.messagePlaceholder: 撰寫郵件內容...
-compose.accept: 接受
-compose.decline: 拒絕
-compose.askMore: 詢問更多
+compose.aiReply: AI 回覆

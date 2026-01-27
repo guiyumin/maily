@@ -157,6 +157,4 @@ compose.dropFilesToAttach: Drop files to attach
 compose.recipientPlaceholder: recipient@example.com
 compose.subjectPlaceholder: Email subject
 compose.messagePlaceholder: Write your message...
-compose.accept: Accept
-compose.decline: Decline
-compose.askMore: Ask More
+compose.aiReply: AI Reply

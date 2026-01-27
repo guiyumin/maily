@@ -461,34 +461,33 @@ export function Compose({
     deleteDraftIfExists,
   ]);
 
-  const handleGenerateReply = useCallback(
-    async (intent: string) => {
-      if (!originalEmail) return;
+  const handleGenerateReply = useCallback(async () => {
+    if (!originalEmail) return;
 
-      setGenerating(true);
+    setGenerating(true);
 
-      try {
-        const response = await invoke<CompletionResponse>("generate_reply", {
-          originalFrom: originalEmail.from,
-          originalSubject: originalEmail.subject,
-          originalBody: originalEmail.body_text,
-          replyIntent: intent,
-        });
+    try {
+      // Send the full body which contains the quoted email thread
+      const response = await invoke<CompletionResponse>("generate_reply", {
+        originalFrom: originalEmail.from,
+        originalSubject: originalEmail.subject,
+        originalBody: body, // Full thread context including quoted messages
+      });
 
-        if (response.success && response.content) {
-          setBody(response.content);
-          toast.success(`Generated with ${response.model_used}`);
-        } else {
-          toast.error(response.error || "Failed to generate reply");
-        }
-      } catch (err) {
-        toast.error(`Failed to generate: ${err}`);
-      } finally {
-        setGenerating(false);
+      if (response.success && response.content) {
+        // Prepend AI reply to the quoted thread
+        const quotedThread = body.trim();
+        setBody(response.content + "\n\n" + quotedThread);
+        toast.success(`Generated with ${response.model_used}`);
+      } else {
+        toast.error(response.error || "Failed to generate reply");
       }
-    },
-    [originalEmail],
-  );
+    } catch (err) {
+      toast.error(`Failed to generate: ${err}`);
+    } finally {
+      setGenerating(false);
+    }
+  }, [originalEmail, body]);
 
   const handleRemoveAttachment = (index: number) => {
     setAttachments((prev) => prev.filter((_, i) => i !== index));
@@ -607,37 +606,19 @@ export function Compose({
             <div className="flex items-center justify-between">
               <Label>{t("compose.message")}</Label>
               {(mode === "reply" || mode === "reply-all") && originalEmail && (
-                <div className="flex gap-1">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleGenerateReply("accept and confirm")}
-                    disabled={generating}
-                  >
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleGenerateReply}
+                  disabled={generating}
+                >
+                  {generating ? (
+                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                  ) : (
                     <Sparkles className="h-3 w-3 mr-1" />
-                    {t("compose.accept")}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleGenerateReply("politely decline")}
-                    disabled={generating}
-                  >
-                    <Sparkles className="h-3 w-3 mr-1" />
-                    {t("compose.decline")}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() =>
-                      handleGenerateReply("ask for more information")
-                    }
-                    disabled={generating}
-                  >
-                    <Sparkles className="h-3 w-3 mr-1" />
-                    {t("compose.askMore")}
-                  </Button>
-                </div>
+                  )}
+                  {t("compose.aiReply")}
+                </Button>
               )}
             </div>
             <Textarea

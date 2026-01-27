@@ -633,7 +633,7 @@ pub fn summarize_email(
     let body_truncated: String = body_text.chars().take(4000).collect();
 
     let prompt = format!(
-        r#"Summarize this email as bullet points.
+        r#"Summarize this email comprehensively. Preserve all important details.
 
 From: {}
 Subject: {}
@@ -643,27 +643,35 @@ Subject: {}
 Format your response exactly like this (skip sections if not applicable):
 
 Summary:
-    <one sentence summary>
+    <2-3 sentence summary capturing the main purpose and context>
 
 Key Points:
-    - <point 1>
-    - <point 2>
+    - <include ALL important points mentioned>
+    - <preserve specific details: names, numbers, amounts, URLs>
+    - <don't omit information that might be needed later>
 
 Action Items:
-    - <action 1>
-    - <action 2>
+    - <any actions requested or expected>
+    - <include who needs to do what>
 
 Dates/Deadlines:
-    - <date/deadline if mentioned>
+    - <ALL dates, times, and deadlines mentioned>
+    - <include timezone if specified>
 
-Keep it brief. No preamble, section titles on their own line, content indented with 4 spaces."#,
+People/Contacts:
+    - <names and roles mentioned>
+
+Links/References:
+    - <any URLs, document references, or attachments mentioned>
+
+Be thorough. Include all details that could be useful. No preamble, section titles on their own line, content indented with 4 spaces."#,
         from, subject, body_truncated
     );
 
     let response = complete(CompletionRequest {
         prompt,
         system_prompt: None,
-        max_tokens: Some(500),
+        max_tokens: Some(5000),
         provider_name: None,
     });
 
@@ -746,26 +754,37 @@ pub fn generate_reply(
     original_from: &str,
     original_subject: &str,
     original_body: &str,
-    reply_intent: &str, // e.g., "accept", "decline", "ask for more info"
 ) -> CompletionResponse {
-    let body_truncated: String = original_body.chars().take(2000).collect();
+    let body_truncated: String = original_body.chars().take(4000).collect();
 
     let prompt = format!(
-        r#"Generate a professional email reply. The intent is to: {}
+        r#"Analyze this email thread and write a professional reply.
 
-Original email:
-From: {}
+Replying to: {}
 Subject: {}
-Body: {}
 
-Write a concise, professional reply:"#,
-        reply_intent, original_from, original_subject, body_truncated
+Email thread (most recent first):
+{}
+
+Instructions:
+- Read the entire email thread to understand the full context
+- Write a reply that appropriately addresses the most recent message
+- If it's a request/invitation, acknowledge it professionally
+- If questions were asked, provide helpful answers or ask for clarification
+- If it requires scheduling/confirmation, express interest and ask for details if needed
+- Keep it concise and professional
+- Do NOT include email headers like "Subject:" or "To:" - just write the reply body
+- Do NOT include the quoted thread in your reply - just write the new message
+- Start directly with a greeting
+
+Write the reply:"#,
+        original_from, original_subject, body_truncated
     );
 
     complete(CompletionRequest {
         prompt,
-        system_prompt: Some("You are a professional email writer. Write concise, clear, and polite emails.".to_string()),
-        max_tokens: Some(500),
+        system_prompt: Some("You are a professional email assistant. Write concise, friendly, and helpful email replies. Match the tone of the conversation.".to_string()),
+        max_tokens: Some(2000),
         provider_name: None,
     })
 }
@@ -777,54 +796,45 @@ pub fn extract_event(
     body_text: &str,
     user_timezone: &str,
 ) -> CompletionResponse {
-    let body_truncated: String = body_text.chars().take(3000).collect();
+    let body_truncated: String = body_text.chars().take(4000).collect();
 
     // Get current time in RFC3339 format
     let now = chrono::Local::now().format("%Y-%m-%dT%H:%M:%S%:z").to_string();
 
     let prompt = format!(
-        r#"Extract the most relevant calendar event, meeting, or deadline from this email.
+        r#"Current time: {}
+User timezone: {}
 
-Current date/time: {}
-User's timezone: {}
-
+EMAIL:
 From: {}
 Subject: {}
 
 {}
 
-If an event is found, respond with ONLY a JSON object (no markdown, no explanation):
-{{
-  "title": "event title",
-  "start_time": "2024-12-25T10:00:00-08:00",
-  "end_time": "2024-12-25T11:00:00-08:00",
-  "location": "physical location OR meeting URL",
-  "notes": "agenda, description, or other relevant details from email",
-  "alarm_minutes_before": 0,
-  "alarm_specified": false
-}}
+---
 
-If NO events found, respond with exactly: NO_EVENTS_FOUND
+Extract a calendar event from this email. Look for:
+- Meetings, calls, appointments
+- Webinars, conferences, events
+- Deadlines with specific dates/times
+- Any scheduled activity
+
+Return JSON (no markdown):
+{{"title":"...","start_time":"2024-12-25T10:00:00-08:00","end_time":"2024-12-25T11:00:00-08:00","location":"...","notes":"..."}}
 
 Rules:
-- IMPORTANT: Convert all times to the user's timezone ({})
-- start_time and end_time must be in RFC3339 format with the user's timezone offset
-- If the email shows a time in GMT/UTC or another timezone, convert it to the user's timezone
-- If no end time/duration specified, default to 1 hour after start
-- Location priority: use physical address if mentioned; if no physical location but there's a virtual meeting link (Zoom, Google Meet, Microsoft Teams, Webex), put the meeting URL in location
-- Extract notes: include agenda, description, or other relevant context from the email
-- Use the current date/time to interpret relative dates like "tomorrow", "next Monday"
-- Pick the most important/relevant event if multiple are mentioned
-- Set alarm_minutes_before=0 and alarm_specified=false (user will set reminder later)
-
-Respond with ONLY the JSON or NO_EVENTS_FOUND, no other text."#,
+- Convert ALL times to user's timezone ({})
+- Use RFC3339 format for times
+- Default to 1 hour duration if not specified
+- Include meeting URLs (Zoom/Meet/Teams) in location
+- If NO event found, respond: NO_EVENTS_FOUND"#,
         now, user_timezone, from, subject, body_truncated, user_timezone
     );
 
     complete(CompletionRequest {
         prompt,
-        system_prompt: None,
-        max_tokens: Some(1000),
+        system_prompt: Some("You are an expert at extracting calendar events from emails. Be aggressive - if there's ANY mention of a date/time with an activity, extract it. Always output valid JSON or NO_EVENTS_FOUND.".to_string()),
+        max_tokens: Some(2000),
         provider_name: None,
     })
 }
@@ -835,52 +845,44 @@ pub fn extract_reminder(
     subject: &str,
     body_text: &str,
 ) -> CompletionResponse {
-    let body_truncated: String = body_text.chars().take(3000).collect();
+    let body_truncated: String = body_text.chars().take(4000).collect();
 
     // Get current time for relative date parsing
     let now = chrono::Local::now().format("%Y-%m-%dT%H:%M:%S%:z").to_string();
 
     let prompt = format!(
-        r#"Extract an actionable task or follow-up from this email.
+        r#"Current time: {}
 
-Current date/time: {}
-
+EMAIL:
 From: {}
 Subject: {}
 
 {}
 
-If a task/action is found, respond with ONLY a JSON object (no markdown, no explanation):
-{{
-  "title": "brief actionable task title (start with verb)",
-  "notes": "relevant context from email",
-  "due_date": "2024-12-25T09:00:00-08:00",
-  "priority": 5
-}}
+---
 
-If NO actionable task found, respond with exactly: NO_TASK_FOUND
+Extract an actionable task from this email. Look for:
+- Requests that need a response
+- Documents to review/sign
+- Deadlines to meet
+- Follow-ups needed
+- Action items mentioned
+
+Return JSON (no markdown):
+{{"title":"Reply to John about budget","notes":"context here","due_date":"2024-12-25T09:00:00-08:00","priority":5}}
 
 Rules:
-- title: Start with action verb (Reply to, Review, Send, Schedule, Follow up with, etc.)
-- title: Keep it brief (under 50 chars), include person/company name if relevant
-- notes: Include key context (what specifically needs to be done, deadline mentioned)
-- due_date: RFC3339 format. If deadline mentioned, use it. If "ASAP" or urgent, use today. Otherwise default to tomorrow 9am.
-- priority: 1=high (urgent/ASAP), 5=medium (normal), 9=low (whenever)
-
-Examples of good titles:
-- "Reply to John about Q4 budget"
-- "Review contract from Acme Corp"
-- "Send invoice to client"
-- "Schedule call with Sarah"
-
-Respond with ONLY the JSON or NO_TASK_FOUND, no other text."#,
+- title: Start with verb (Reply, Review, Send, Schedule, Follow up, etc.)
+- due_date: RFC3339 format. Use deadline if mentioned, otherwise tomorrow 9am
+- priority: 1=urgent, 5=normal, 9=low
+- If NO task found, respond: NO_TASK_FOUND"#,
         now, from, subject, body_truncated
     );
 
     complete(CompletionRequest {
         prompt,
-        system_prompt: None,
-        max_tokens: Some(1000),
+        system_prompt: Some("You are an expert at identifying actionable tasks in emails. Be aggressive - most emails that aren't pure newsletters have some action needed. Always output valid JSON or NO_TASK_FOUND.".to_string()),
+        max_tokens: Some(2000),
         provider_name: None,
     })
 }

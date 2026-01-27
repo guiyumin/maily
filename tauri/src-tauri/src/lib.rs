@@ -399,10 +399,9 @@ async fn generate_reply(
     original_from: String,
     original_subject: String,
     original_body: String,
-    reply_intent: String,
 ) -> CompletionResponse {
     tauri::async_runtime::spawn_blocking(move || {
-        ai_generate_reply(&original_from, &original_subject, &original_body, &reply_intent)
+        ai_generate_reply(&original_from, &original_subject, &original_body)
     }).await.unwrap_or_else(|_| CompletionResponse {
         success: false,
         content: None,

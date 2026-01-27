@@ -146,9 +146,7 @@ export type TranslationKey =
   | 'compose.recipientPlaceholder'
   | 'compose.subjectPlaceholder'
   | 'compose.messagePlaceholder'
-  | 'compose.accept'
-  | 'compose.decline'
-  | 'compose.askMore';
+  | 'compose.aiReply';
 
 export type LocaleMessages = {
   [key in TranslationKey]: string;

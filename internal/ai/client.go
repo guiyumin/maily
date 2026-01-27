@@ -25,41 +25,41 @@ type Client struct {
 }
 
 // NewClient creates a new AI client from configured providers
-// If no providers are configured, auto-detects available CLI tools
+// Priority: API providers first, then CLI providers, then auto-detected CLI tools
 func NewClient() *Client {
 	cfg, _ := config.Load()
 
 	client := &Client{}
 
-	// Build providers from config
+	// Collect API providers first (higher priority)
 	for _, p := range cfg.AIProviders {
-		if p.Model == "" {
-			continue // model is required
+		if p.Model == "" || p.Type != config.AIProviderTypeAPI {
+			continue
 		}
+		if p.APIKey == "" {
+			continue
+		}
+		baseURL := p.BaseURL
+		if baseURL == "" {
+			baseURL = "https://api.openai.com/v1"
+		}
+		apiClient := openai.NewClient(
+			option.WithAPIKey(p.APIKey),
+			option.WithBaseURL(baseURL),
+		)
+		client.providers = append(client.providers, provider{
+			config:    p,
+			apiClient: &apiClient,
+		})
+	}
 
-		switch p.Type {
-		case config.AIProviderTypeCLI:
-			// Check if CLI exists
-			if commandExists(p.Name) {
-				client.providers = append(client.providers, provider{config: p})
-			}
-
-		case config.AIProviderTypeAPI:
-			if p.APIKey == "" {
-				continue
-			}
-			baseURL := p.BaseURL
-			if baseURL == "" {
-				baseURL = "https://api.openai.com/v1"
-			}
-			apiClient := openai.NewClient(
-				option.WithAPIKey(p.APIKey),
-				option.WithBaseURL(baseURL),
-			)
-			client.providers = append(client.providers, provider{
-				config:    p,
-				apiClient: &apiClient,
-			})
+	// Then collect CLI providers (fallback)
+	for _, p := range cfg.AIProviders {
+		if p.Model == "" || p.Type != config.AIProviderTypeCLI {
+			continue
+		}
+		if commandExists(p.Name) {
+			client.providers = append(client.providers, provider{config: p})
 		}
 	}
 

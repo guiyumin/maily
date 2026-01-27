@@ -154,9 +154,12 @@ All AI tasks (summarization, reply generation, tagging, event extraction) use th
 
 ### Priority Order
 
-1. **Specific provider** - If a task requests a specific provider by name, try it first
-2. **Configured providers** - Try providers from `ai_providers` list in order
-3. **Auto-detected CLI tools** - If no providers configured, auto-detect available CLI tools
+1. **API providers first** - All configured API providers are tried before any CLI
+2. **CLI providers second** - Configured CLI providers are used as fallback
+3. **Auto-detected CLI tools** - If nothing configured, auto-detect available CLI tools
+4. **Error notification** - If no providers available, show error to user
+
+This ordering is **enforced regardless of config order**. Even if you list a CLI provider first in your config, API providers will still be tried first.
 
 ### Auto-Detection Order
 
@@ -175,24 +178,32 @@ When no providers are configured, CLI tools are detected in this order:
 
 ### Fallback Behavior
 
-- Providers are tried sequentially until one succeeds
+- API providers are tried first, in config order
+- CLI providers are tried second, in config order
 - Maximum 3 providers attempted per request
 - On success, result is returned immediately (no further providers tried)
 - On failure, the next provider is attempted
-- If all providers fail, an error is returned listing all attempted providers
+- If all providers fail, an error notification is shown
 
 ### Example Flow
 
 ```
+Config:
+  ai_providers:
+    - type: cli        # Listed first, but...
+      name: claude
+    - type: openai     # ...API is tried first
+      name: gpt4
+
 Request: Summarize email
          ↓
-[1] Try claude/haiku
+[1] Try gpt4 (API)      ← API always first
     → HTTP 429 (rate limited)
          ↓
-[2] Try openai/gpt-4o
+[2] Try claude (CLI)    ← CLI as fallback
     → Success!
          ↓
-Return summary (stop here)
+Return summary
 ```
 
 ### AI Tasks Using This Logic

@@ -122,7 +122,17 @@ export async function testProvider(
 }
 
 /**
+ * Sort providers: API first, then CLI
+ */
+function sortProvidersByPriority(providers: AIProviderConfig[]): AIProviderConfig[] {
+  const apiProviders = providers.filter((p) => p.type !== "cli");
+  const cliProviders = providers.filter((p) => p.type === "cli");
+  return [...apiProviders, ...cliProviders];
+}
+
+/**
  * Try providers in order until one succeeds
+ * Priority: API providers first, then CLI providers
  */
 export async function completeWithFallback(
   request: CompletionRequest,
@@ -131,9 +141,12 @@ export async function completeWithFallback(
   const triedProviders: string[] = [];
   let lastError: string | null = null;
 
+  // Sort providers: API first, then CLI
+  const sortedProviders = sortProvidersByPriority(providers);
+
   // If a specific provider is requested, try it first
   if (request.providerName) {
-    const specificProvider = providers.find((p) => p.name === request.providerName);
+    const specificProvider = sortedProviders.find((p) => p.name === request.providerName);
     if (specificProvider) {
       const result = await complete(request, specificProvider);
       if (result.success) {
@@ -144,8 +157,8 @@ export async function completeWithFallback(
     }
   }
 
-  // Try all providers in order
-  for (const provider of providers) {
+  // Try all providers in order (API first, then CLI)
+  for (const provider of sortedProviders) {
     const providerId = `${provider.name}/${provider.model}`;
     if (triedProviders.includes(providerId)) {
       continue;

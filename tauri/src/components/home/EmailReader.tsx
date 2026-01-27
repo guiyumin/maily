@@ -948,6 +948,9 @@ export function EmailReader({
       setEmailFull(null);
       return;
     }
+    // Clear stale emailFull immediately when email changes
+    // This prevents showing old email's content while new email loads
+    setEmailFull(null);
     fetchEmailBody(emailSummary.uid);
   }, [emailSummary?.uid, account, mailbox]);
 

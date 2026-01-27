@@ -74,6 +74,7 @@ Maily can auto-detect and use these CLI tools:
 | `claude` | `claude -p "prompt" --model haiku --output-format json` | JSON with `result` field |
 | `codex` | `codex exec "prompt" --json` | NDJSON stream |
 | `gemini` | `gemini "prompt" -m flash -o json` | JSON with `response` field |
+| `mistral` | `mistral chat "prompt" -m mistral-small-latest` | Raw stdout |
 | `ollama` | `ollama run llama3.2 "prompt"` | Raw stdout |
 | `opencode` | `opencode exec "prompt" --json` | NDJSON stream (like codex) |
 | `crush` | `crush -p "prompt"` | Raw stdout |
@@ -147,12 +148,63 @@ custom_headers:
   X-Title: Your App Name
 ```
 
-## Provider Fallback
+## Provider Selection Logic
 
-Providers are tried in order. If one fails, the next is attempted:
+All AI tasks (summarization, reply generation, tagging, event extraction) use the same unified provider selection mechanism.
 
-1. Configured providers (in order)
-2. Auto-detected CLI tools (claude, codex, gemini, ollama, opencode, crush, vibe)
+### Priority Order
+
+1. **Specific provider** - If a task requests a specific provider by name, try it first
+2. **Configured providers** - Try providers from `ai_providers` list in order
+3. **Auto-detected CLI tools** - If no providers configured, auto-detect available CLI tools
+
+### Auto-Detection Order
+
+When no providers are configured, CLI tools are detected in this order:
+
+| Priority | CLI Tool | Default Model |
+|----------|----------|---------------|
+| 1 | `claude` | haiku |
+| 2 | `codex` | o4-mini |
+| 3 | `gemini` | gemini-2.5-flash |
+| 4 | `opencode` | default |
+| 5 | `crush` | default |
+| 6 | `mistral` | mistral-small-latest |
+| 7 | `vibe` | default |
+| 8 | `ollama` | llama3.2:3b |
+
+### Fallback Behavior
+
+- Providers are tried sequentially until one succeeds
+- Maximum 3 providers attempted per request
+- On success, result is returned immediately (no further providers tried)
+- On failure, the next provider is attempted
+- If all providers fail, an error is returned listing all attempted providers
+
+### Example Flow
+
+```
+Request: Summarize email
+         ↓
+[1] Try claude/haiku
+    → HTTP 429 (rate limited)
+         ↓
+[2] Try openai/gpt-4o
+    → Success!
+         ↓
+Return summary (stop here)
+```
+
+### AI Tasks Using This Logic
+
+| Task | Description | Called From |
+|------|-------------|-------------|
+| **Summarize** | Generate email summary | `s` key in TUI, Summary button in Tauri |
+| **Reply** | Draft email reply | Compose view |
+| **Tags** | Auto-generate email tags | Label picker |
+| **Event Extraction** | Extract calendar events from email | Email view |
+| **Reminder Extraction** | Extract reminders from email | Email view |
+| **NLP Event** | Parse natural language into event | Calendar quick-add |
 
 ## Backward Compatibility
 
@@ -165,8 +217,13 @@ Providers are tried in order. If one fails, the next is attempted:
 
 | File | Purpose |
 |------|---------|
+| `internal/ai/client.go` | Go AI client with fallback logic |
+| `config/config.go` | Go config types (AIProvider struct) |
 | `tauri/src-tauri/src/config.rs` | Rust config types |
-| `tauri/src-tauri/src/ai.rs` | AI provider implementations |
+| `tauri/src-tauri/src/ai.rs` | Rust AI provider implementations |
+| `tauri/src/lib/ai/client.ts` | TypeScript AI client with fallback |
+| `tauri/src/lib/ai/hooks.ts` | React hooks for AI features |
+| `tauri/src/lib/ai/providers/` | SDK-specific providers (anthropic, openai, openrouter) |
 | `tauri/src/lib/ai/presets.ts` | Provider presets for UI |
 | `tauri/src/components/settings/AIProvidersSettings.tsx` | Settings UI |
 

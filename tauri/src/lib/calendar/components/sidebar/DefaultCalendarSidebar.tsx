@@ -196,6 +196,10 @@ const DefaultCalendarSidebar: React.FC<CalendarSidebarRenderProps> = ({
                 app.setCurrentDate(date);
                 app.changeView(ViewType.DAY);
               }}
+              onDateDoubleClick={(date) => {
+                app.setCurrentDate(date);
+                app.changeView(ViewType.WEEK);
+              }}
             />
           </div>
 

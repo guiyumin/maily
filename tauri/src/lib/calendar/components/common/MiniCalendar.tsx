@@ -8,6 +8,7 @@ interface MiniCalendarProps {
   showHeader?: boolean;
   onMonthChange: (offset: number) => void;
   onDateSelect: (date: Date) => void;
+  onDateDoubleClick?: (date: Date) => void;
   locale?: string;
 }
 
@@ -17,6 +18,7 @@ export const MiniCalendar: React.FC<MiniCalendarProps> = ({
   showHeader = false,
   onMonthChange,
   onDateSelect,
+  onDateDoubleClick,
 }) => {
   const { locale } = useLocale();
   const todayKey = useMemo(() => new Date().toDateString(), []);
@@ -110,6 +112,7 @@ export const MiniCalendar: React.FC<MiniCalendarProps> = ({
               ${day.isSelected && !day.isToday ? 'bg-secondary text-secondary-foreground rounded-full font-medium' : ''}
             `}
             onClick={() => onDateSelect(day.fullDate)}
+            onDoubleClick={() => onDateDoubleClick?.(day.fullDate)}
           >
             {day.date}
           </button>

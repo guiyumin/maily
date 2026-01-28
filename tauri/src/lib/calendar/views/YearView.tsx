@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
+import clsx from "clsx";
 import { useLocale } from "@calendar/locale";
 import { CalendarApp } from "@calendar/core";
 import {
@@ -8,6 +9,7 @@ import {
   VIRTUAL_SCROLL_CONFIG,
 } from "@calendar/hooks/virtualScroll";
 import { VirtualItem } from "@calendar/types";
+import { Button } from "@/components/ui/button";
 
 interface YearViewProps {
   app: CalendarApp; // Required prop, provided by CalendarRenderer
@@ -213,39 +215,30 @@ const VirtualizedYearView: React.FC<YearViewProps> = ({ app }) => {
 
           <div className="grid grid-cols-7 gap-0">
             {monthData.days.map((day, i) => (
-              <button
+              <Button
                 key={i}
-                className={`
-                text-center rounded-sm transition-colors
-                w-10
-                ${
+                variant="ghost"
+                className={clsx(
+                  "text-center rounded-sm transition-colors w-10 p-0",
                   screenSize === "mobile"
                     ? "text-xs py-1 min-h-4.5"
-                    : "text-xs py-1 sm:py-1.5 min-h-5 sm:min-h-6.5"
-                }
-                ${
+                    : "text-xs py-1 sm:py-1.5 min-h-5 sm:min-h-6.5",
                   day.isCurrentMonth
                     ? "text-gray-900 font-medium hover:bg-gray-100 active:bg-gray-200"
-                    : "text-gray-300 cursor-not-allowed"
-                }
-                ${
-                  day.isToday
-                    ? "bg-red-500 text-white hover:bg-red-600 font-bold shadow-sm ring-2 ring-red-200"
-                    : ""
-                }
-                ${
-                  day.isSelected && !day.isToday
-                    ? "bg-red-100 text-red-600 font-semibold ring-1 ring-red-300"
-                    : ""
-                }
-              `}
+                    : "text-gray-300 cursor-not-allowed",
+                  day.isToday &&
+                    "bg-red-500 text-white hover:bg-red-600 font-bold shadow-sm ring-2 ring-red-200",
+                  day.isSelected &&
+                    !day.isToday &&
+                    "bg-red-100 text-red-600 font-semibold ring-1 ring-red-300"
+                )}
                 onClick={() =>
                   day.isCurrentMonth && app.selectDate(day.fullDate)
                 }
                 disabled={!day.isCurrentMonth}
               >
                 {day.date}
-              </button>
+              </Button>
             ))}
           </div>
         </div>

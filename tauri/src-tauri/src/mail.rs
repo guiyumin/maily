@@ -2029,6 +2029,9 @@ pub fn extract_body(parsed: &mailparse::ParsedMail) -> (String, String) {
     // If we have HTML, clean it and use it
     if !html_body.is_empty() {
         let cleaned = ammonia::clean(&html_body);
+        // Convert newlines to <br> to preserve line breaks in email threads
+        // Many email clients (like Gmail) use \n for line breaks without <br> tags
+        let cleaned = cleaned.replace("\r\n", "<br>").replace('\n', "<br>");
         let snippet = generate_snippet(&text_body, &html_body);
         return (cleaned, snippet);
     }

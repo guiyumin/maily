@@ -43,6 +43,10 @@ export function IsolatedHtml({ html, className }: IsolatedHtmlProps) {
           color: hsl(var(--primary));
           cursor: pointer;
         }
+        /* Preserve line breaks in email content */
+        div, span {
+          white-space: pre-wrap;
+        }
         /* Prose-like typography */
         p, li, td, th {
           line-height: 1.625;

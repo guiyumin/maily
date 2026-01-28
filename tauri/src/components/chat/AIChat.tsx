@@ -107,13 +107,16 @@ export function AIChat({ context, trigger }: AIChatProps) {
       }
 
       // Build system prompt
-      let systemPrompt = "You are a helpful email assistant. Be concise and helpful.";
+      let systemPrompt =
+        "You are a helpful email assistant. Be concise and helpful.";
 
       // Include conversation history for context
       if (session && session.messages.length > 0) {
         const history = session.messages
           .slice(-6) // Last 6 messages for context
-          .map((m) => `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`)
+          .map(
+            (m) => `${m.role === "user" ? "User" : "Assistant"}: ${m.content}`,
+          )
           .join("\n\n");
 
         systemPrompt += `\n\nPrevious conversation:\n${history}`;
@@ -131,7 +134,7 @@ export function AIChat({ context, trigger }: AIChatProps) {
           maxTokens: 1000,
           providerName: selectedProvider || undefined,
         },
-        providersToUse.length > 0 ? providersToUse : providerConfigs
+        providersToUse.length > 0 ? providersToUse : providerConfigs,
       );
 
       if (response.success && response.content) {
@@ -148,7 +151,18 @@ export function AIChat({ context, trigger }: AIChatProps) {
     } finally {
       inputRef.current?.focus();
     }
-  }, [input, loading, activeSessionId, context, createSession, addMessage, sessions, selectedProvider, providerConfigs, executeComplete]);
+  }, [
+    input,
+    loading,
+    activeSessionId,
+    context,
+    createSession,
+    addMessage,
+    sessions,
+    selectedProvider,
+    providerConfigs,
+    executeComplete,
+  ]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -192,8 +206,8 @@ export function AIChat({ context, trigger }: AIChatProps) {
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>{trigger || defaultTrigger}</SheetTrigger>
-      <SheetContent className="w-[400px] sm:w-[540px] flex flex-col p-0">
-        <SheetHeader className="px-4 py-3 border-b flex-shrink-0">
+      <SheetContent className="w-100 sm:w-135 flex flex-col p-0">
+        <SheetHeader className="px-4 py-3 border-b shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <SheetTitle className="flex items-center gap-2">
@@ -203,7 +217,11 @@ export function AIChat({ context, trigger }: AIChatProps) {
               {providers.length > 0 && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" className="h-7 text-xs gap-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-xs gap-1"
+                    >
                       {selectedProvider || "Auto"}
                       <ChevronDown className="h-3 w-3" />
                     </Button>
@@ -259,7 +277,7 @@ export function AIChat({ context, trigger }: AIChatProps) {
                             onClick={() => handleSelectSession(session.id)}
                             className={cn(
                               "w-full flex items-center justify-between rounded-md px-2 py-2 text-left hover:bg-muted group",
-                              activeSessionId === session.id && "bg-muted"
+                              activeSessionId === session.id && "bg-muted",
                             )}
                           >
                             <div className="min-w-0 flex-1">
@@ -275,7 +293,9 @@ export function AIChat({ context, trigger }: AIChatProps) {
                               variant="ghost"
                               size="icon"
                               className="h-6 w-6 opacity-0 group-hover:opacity-100"
-                              onClick={(e) => handleDeleteSession(e, session.id)}
+                              onClick={(e) =>
+                                handleDeleteSession(e, session.id)
+                              }
                             >
                               <Trash2 className="h-3 w-3" />
                             </Button>
@@ -286,11 +306,7 @@ export function AIChat({ context, trigger }: AIChatProps) {
                   </div>
                 </PopoverContent>
               </Popover>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleNewChat}
-              >
+              <Button variant="ghost" size="icon" onClick={handleNewChat}>
                 <Plus className="h-4 w-4" />
               </Button>
             </div>
@@ -315,7 +331,7 @@ export function AIChat({ context, trigger }: AIChatProps) {
                   key={message.id}
                   className={cn(
                     "flex",
-                    message.role === "user" ? "justify-end" : "justify-start"
+                    message.role === "user" ? "justify-end" : "justify-start",
                   )}
                 >
                   <div
@@ -323,10 +339,12 @@ export function AIChat({ context, trigger }: AIChatProps) {
                       "max-w-[85%] rounded-lg px-3 py-2",
                       message.role === "user"
                         ? "bg-primary text-primary-foreground"
-                        : "bg-muted"
+                        : "bg-muted",
                     )}
                   >
-                    <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                    <p className="text-sm whitespace-pre-wrap">
+                      {message.content}
+                    </p>
                     {message.modelUsed && (
                       <p className="text-xs opacity-60 mt-1">
                         {message.modelUsed}
@@ -347,7 +365,7 @@ export function AIChat({ context, trigger }: AIChatProps) {
         </ScrollArea>
 
         {/* Input */}
-        <div className="flex-shrink-0 border-t p-4">
+        <div className="shrink-0 border-t p-4">
           <div className="flex gap-2">
             <Textarea
               ref={inputRef}
@@ -355,7 +373,7 @@ export function AIChat({ context, trigger }: AIChatProps) {
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Ask anything about your emails..."
-              className="min-h-[60px] max-h-[120px] resize-none"
+              className="min-h-15 max-h-30 resize-none"
               disabled={loading}
             />
             <Button

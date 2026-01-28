@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import { Temporal } from 'temporal-polyfill';
 import { EventDetailPanelProps } from '../../types/eventDetail';
@@ -10,6 +10,7 @@ import { useCalendarTheme } from '../../core/calendarStoreHooks';
 import { resolveAppliedTheme } from '../../utils/themeUtils';
 import { CalendarApp } from '@calendar/core';
 import { useLocale } from '@calendar/locale';
+import { Button } from '@/components/ui/button';
 
 interface DefaultEventDetailPanelProps extends EventDetailPanelProps {
   app?: CalendarApp;
@@ -28,6 +29,7 @@ const DefaultEventDetailPanel: React.FC<DefaultEventDetailPanelProps> = ({
   selectedEventElementRef,
   onEventUpdate,
   onEventDelete,
+  onClose,
   app,
 }) => {
   const { effectiveTheme } = useCalendarTheme();
@@ -35,6 +37,59 @@ const DefaultEventDetailPanel: React.FC<DefaultEventDetailPanelProps> = ({
   const { t } = useLocale();
   const arrowBgColor = appliedTheme === 'dark' ? '#1f2937' : 'white';
   const arrowBorderColor = appliedTheme === 'dark' ? 'rgb(55, 65, 81)' : 'rgb(229, 231, 235)';
+
+  // Use local state for editing to prevent stale closure issues
+  const [editedEvent, setEditedEvent] = useState(calendarEvent);
+
+  // Track if user is currently editing to avoid overwriting their changes
+  const isEditingRef = useRef(false);
+
+  // Sync state only when the event ID changes (not on every prop update)
+  useEffect(() => {
+    if (!isEditingRef.current) {
+      setEditedEvent(calendarEvent);
+    }
+  }, [calendarEvent.id]);
+
+  // Debounced save - update parent after user stops typing
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingUpdateRef = useRef<typeof editedEvent | null>(null);
+
+  const handleFieldChange = <K extends keyof typeof editedEvent>(
+    field: K,
+    value: typeof editedEvent[K]
+  ) => {
+    isEditingRef.current = true;
+
+    // Update local state immediately for responsive UI
+    setEditedEvent(prev => {
+      const updated = { ...prev, [field]: value };
+      pendingUpdateRef.current = updated;
+      return updated;
+    });
+
+    // Clear existing timeout
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+
+    // Debounce the save to parent
+    saveTimeoutRef.current = setTimeout(() => {
+      if (pendingUpdateRef.current) {
+        onEventUpdate(pendingUpdateRef.current);
+      }
+      isEditingRef.current = false;
+    }, 300);
+  };
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Get visible calendar type options
   const colorOptions: ColorOption[] = useMemo(() => {
@@ -46,21 +101,23 @@ const DefaultEventDetailPanel: React.FC<DefaultEventDetailPanelProps> = ({
   }, [app, app?.getCalendars()]); // Depend on app.getCalendars() to update when calendars change
 
   const convertToAllDay = () => {
-    const plainDate = isPlainDate(calendarEvent.start)
-      ? calendarEvent.start
-      : calendarEvent.start.toPlainDate();
-    onEventUpdate({
-      ...calendarEvent,
+    const plainDate = isPlainDate(editedEvent.start)
+      ? editedEvent.start
+      : editedEvent.start.toPlainDate();
+    const updated = {
+      ...editedEvent,
       allDay: true,
       start: plainDate,
       end: plainDate,
-    });
+    };
+    setEditedEvent(updated);
+    onEventUpdate(updated);
   };
 
   const convertToRegular = () => {
-    const plainDate = isPlainDate(calendarEvent.start)
-      ? calendarEvent.start
-      : calendarEvent.start.toPlainDate();
+    const plainDate = isPlainDate(editedEvent.start)
+      ? editedEvent.start
+      : editedEvent.start.toPlainDate();
     const start = Temporal.ZonedDateTime.from({
       year: plainDate.year,
       month: plainDate.month,
@@ -77,43 +134,47 @@ const DefaultEventDetailPanel: React.FC<DefaultEventDetailPanelProps> = ({
       minute: 0,
       timeZone: Temporal.Now.timeZoneId(),
     });
-    onEventUpdate({
-      ...calendarEvent,
+    const updated = {
+      ...editedEvent,
       allDay: false,
       start,
       end,
-    });
+    };
+    setEditedEvent(updated);
+    onEventUpdate(updated);
   };
 
   const eventTimeZone = useMemo(() => {
-    if (!isPlainDate(calendarEvent.start)) {
+    if (!isPlainDate(editedEvent.start)) {
       return (
-        (calendarEvent.start as any).timeZoneId ||
-        (calendarEvent.start as Temporal.ZonedDateTime).timeZoneId ||
+        (editedEvent.start as any).timeZoneId ||
+        (editedEvent.start as Temporal.ZonedDateTime).timeZoneId ||
         Temporal.Now.timeZoneId()
       );
     }
 
-    if (calendarEvent.end && !isPlainDate(calendarEvent.end)) {
+    if (editedEvent.end && !isPlainDate(editedEvent.end)) {
       return (
-        (calendarEvent.end as any).timeZoneId ||
-        (calendarEvent.end as Temporal.ZonedDateTime).timeZoneId ||
+        (editedEvent.end as any).timeZoneId ||
+        (editedEvent.end as Temporal.ZonedDateTime).timeZoneId ||
         Temporal.Now.timeZoneId()
       );
     }
 
     return Temporal.Now.timeZoneId();
-  }, [calendarEvent.end, calendarEvent.start]);
+  }, [editedEvent.end, editedEvent.start]);
 
   const handleAllDayRangeChange = (
     nextRange: [Temporal.ZonedDateTime, Temporal.ZonedDateTime]
   ) => {
     const [start, end] = nextRange;
-    onEventUpdate({
-      ...calendarEvent,
+    const updated = {
+      ...editedEvent,
       start: start.toPlainDate(),
       end: end.toPlainDate(),
-    });
+    };
+    setEditedEvent(updated);
+    onEventUpdate(updated);
   };
 
   // Calculate arrow style
@@ -257,24 +318,19 @@ const DefaultEventDetailPanel: React.FC<DefaultEventDetailPanelProps> = ({
         <div className="flex-1">
           <input
             type="text"
-            value={calendarEvent.title}
+            value={editedEvent.title}
             onChange={e => {
-              onEventUpdate({
-                ...calendarEvent,
-                title: e.target.value,
-              });
+              handleFieldChange('title', e.target.value);
             }}
+            autoFocus
             className="w-full border border-slate-200 dark:border-gray-600 rounded-lg px-3 py-1.5 text-sm text-gray-900 dark:text-gray-100 dark:bg-gray-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition"
           />
         </div>
         <ColorPicker
           options={colorOptions}
-          value={calendarEvent.calendarId || 'blue'}
+          value={editedEvent.calendarId || 'blue'}
           onChange={value => {
-            onEventUpdate({
-              ...calendarEvent,
-              calendarId: value,
-            });
+            handleFieldChange('calendarId', value);
           }}
           registry={app?.getCalendarRegistry()}
         />
@@ -284,7 +340,7 @@ const DefaultEventDetailPanel: React.FC<DefaultEventDetailPanelProps> = ({
         <div className="mb-3">
           <div className="text-xs text-gray-600 dark:text-gray-300 mb-1">{t('dateRange')}</div>
           <RangePicker
-            value={[calendarEvent.start, calendarEvent.end]}
+            value={[editedEvent.start, editedEvent.end]}
             format="YYYY-MM-DD"
             showTime={false}
             timeZone={eventTimeZone}
@@ -298,25 +354,19 @@ const DefaultEventDetailPanel: React.FC<DefaultEventDetailPanelProps> = ({
         <div className="mb-3">
           <div className="text-xs text-gray-600 dark:text-gray-300 mb-1">{t('timeRange')}</div>
           <RangePicker
-            value={[calendarEvent.start, calendarEvent.end]}
-            timeZone={
-              eventTimeZone
-            }
+            value={[editedEvent.start, editedEvent.end]}
+            timeZone={eventTimeZone}
             onChange={(nextRange) => {
               const [start, end] = nextRange;
-              onEventUpdate({
-                ...calendarEvent,
-                start,
-                end,
-              });
+              const updated = { ...editedEvent, start, end };
+              setEditedEvent(updated);
+              onEventUpdate(updated);
             }}
             onOk={(nextRange) => {
               const [start, end] = nextRange;
-              onEventUpdate({
-                ...calendarEvent,
-                start,
-                end,
-              });
+              const updated = { ...editedEvent, start, end };
+              setEditedEvent(updated);
+              onEventUpdate(updated);
             }}
             locale={app?.state.locale}
           />
@@ -326,13 +376,8 @@ const DefaultEventDetailPanel: React.FC<DefaultEventDetailPanelProps> = ({
       <div className="mb-3">
         <span className="block text-xs text-gray-600 dark:text-gray-300 mb-1">{t('note')}</span>
         <textarea
-          value={calendarEvent.description ?? ''}
-          onChange={e =>
-            onEventUpdate({
-              ...calendarEvent,
-              description: e.target.value,
-            })
-          }
+          value={editedEvent.description ?? ''}
+          onChange={e => handleFieldChange('description', e.target.value)}
           rows={3}
           className="w-full border border-slate-200 dark:border-gray-600 rounded-lg px-3 py-2 text-sm text-gray-900 dark:text-gray-100 dark:bg-gray-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition resize-none"
           placeholder={t('addNotePlaceholder')}
@@ -341,27 +386,49 @@ const DefaultEventDetailPanel: React.FC<DefaultEventDetailPanelProps> = ({
 
       <div className="flex space-x-2">
         {!isAllDay ? (
-          <button
-            className="px-2 py-1 bg-primary text-primary-foreground rounded hover:bg-primary text-xs font-medium transition"
+          <Button
+            variant="secondary"
+            size="sm"
             onClick={convertToAllDay}
           >
             {t('setAsAllDay')}
-          </button>
+          </Button>
         ) : (
-          <button
-            className="px-2 py-1 bg-primary text-primary-foreground rounded hover:bg-primary text-xs font-medium transition"
+          <Button
+            variant="secondary"
+            size="sm"
             onClick={convertToRegular}
           >
             {t('setAsTimed')}
-          </button>
+          </Button>
         )}
 
-        <button
-          className="px-2 py-1 bg-destructive text-destructive-foreground rounded hover:bg-destructive/90 text-xs font-medium transition"
+        <Button
+          variant="destructive"
+          size="sm"
           onClick={() => onEventDelete(calendarEvent.id)}
         >
           {t('delete')}
-        </button>
+        </Button>
+
+        {onClose && (
+          <Button
+            size="sm"
+            className="ml-auto"
+            onClick={() => {
+              // Save any pending changes before closing
+              if (saveTimeoutRef.current) {
+                clearTimeout(saveTimeoutRef.current);
+              }
+              if (pendingUpdateRef.current) {
+                onEventUpdate(pendingUpdateRef.current);
+              }
+              onClose();
+            }}
+          >
+            OK
+          </Button>
+        )}
       </div>
     </div>
   );

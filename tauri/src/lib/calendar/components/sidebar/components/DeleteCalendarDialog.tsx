@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { CalendarType } from '../../../types';
 import { useLocale } from '@calendar/locale';
+import { Button } from '@/components/ui/button';
 
 interface DeleteCalendarDialogProps {
   calendarId: string;
@@ -39,13 +40,12 @@ export const DeleteCalendarDialog: React.FC<DeleteCalendarDialogProps> = ({
             </p>
             <div className="mt-6 flex justify-between items-center">
               <div className="relative">
-                <button
-                  type="button"
+                <Button
+                  variant="outline"
                   onClick={() => setShowMergeDropdown(!showMergeDropdown)}
-                  className="flex items-center gap-1 rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-slate-700"
                 >
                   {t('merge')}
-                </button>
+                </Button>
                 {showMergeDropdown && (
                   <div className="absolute left-0 top-full mt-1 min-w-full w-max rounded-md border border-gray-200 bg-background shadow-lg dark:border-slate-700 z-10 max-h-60 overflow-y-auto">
                     {calendars
@@ -70,20 +70,18 @@ export const DeleteCalendarDialog: React.FC<DeleteCalendarDialogProps> = ({
                 )}
               </div>
               <div className="flex gap-3">
-                <button
-                  type="button"
+                <Button
+                  variant="outline"
                   onClick={onCancel}
-                  className="rounded-md bg-background border border-border px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-(--hover)"
                 >
                   {t('cancel')}
-                </button>
-                <button
-                  type="button"
+                </Button>
+                <Button
+                  variant="destructive"
                   onClick={() => onStepChange('confirm_delete')}
-                  className="rounded-md bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground hover:bg-destructive/90"
                 >
                   {t('delete')}
-                </button>
+                </Button>
               </div>
             </div>
           </>
@@ -96,20 +94,18 @@ export const DeleteCalendarDialog: React.FC<DeleteCalendarDialogProps> = ({
               {t('confirmDeleteMessage')}
             </p>
             <div className="mt-6 flex justify-end gap-3">
-              <button
-                type="button"
+              <Button
+                variant="ghost"
                 onClick={onCancel}
-                className="rounded-md px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-slate-700"
               >
                 {t('cancel')}
-              </button>
-              <button
-                type="button"
+              </Button>
+              <Button
+                variant="destructive"
                 onClick={onConfirmDelete}
-                className="rounded-md bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground hover:bg-destructive/90"
               >
                 {t('delete')}
-              </button>
+              </Button>
             </div>
           </>
         )}

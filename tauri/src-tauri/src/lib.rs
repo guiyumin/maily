@@ -6,7 +6,7 @@ mod mail;
 mod reminders;
 mod smtp;
 
-use tauri::WebviewWindowBuilder;
+use tauri::{Manager, RunEvent, WebviewWindowBuilder, WindowEvent};
 use ai::{
     init_summaries_table, get_cached_summary, delete_summary, list_available_providers,
     cli_complete as do_cli_complete, save_summary_from_frontend,
@@ -675,7 +675,22 @@ pub fn run() {
                 builder = builder.initialization_script(&init_script);
             }
 
-            builder.build()?;
+            let window = builder.build()?;
+
+            // On macOS: hide window instead of closing when user clicks the red X button
+            // This keeps the app running in the background for email sync
+            #[cfg(target_os = "macos")]
+            {
+                let window_clone = window.clone();
+                window.on_window_event(move |event| {
+                    if let WindowEvent::CloseRequested { api, .. } = event {
+                        // Prevent the window from being destroyed
+                        api.prevent_close();
+                        // Hide the window instead (it goes to dock)
+                        let _ = window_clone.hide();
+                    }
+                });
+            }
 
             // Initialize IMAP queue with app handle for events
             init_imap_queue(app.handle().clone());
@@ -783,6 +798,18 @@ pub fn run() {
             get_batch_email_tags,
             search_emails_by_tags
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app_handle, event| {
+            // On macOS: show window when user clicks the dock icon
+            #[cfg(target_os = "macos")]
+            if let RunEvent::Reopen { has_visible_windows, .. } = event {
+                if !has_visible_windows {
+                    if let Some(window) = app_handle.get_webview_window("main") {
+                        let _ = window.show();
+                        let _ = window.set_focus();
+                    }
+                }
+            }
+        });
 }

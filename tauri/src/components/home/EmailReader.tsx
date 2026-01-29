@@ -82,6 +82,7 @@ import { TagList } from "@/components/tags/TagList";
 import { getEmailTags } from "@/lib/tags";
 import type { EmailTag } from "@/types/tags";
 import type { AIProviderConfig } from "@/lib/ai/types";
+import { extractPrimaryContent } from "@/lib/email";
 
 interface Attachment {
   part_id: string;
@@ -1078,10 +1079,7 @@ export function EmailReader({
       }
 
       // Generate new summary via JS SDK
-      const bodyText = emailFull.body_html
-        ? new DOMParser().parseFromString(emailFull.body_html, "text/html").body
-            .textContent || ""
-        : "";
+      const bodyText = extractPrimaryContent(emailFull.body_html);
 
       const prompt = buildSummarizePrompt({
         from: emailFull.from,
@@ -1126,10 +1124,7 @@ export function EmailReader({
     setExtractionError(null);
 
     try {
-      const bodyText = emailFull.body_html
-        ? new DOMParser().parseFromString(emailFull.body_html, "text/html").body
-            .textContent || ""
-        : "";
+      const bodyText = extractPrimaryContent(emailFull.body_html);
 
       const prompt = buildExtractEventPrompt({
         from: emailFull.from,
@@ -1173,10 +1168,7 @@ export function EmailReader({
     setExtractingReminder(true);
 
     try {
-      const bodyText = emailFull.body_html
-        ? new DOMParser().parseFromString(emailFull.body_html, "text/html").body
-            .textContent || ""
-        : "";
+      const bodyText = extractPrimaryContent(emailFull.body_html);
 
       const prompt = buildExtractReminderPrompt({
         from: emailFull.from,
@@ -1652,14 +1644,7 @@ export function EmailReader({
                 extractionError={extractionError}
                 emailFrom={emailFull.from}
                 emailSubject={emailFull.subject}
-                emailBody={
-                  emailFull.body_html
-                    ? new DOMParser().parseFromString(
-                        emailFull.body_html,
-                        "text/html",
-                      ).body.textContent || ""
-                    : ""
-                }
+                emailBody={extractPrimaryContent(emailFull.body_html)}
                 providerConfigs={providerConfigs}
                 onClose={() => setEventDialogOpen(false)}
               />
@@ -1734,12 +1719,7 @@ export function EmailReader({
               ? {
                   from: emailFull.from,
                   subject: emailFull.subject,
-                  bodyText: emailFull.body_html
-                    ? new DOMParser().parseFromString(
-                        emailFull.body_html,
-                        "text/html",
-                      ).body.textContent || ""
-                    : "",
+                  bodyText: extractPrimaryContent(emailFull.body_html),
                 }
               : undefined
           }

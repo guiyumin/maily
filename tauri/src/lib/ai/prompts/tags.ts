@@ -13,12 +13,14 @@ export function buildTagsPrompt(params: GenerateTagsParams): string {
 
   return `Analyze this email and suggest 1-5 short tags to categorize it.
 
+IMPORTANT: Focus on the NEWEST message only. Ignore quoted replies, forwarded content, and previous messages in the thread.
+
 From: ${params.from}
 Subject: ${params.subject}
 
 ${bodyTruncated}
 
-Return ONLY a comma-separated list of short tags (1-2 words each). Examples: work, urgent, newsletter, receipt, travel, meeting, personal, finance, shipping, social
+Return ONLY a comma-separated list of short tags (1-2 words each) based on the NEWEST message content. Examples: work, urgent, newsletter, receipt, travel, meeting, personal, finance, shipping, social
 
 Tags:`;
 }

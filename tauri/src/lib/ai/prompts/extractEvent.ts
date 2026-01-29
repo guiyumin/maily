@@ -16,6 +16,8 @@ export function buildExtractEventPrompt(params: ExtractEventParams): string {
   return `Current time: ${now}
 User timezone: ${params.userTimezone}
 
+IMPORTANT: Focus on the NEWEST message only. Ignore quoted replies, forwarded content, and previous messages in the thread.
+
 EMAIL:
 From: ${params.from}
 Subject: ${params.subject}
@@ -24,7 +26,7 @@ ${bodyTruncated}
 
 ---
 
-Extract a calendar event from this email. Look for:
+Extract a calendar event from the NEWEST part of this email. Look for:
 - Meetings, calls, appointments
 - Webinars, conferences, events
 - Deadlines with specific dates/times

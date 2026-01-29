@@ -14,6 +14,8 @@ export function buildExtractReminderPrompt(params: ExtractReminderParams): strin
 
   return `Current time: ${now}
 
+IMPORTANT: Focus on the NEWEST message only. Ignore quoted replies, forwarded content, and previous messages in the thread.
+
 EMAIL:
 From: ${params.from}
 Subject: ${params.subject}
@@ -22,7 +24,7 @@ ${bodyTruncated}
 
 ---
 
-Extract an actionable task from this email. Look for:
+Extract an actionable task from the NEWEST part of this email. Look for:
 - Requests that need a response
 - Documents to review/sign
 - Deadlines to meet

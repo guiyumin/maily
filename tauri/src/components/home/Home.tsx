@@ -573,13 +573,22 @@ export function Home() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [selectedEmail, emails, handleNavigate]);
 
+  // Keep selected mailbox when switching accounts, but fall back to INBOX if Unread has no emails
+  const handleSelectAccount = useCallback((account: string) => {
+    setSelectedAccount(account);
+    // If currently viewing Unread and new account has no unread emails, switch to INBOX
+    if (selectedMailbox === "__UNREAD__" && (unreadCounts[account] || 0) === 0) {
+      setSelectedMailbox("INBOX");
+    }
+  }, [selectedMailbox, unreadCounts]);
+
   return (
     <TooltipProvider>
       <div className="flex h-screen w-full overflow-hidden bg-background">
         <AccountRail
           accounts={accounts}
           selectedAccount={selectedAccount}
-          onSelectAccount={setSelectedAccount}
+          onSelectAccount={handleSelectAccount}
           unreadCounts={unreadCounts}
           accountOrder={accountOrder}
           onOrderChange={handleAccountOrderChange}

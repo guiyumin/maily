@@ -4522,7 +4522,7 @@ checksum = "61c41af27dd6d1e27b1b16b489db798443478cef1f06a660c96db617ba5de3b1"
 
 [[package]]
 name = "tauri"
-version = "0.1.34"
+version = "0.1.35"
 dependencies = [
  "ammonia",
  "base64 0.22.1",

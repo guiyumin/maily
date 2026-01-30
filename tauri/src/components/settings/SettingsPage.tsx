@@ -48,6 +48,7 @@ export function SettingsPage() {
   const { t } = useLocale();
   const { section: initialSection } = useSearch({ from: "/settings" });
   const [config, setConfig] = useState<Config | null>(null);
+  const [originalConfig, setOriginalConfig] = useState<Config | null>(null);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -63,13 +64,15 @@ export function SettingsPage() {
       .then(([accountsData, configData]) => {
         setAccounts(accountsData ?? []);
         // Ensure ai_providers is always an array (backend skips serializing empty arrays)
-        setConfig({
+        const normalizedConfig = {
           ...configData,
           ai_providers: configData.ai_providers ?? [],
           notifications: configData.notifications ?? {
             native: { enabled: true, new_email: true, calendar_reminder: true },
           },
-        });
+        };
+        setConfig(normalizedConfig);
+        setOriginalConfig(normalizedConfig);
       })
       .catch(console.error)
       .finally(() => setLoading(false));
@@ -86,11 +89,19 @@ export function SettingsPage() {
     setSaving(true);
     try {
       await invoke("save_config", { config });
+      setOriginalConfig(config);
       setDirty(false);
     } catch (err) {
       console.error("Failed to save config:", err);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const cancelChanges = () => {
+    if (originalConfig) {
+      setConfig(originalConfig);
+      setDirty(false);
     }
   };
 
@@ -190,9 +201,19 @@ export function SettingsPage() {
           </h1>
           <div className="flex items-center gap-3">
             {dirty && (
-              <span className="text-sm text-muted-foreground">
+              <span className="text-sm text-red-500">
                 {t("common.unsavedChanges")}
               </span>
+            )}
+            {dirty && (
+              <Button
+                onClick={cancelChanges}
+                disabled={saving}
+                size="sm"
+                variant="outline"
+              >
+                {t("common.cancel")}
+              </Button>
             )}
             <Button onClick={saveConfig} disabled={!dirty || saving} size="sm">
               {saving ? t("common.saving") : t("common.save")}

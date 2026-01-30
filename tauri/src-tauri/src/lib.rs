@@ -50,7 +50,7 @@ use reminders::{
 };
 
 #[tauri::command]
-fn list_accounts() -> Result<Vec<Account>, String> {
+fn list_full_accounts() -> Result<Vec<Account>, String> {
     get_accounts().map_err(|e| e.to_string())
 }
 
@@ -128,33 +128,37 @@ fn delete_account_avatar(account_name: String) -> Result<Vec<Account>, String> {
     Err("Account not found".to_string())
 }
 
-/// Get avatar as data URL for an account (base64 encoded)
+/// Get avatar URLs for all accounts (email -> base64 data URL)
 #[tauri::command]
-fn get_account_avatar_data_url(account_name: String) -> Result<Option<String>, String> {
+fn get_account_avatar_urls() -> Result<std::collections::HashMap<String, String>, String> {
     use base64::{Engine, engine::general_purpose::STANDARD};
 
     let accounts = get_accounts().map_err(|e| e.to_string())?;
-    if let Some(account) = accounts.iter().find(|a| a.name == account_name) {
+    let mut urls = std::collections::HashMap::new();
+
+    for account in accounts {
         if let Some(avatar) = &account.avatar {
             if let Some(path) = mail_get_avatar_path(avatar) {
-                let data = std::fs::read(&path).map_err(|e| e.to_string())?;
-                let ext = path.extension()
-                    .and_then(|e| e.to_str())
-                    .unwrap_or("png")
-                    .to_lowercase();
-                let mime = match ext.as_str() {
-                    "jpg" | "jpeg" => "image/jpeg",
-                    "png" => "image/png",
-                    "gif" => "image/gif",
-                    "webp" => "image/webp",
-                    _ => "image/png",
-                };
-                let b64 = STANDARD.encode(&data);
-                return Ok(Some(format!("data:{};base64,{}", mime, b64)));
+                if let Ok(data) = std::fs::read(&path) {
+                    let ext = path.extension()
+                        .and_then(|e| e.to_str())
+                        .unwrap_or("png")
+                        .to_lowercase();
+                    let mime = match ext.as_str() {
+                        "jpg" | "jpeg" => "image/jpeg",
+                        "png" => "image/png",
+                        "gif" => "image/gif",
+                        "webp" => "image/webp",
+                        _ => "image/png",
+                    };
+                    let b64 = STANDARD.encode(&data);
+                    urls.insert(account.credentials.email.clone(), format!("data:{};base64,{}", mime, b64));
+                }
             }
         }
     }
-    Ok(None)
+
+    Ok(urls)
 }
 
 /// Get everything needed to render on startup - ONE call instead of multiple
@@ -803,14 +807,14 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             // Account operations
-            list_accounts,
+            list_full_accounts,
             add_account,
             remove_account,
             update_account,
             test_account,
             upload_account_avatar,
             delete_account_avatar,
-            get_account_avatar_data_url,
+            get_account_avatar_urls,
             // Email operations
             get_startup_state,
             list_emails,

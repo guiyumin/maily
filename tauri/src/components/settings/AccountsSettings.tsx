@@ -47,46 +47,71 @@ import type { FullAccount } from "@/types/account";
 import { useLocale } from "@/lib/i18n";
 
 interface AccountsSettingsProps {
-  accounts: FullAccount[];
-  onAccountsChange: (accounts: FullAccount[]) => void;
+  fullAccounts: FullAccount[];
+  onFullAccountsChange: (accounts: FullAccount[]) => void;
 }
 
-const PROVIDER_DEFAULTS = {
+type Provider = "gmail" | "yahoo" | "qq";
+
+const PROVIDER_DEFAULTS: Record<
+  Provider,
+  { imapHost: string; imapPort: number; smtpHost: string; smtpPort: number }
+> = {
   gmail: {
-    imap_host: "imap.gmail.com",
-    imap_port: 993,
-    smtp_host: "smtp.gmail.com",
-    smtp_port: 587,
+    imapHost: "imap.gmail.com",
+    imapPort: 993,
+    smtpHost: "smtp.gmail.com",
+    smtpPort: 587,
   },
   yahoo: {
-    imap_host: "imap.mail.yahoo.com",
-    imap_port: 993,
-    smtp_host: "smtp.mail.yahoo.com",
-    smtp_port: 587,
+    imapHost: "imap.mail.yahoo.com",
+    imapPort: 993,
+    smtpHost: "smtp.mail.yahoo.com",
+    smtpPort: 587,
   },
   qq: {
-    imap_host: "imap.qq.com",
-    imap_port: 993,
-    smtp_host: "smtp.qq.com",
-    smtp_port: 465,
+    imapHost: "imap.qq.com",
+    imapPort: 993,
+    smtpHost: "smtp.qq.com",
+    smtpPort: 465,
   },
 };
 
+interface FormState {
+  provider: Provider;
+  name: string;
+  email: string;
+  password: string;
+  imapHost: string;
+  imapPort: number;
+  smtpHost: string;
+  smtpPort: number;
+}
+
+const DEFAULT_FORM: FormState = {
+  provider: "gmail",
+  name: "",
+  email: "",
+  password: "",
+  ...PROVIDER_DEFAULTS.gmail,
+};
+
 export function AccountsSettings({
-  accounts,
-  onAccountsChange,
+  fullAccounts,
+  onFullAccountsChange,
 }: AccountsSettingsProps) {
   const { t } = useLocale();
+
+  // Dialog state
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingName, setEditingName] = useState<string | null>(null);
-  const [provider, setProvider] = useState<"gmail" | "yahoo" | "qq">("gmail");
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [imapHost, setImapHost] = useState("imap.gmail.com");
-  const [imapPort, setImapPort] = useState(993);
-  const [smtpHost, setSmtpHost] = useState("smtp.gmail.com");
-  const [smtpPort, setSmtpPort] = useState(587);
+
+  // Form state (consolidated)
+  const [form, setForm] = useState<FormState>(DEFAULT_FORM);
+  const updateForm = (updates: Partial<FormState>) =>
+    setForm((prev) => ({ ...prev, ...updates }));
+
+  // UI state
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{
     success: boolean;
@@ -98,23 +123,18 @@ export function AccountsSettings({
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
   // Use shared store for avatar URLs
-  const { avatarUrls, setAvatarUrl, removeAvatarUrl, loadAvatarUrls } = useAccountsStore();
+  const { avatarUrls, setAvatarUrl, removeAvatarUrl, setFullAccounts, loadAvatarUrls } =
+    useAccountsStore();
 
-  // Load avatar URLs for all accounts on mount
+  // Sync full accounts to store and load avatar URLs
   useEffect(() => {
+    setFullAccounts(fullAccounts);
     loadAvatarUrls();
-  }, [accounts, loadAvatarUrls]);
+  }, [fullAccounts, setFullAccounts, loadAvatarUrls]);
 
   const resetForm = () => {
     setEditingName(null);
-    setProvider("gmail");
-    setName("");
-    setEmail("");
-    setPassword("");
-    setImapHost("imap.gmail.com");
-    setImapPort(993);
-    setSmtpHost("smtp.gmail.com");
-    setSmtpPort(587);
+    setForm(DEFAULT_FORM);
     setTestResult(null);
     setShowPassword(false);
     setAvatarPreview(null);
@@ -123,26 +143,24 @@ export function AccountsSettings({
 
   const openEditDialog = async (account: FullAccount) => {
     setEditingName(account.name);
-    const accountProvider = account.provider as "gmail" | "yahoo" | "qq";
-    setProvider(accountProvider);
-    setName(account.name);
-    setEmail(account.credentials.email);
-    setPassword(account.credentials.password);
-    setImapHost(account.credentials.imap_host);
-    setImapPort(account.credentials.imap_port);
-    setSmtpHost(account.credentials.smtp_host);
-    setSmtpPort(account.credentials.smtp_port);
+    setForm({
+      provider: account.provider as Provider,
+      name: account.name,
+      email: account.credentials.email,
+      password: account.credentials.password,
+      imapHost: account.credentials.imap_host,
+      imapPort: account.credentials.imap_port,
+      smtpHost: account.credentials.smtp_host,
+      smtpPort: account.credentials.smtp_port,
+    });
     setTestResult(null);
     setShowPassword(false);
     setAvatarFilePath(null);
-
-    // Load existing avatar if any
-    if (account.avatar && avatarUrls[account.credentials.email]) {
-      setAvatarPreview(avatarUrls[account.credentials.email]);
-    } else {
-      setAvatarPreview(null);
-    }
-
+    setAvatarPreview(
+      account.avatar && avatarUrls[account.credentials.email]
+        ? avatarUrls[account.credentials.email]
+        : null,
+    );
     setDialogOpen(true);
   };
 
@@ -178,27 +196,22 @@ export function AccountsSettings({
     setAvatarFilePath(null);
   };
 
-  const handleProviderChange = (newProvider: "gmail" | "yahoo" | "qq") => {
-    setProvider(newProvider);
-    const defaults = PROVIDER_DEFAULTS[newProvider];
-    setImapHost(defaults.imap_host);
-    setImapPort(defaults.imap_port);
-    setSmtpHost(defaults.smtp_host);
-    setSmtpPort(defaults.smtp_port);
+  const handleProviderChange = (provider: Provider) => {
+    updateForm({ provider, ...PROVIDER_DEFAULTS[provider] });
   };
 
   const testConnection = async () => {
-    if (!email || !password || !imapHost) return;
+    if (!form.email || !form.password || !form.imapHost) return;
 
     setTesting(true);
     setTestResult(null);
 
     try {
       await invoke("test_account", {
-        email,
-        password,
-        imapHost,
-        imapPort,
+        email: form.email,
+        password: form.password,
+        imapHost: form.imapHost,
+        imapPort: form.imapPort,
       });
       setTestResult({ success: true });
       toast.success("Connection successful!");
@@ -211,18 +224,18 @@ export function AccountsSettings({
   };
 
   const saveAccount = async () => {
-    if (!name || !email || !password) return;
+    if (!form.name || !form.email || !form.password) return;
 
     const account: FullAccount = {
-      name,
-      provider,
+      name: form.name,
+      provider: form.provider,
       credentials: {
-        email,
-        password,
-        imap_host: imapHost,
-        imap_port: imapPort,
-        smtp_host: smtpHost,
-        smtp_port: smtpPort,
+        email: form.email,
+        password: form.password,
+        imap_host: form.imapHost,
+        imap_port: form.imapPort,
+        smtp_host: form.smtpHost,
+        smtp_port: form.smtpPort,
       },
     };
 
@@ -245,15 +258,13 @@ export function AccountsSettings({
         setUploadingAvatar(true);
         try {
           newAccounts = await invoke<FullAccount[]>("upload_account_avatar", {
-            accountName: name,
+            accountName: form.name,
             filePath: avatarFilePath,
           });
           // Refresh avatar URL in shared store
-          const dataUrl = await invoke<string | null>("get_account_avatar_data_url", {
-            accountName: name,
-          });
-          if (dataUrl) {
-            setAvatarUrl(email, dataUrl);
+          const avatarUrls = await invoke<Record<string, string>>("get_account_avatar_urls");
+          if (avatarUrls[form.email]) {
+            setAvatarUrl(form.email, avatarUrls[form.email]);
           }
         } catch (err) {
           toast.error(`Failed to upload avatar: ${err}`);
@@ -262,20 +273,20 @@ export function AccountsSettings({
         }
       } else if (editingName && avatarPreview === null) {
         // Remove existing avatar if preview was cleared
-        const existingAccount = accounts.find((a) => a.name === editingName);
+        const existingAccount = fullAccounts.find((a) => a.name === editingName);
         if (existingAccount?.avatar) {
           try {
             newAccounts = await invoke<FullAccount[]>("delete_account_avatar", {
-              accountName: name,
+              accountName: form.name,
             });
-            removeAvatarUrl(email);
+            removeAvatarUrl(form.email);
           } catch (err) {
             toast.error(`Failed to remove avatar: ${err}`);
           }
         }
       }
 
-      onAccountsChange(newAccounts);
+      onFullAccountsChange(newAccounts);
       setDialogOpen(false);
       resetForm();
     } catch (err) {
@@ -291,7 +302,7 @@ export function AccountsSettings({
       const newAccounts = await invoke<FullAccount[]>("remove_account", {
         name: accountName,
       });
-      onAccountsChange(newAccounts);
+      onFullAccountsChange(newAccounts);
       toast.success("Account deleted");
     } catch (err) {
       toast.error(`Failed to delete account: ${err}`);
@@ -305,13 +316,13 @@ export function AccountsSettings({
         <CardDescription>{t("settings.accounts.description")}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {accounts.length === 0 ? (
+        {fullAccounts.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             {t("settings.accounts.noAccounts")}
           </p>
         ) : (
           <div className="space-y-2">
-            {accounts.map((account) => (
+            {fullAccounts.map((account) => (
               <div
                 key={account.name}
                 className="flex items-center justify-between rounded-lg border p-3"
@@ -383,7 +394,7 @@ export function AccountsSettings({
             <div className="space-y-4 py-4">
               <div className="grid gap-2">
                 <Label>Provider</Label>
-                <Select value={provider} onValueChange={handleProviderChange}>
+                <Select value={form.provider} onValueChange={handleProviderChange}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -400,8 +411,8 @@ export function AccountsSettings({
                 <Input
                   id="account_name"
                   placeholder="Work, Personal..."
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  value={form.name}
+                  onChange={(e) => updateForm({ name: e.target.value })}
                 />
               </div>
 
@@ -411,24 +422,24 @@ export function AccountsSettings({
                   id="account_email"
                   type="email"
                   placeholder="you@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  value={form.email}
+                  onChange={(e) => updateForm({ email: e.target.value })}
                 />
               </div>
 
               <div className="grid gap-2">
                 <Label htmlFor="account_password">
-                  {provider === "qq" ? "Authorization Code" : "App Password"}
+                  {form.provider === "qq" ? "Authorization Code" : "App Password"}
                 </Label>
                 <div className="relative">
                   <Input
                     id="account_password"
                     type={showPassword ? "text" : "password"}
                     placeholder={
-                      provider === "qq" ? "Authorization code" : "App password"
+                      form.provider === "qq" ? "Authorization code" : "App password"
                     }
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    value={form.password}
+                    onChange={(e) => updateForm({ password: e.target.value })}
                     className="pr-10"
                   />
                   <Button
@@ -445,7 +456,7 @@ export function AccountsSettings({
                     )}
                   </Button>
                 </div>
-                {provider === "gmail" && (
+                {form.provider === "gmail" && (
                   <p className="text-xs text-muted-foreground">
                     Generate at{" "}
                     <a
@@ -458,7 +469,7 @@ export function AccountsSettings({
                     </a>
                   </p>
                 )}
-                {provider === "qq" && (
+                {form.provider === "qq" && (
                   <p className="text-xs text-muted-foreground">
                     Generate authorization code in QQ Mail Settings → Account →
                     POP3/IMAP/SMTP
@@ -474,7 +485,7 @@ export function AccountsSettings({
                       <AvatarImage src={avatarPreview} alt="Avatar preview" />
                     ) : null}
                     <AvatarFallback className="bg-violet-600 text-xs">
-                      {name ? name.slice(0, 2).toUpperCase() : "?"}
+                      {form.name ? form.name.slice(0, 2).toUpperCase() : "?"}
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex flex-col gap-1">
@@ -529,7 +540,7 @@ export function AccountsSettings({
                 <Button
                   variant="outline"
                   onClick={testConnection}
-                  disabled={!email || !password || !imapHost || testing}
+                  disabled={!form.email || !form.password || !form.imapHost || testing}
                 >
                   {testing ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -551,7 +562,7 @@ export function AccountsSettings({
                 </Button>
                 <Button
                   onClick={saveAccount}
-                  disabled={!name || !email || !password}
+                  disabled={!form.name || !form.email || !form.password}
                 >
                   {editingName
                     ? t("common.save")

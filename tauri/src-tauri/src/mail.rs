@@ -38,6 +38,27 @@ pub struct Account {
     pub avatar: Option<String>,
 }
 
+/// Account without sensitive credentials (for display)
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct SanitizedAccount {
+    pub name: String,
+    pub provider: String,
+    pub email: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub avatar: Option<String>,
+}
+
+impl From<&Account> for SanitizedAccount {
+    fn from(account: &Account) -> Self {
+        SanitizedAccount {
+            name: account.name.clone(),
+            provider: account.provider.clone(),
+            email: account.credentials.email.clone(),
+            avatar: account.avatar.clone(),
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 struct AccountsFile {
     accounts: Vec<Account>,
@@ -103,7 +124,7 @@ pub struct ListEmailsResult {
 /// Initial app state - everything needed to render on startup
 #[derive(Debug, Serialize, Clone)]
 pub struct InitialState {
-    pub accounts: Vec<Account>,
+    pub sanitized_accounts: Vec<SanitizedAccount>,
     pub selected_account: Option<String>,
     pub emails: ListEmailsResult,
 }
@@ -448,7 +469,7 @@ pub fn get_initial_state() -> Result<InitialState, Box<dyn std::error::Error>> {
     };
 
     Ok(InitialState {
-        accounts,
+        sanitized_accounts: accounts.iter().map(SanitizedAccount::from).collect(),
         selected_account,
         emails,
     })

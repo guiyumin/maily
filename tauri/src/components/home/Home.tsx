@@ -26,7 +26,7 @@ interface ListEmailsResult {
 }
 
 interface InitialState {
-  accounts: SanitizedAccount[];
+  sanitized_accounts: SanitizedAccount[];
   selected_account: string | null;
   emails: ListEmailsResult;
 }
@@ -110,10 +110,9 @@ async function fetchAndMergeTags(
 }
 
 export function Home() {
-  // Initialize with preloaded data if available - INSTANT first render
-  const [accounts, setAccounts] = useState<SanitizedAccount[]>(
-    PRELOADED_STATE?.accounts ?? []
-  );
+  // Use shared store for accounts and avatars
+  const { sanitizedAccounts, setSanitizedAccounts, loadAvatarUrls } = useAccountsStore();
+
   const [selectedAccount, setSelectedAccount] = useState<string>(
     PRELOADED_STATE?.selected_account ?? ""
   );
@@ -135,13 +134,13 @@ export function Home() {
   const backgroundLoadingRef = useRef(false);
   const initialLoadDoneRef = useRef(!!PRELOADED_STATE);
 
-  // Sync accounts with shared store for avatar URLs
-  const { setAccounts: setStoreAccounts, loadAvatarUrls } = useAccountsStore();
-
+  // Initialize store with preloaded data
   useEffect(() => {
-    setStoreAccounts(accounts);
+    if (PRELOADED_STATE?.sanitized_accounts) {
+      setSanitizedAccounts(PRELOADED_STATE.sanitized_accounts);
+    }
     loadAvatarUrls();
-  }, [accounts, setStoreAccounts, loadAvatarUrls]);
+  }, [setSanitizedAccounts, loadAvatarUrls]);
 
   // Fetch unread counts for all accounts
   const fetchUnreadCounts = useCallback(async () => {
@@ -194,7 +193,7 @@ export function Home() {
 
     invoke<InitialState>("get_startup_state")
       .then(async (state) => {
-        setAccounts(state.accounts);
+        setSanitizedAccounts(state.sanitized_accounts);
         if (state.selected_account) {
           setSelectedAccount(state.selected_account);
           const dedupedEmails = deduplicateEmails(state.emails.emails);
@@ -591,7 +590,7 @@ export function Home() {
     <TooltipProvider>
       <div className="flex h-screen w-full overflow-hidden bg-background">
         <AccountRail
-          accounts={accounts}
+          accounts={sanitizedAccounts}
           selectedAccount={selectedAccount}
           onSelectAccount={handleSelectAccount}
           unreadCounts={unreadCounts}
@@ -603,7 +602,7 @@ export function Home() {
           selectedMailbox={selectedMailbox}
           onSelectMailbox={setSelectedMailbox}
           unreadCount={unreadCounts[selectedAccount] || 0}
-          provider={accounts.find(a => a.name === selectedAccount)?.provider}
+          provider={sanitizedAccounts.find(a => a.name === selectedAccount)?.provider}
           selectedAccount={selectedAccount}
         />
 

@@ -50,20 +50,21 @@ export function SettingsPage() {
   const { section: initialSection } = useSearch({ from: "/settings" });
   const [config, setConfig] = useState<Config | null>(null);
   const [originalConfig, setOriginalConfig] = useState<Config | null>(null);
-  const [accounts, setAccounts] = useState<FullAccount[]>([]);
+  const [fullAccounts, setFullAccounts] = useState<FullAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
-  const [activeSection, setActiveSection] =
-    useState<SettingsSection>(initialSection ?? "general");
+  const [activeSection, setActiveSection] = useState<SettingsSection>(
+    initialSection ?? "general",
+  );
 
   useEffect(() => {
     Promise.all([
-      invoke<FullAccount[]>("list_accounts"),
+      invoke<FullAccount[]>("list_full_accounts"),
       invoke<Config>("get_config"),
     ])
       .then(([accountsData, configData]) => {
-        setAccounts(accountsData ?? []);
+        setFullAccounts(accountsData ?? []);
         // Ensure ai_providers is always an array (backend skips serializing empty arrays)
         const normalizedConfig = {
           ...configData,
@@ -133,8 +134,8 @@ export function SettingsPage() {
       case "accounts":
         return (
           <AccountsSettings
-            accounts={accounts}
-            onAccountsChange={setAccounts}
+            fullAccounts={fullAccounts}
+            onFullAccountsChange={setFullAccounts}
           />
         );
       case "notifications":

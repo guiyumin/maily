@@ -1,5 +1,11 @@
 import { useState, useCallback, useEffect } from "react";
-import { Plus, Settings, MoreHorizontal, GripVertical, Calendar } from "lucide-react";
+import {
+  Plus,
+  Settings,
+  MoreHorizontal,
+  GripVertical,
+  Calendar,
+} from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { useLocale } from "@/lib/i18n";
 import { useAccountsStore } from "@/stores/accounts";
@@ -126,12 +132,14 @@ function SortableVisibleAccount({
             isSelected
               ? "ring-2 ring-primary ring-offset-2 ring-offset-background"
               : "opacity-60 hover:opacity-100",
-            (isDragging || isCurrentlyDragging) && "opacity-50 z-50"
+            (isDragging || isCurrentlyDragging) && "opacity-50 z-50",
           )}
         >
           <Avatar className="size-8 pointer-events-none">
             {avatarUrl && <AvatarImage src={avatarUrl} alt={account.name} />}
-            <AvatarFallback className={cn(getAccountColor(originalIndex), "text-xs")}>
+            <AvatarFallback
+              className={cn(getAccountColor(originalIndex), "text-xs")}
+            >
               {getInitials(account.name)}
             </AvatarFallback>
           </Avatar>
@@ -151,7 +159,11 @@ function SortableVisibleAccount({
       <TooltipContent side="right">
         {account.name}
         {unread > 0 && ` (${unread} unread)`}
-        {canDrag && <span className="block text-xs text-muted-foreground">Drag to reorder</span>}
+        {canDrag && (
+          <span className="block text-xs text-muted-foreground">
+            Drag to reorder
+          </span>
+        )}
       </TooltipContent>
     </Tooltip>
   );
@@ -197,7 +209,7 @@ function SortableOverflowAccount({
       className={cn(
         "flex w-full items-center gap-3 rounded-md px-2 py-2 text-left hover:bg-muted transition-all select-none",
         canDrag && "cursor-grab active:cursor-grabbing",
-        (isDragging || isCurrentlyDragging) && "opacity-50"
+        (isDragging || isCurrentlyDragging) && "opacity-50",
       )}
       onClick={() => {
         if (!isDragging && !isCurrentlyDragging) {
@@ -222,9 +234,7 @@ function SortableOverflowAccount({
         )}
       </div>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium">
-          {account.name}
-        </p>
+        <p className="truncate text-sm font-medium">{account.name}</p>
         <p className="text-xs text-muted-foreground">
           {account.provider}
           {unread > 0 && ` · ${unread} unread`}
@@ -253,7 +263,9 @@ function DragOverlayContent({
       <div className="relative size-8 rounded-full ring-2 ring-primary ring-offset-2 ring-offset-background cursor-grabbing">
         <Avatar className="size-8">
           {avatarUrl && <AvatarImage src={avatarUrl} alt={account.name} />}
-          <AvatarFallback className={cn(getAccountColor(originalIndex), "text-xs")}>
+          <AvatarFallback
+            className={cn(getAccountColor(originalIndex), "text-xs")}
+          >
             {getInitials(account.name)}
           </AvatarFallback>
         </Avatar>
@@ -283,9 +295,7 @@ function DragOverlayContent({
         )}
       </div>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium">
-          {account.name}
-        </p>
+        <p className="truncate text-sm font-medium">{account.name}</p>
       </div>
     </div>
   );
@@ -306,6 +316,8 @@ export function AccountRail({
   // Use shared store for avatar URLs
   const { avatarUrls, loadAvatarUrls } = useAccountsStore();
 
+  console.log("avatarUrls :>> ", avatarUrls);
+
   // Load avatar URLs on mount and when accounts change
   useEffect(() => {
     loadAvatarUrls();
@@ -319,7 +331,7 @@ export function AccountRail({
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
-    })
+    }),
   );
 
   // Sort accounts based on accountOrder (if provided), keeping unordered accounts at the end
@@ -336,7 +348,9 @@ export function AccountRail({
   });
 
   // Check if selected account is in overflow
-  const selectedIndex = sortedAccounts.findIndex((a) => a.name === selectedAccount);
+  const selectedIndex = sortedAccounts.findIndex(
+    (a) => a.name === selectedAccount,
+  );
   const selectedInOverflow = selectedIndex >= MAX_VISIBLE_ACCOUNTS;
 
   // Determine visible accounts: first 3, or swap in selected if it's in overflow
@@ -349,40 +363,46 @@ export function AccountRail({
       sortedAccounts[selectedIndex],
     ];
     overflowAccounts = sortedAccounts.filter(
-      (_, i) => i >= MAX_VISIBLE_ACCOUNTS - 1 && i !== selectedIndex
+      (_, i) => i >= MAX_VISIBLE_ACCOUNTS - 1 && i !== selectedIndex,
     );
   } else {
     visibleAccounts = sortedAccounts.slice(0, MAX_VISIBLE_ACCOUNTS);
     overflowAccounts = sortedAccounts.slice(MAX_VISIBLE_ACCOUNTS);
   }
 
-  const handleOverflowSelect = useCallback((name: string) => {
-    onSelectAccount(name);
-    setOverflowOpen(false);
-  }, [onSelectAccount]);
+  const handleOverflowSelect = useCallback(
+    (name: string) => {
+      onSelectAccount(name);
+      setOverflowOpen(false);
+    },
+    [onSelectAccount],
+  );
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
     setActiveId(event.active.id as string);
   }, []);
 
-  const handleDragEnd = useCallback((event: DragEndEvent) => {
-    const { active, over } = event;
-    setActiveId(null);
+  const handleDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      const { active, over } = event;
+      setActiveId(null);
 
-    if (!over || active.id === over.id || !onOrderChange) {
-      return;
-    }
+      if (!over || active.id === over.id || !onOrderChange) {
+        return;
+      }
 
-    const currentOrder = sortedAccounts.map((a) => a.name);
-    const oldIndex = currentOrder.indexOf(active.id as string);
-    const newIndex = currentOrder.indexOf(over.id as string);
+      const currentOrder = sortedAccounts.map((a) => a.name);
+      const oldIndex = currentOrder.indexOf(active.id as string);
+      const newIndex = currentOrder.indexOf(over.id as string);
 
-    if (oldIndex === -1 || newIndex === -1) return;
+      if (oldIndex === -1 || newIndex === -1) return;
 
-    const newOrder = arrayMove(currentOrder, oldIndex, newIndex);
-    onOrderChange(newOrder);
-    setOverflowOpen(false);
-  }, [sortedAccounts, onOrderChange]);
+      const newOrder = arrayMove(currentOrder, oldIndex, newIndex);
+      onOrderChange(newOrder);
+      setOverflowOpen(false);
+    },
+    [sortedAccounts, onOrderChange],
+  );
 
   const activeAccount = activeId
     ? sortedAccounts.find((a) => a.name === activeId)
@@ -408,7 +428,9 @@ export function AccountRail({
             strategy={verticalListSortingStrategy}
           >
             {visibleAccounts.map((account) => {
-              const originalIndex = sortedAccounts.findIndex((a) => a.name === account.name);
+              const originalIndex = sortedAccounts.findIndex(
+                (a) => a.name === account.name,
+              );
               const unread = unreadCounts[account.name] || 0;
               return (
                 <SortableVisibleAccount
@@ -427,7 +449,11 @@ export function AccountRail({
 
             {/* Overflow menu for additional accounts */}
             {overflowAccounts.length > 0 && (
-              <Popover open={overflowOpen} onOpenChange={setOverflowOpen} modal={false}>
+              <Popover
+                open={overflowOpen}
+                onOpenChange={setOverflowOpen}
+                modal={false}
+              >
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <PopoverTrigger asChild>
@@ -437,7 +463,8 @@ export function AccountRail({
                     </PopoverTrigger>
                   </TooltipTrigger>
                   <TooltipContent side="right">
-                    {overflowAccounts.length} more account{overflowAccounts.length > 1 ? "s" : ""}
+                    {overflowAccounts.length} more account
+                    {overflowAccounts.length > 1 ? "s" : ""}
                   </TooltipContent>
                 </Tooltip>
                 <PopoverContent
@@ -456,10 +483,17 @@ export function AccountRail({
                 >
                   <div className="space-y-1">
                     <p className="px-2 py-1 text-xs font-medium text-muted-foreground">
-                      More accounts {onOrderChange && <span className="text-muted-foreground/60">· Drag to reorder</span>}
+                      More accounts{" "}
+                      {onOrderChange && (
+                        <span className="text-muted-foreground/60">
+                          · Drag to reorder
+                        </span>
+                      )}
                     </p>
                     {overflowAccounts.map((account) => {
-                      const originalIndex = sortedAccounts.findIndex((a) => a.name === account.name);
+                      const originalIndex = sortedAccounts.findIndex(
+                        (a) => a.name === account.name,
+                      );
                       const unread = unreadCounts[account.name] || 0;
                       return (
                         <SortableOverflowAccount
@@ -494,14 +528,21 @@ export function AccountRail({
                 </Link>
               </Button>
             </TooltipTrigger>
-            <TooltipContent side="right">{t("settings.accounts.addAccount")}</TooltipContent>
+            <TooltipContent side="right">
+              {t("settings.accounts.addAccount")}
+            </TooltipContent>
           </Tooltip>
         </div>
 
         <div className="mt-auto flex flex-col gap-1">
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" className="size-8 rounded-full" asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-8 rounded-full"
+                asChild
+              >
                 <Link to="/calendar">
                   <Calendar className="h-3.5 w-3.5" />
                 </Link>
@@ -511,7 +552,12 @@ export function AccountRail({
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
-              <Button variant="ghost" size="icon" className="size-8 rounded-full" asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-8 rounded-full"
+                asChild
+              >
                 <Link to="/settings">
                   <Settings className="h-3.5 w-3.5" />
                 </Link>

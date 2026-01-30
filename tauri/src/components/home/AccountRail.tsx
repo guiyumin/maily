@@ -316,8 +316,6 @@ export function AccountRail({
   // Use shared store for avatar URLs
   const { avatarUrls, loadAvatarUrls } = useAccountsStore();
 
-  console.log("avatarUrls :>> ", avatarUrls);
-
   // Load avatar URLs on mount and when accounts change
   useEffect(() => {
     loadAvatarUrls();
@@ -347,28 +345,9 @@ export function AccountRail({
     return accounts.indexOf(a) - accounts.indexOf(b);
   });
 
-  // Check if selected account is in overflow
-  const selectedIndex = sortedAccounts.findIndex(
-    (a) => a.name === selectedAccount,
-  );
-  const selectedInOverflow = selectedIndex >= MAX_VISIBLE_ACCOUNTS;
-
-  // Determine visible accounts: first 3, or swap in selected if it's in overflow
-  let visibleAccounts: SanitizedAccount[];
-  let overflowAccounts: SanitizedAccount[];
-
-  if (selectedInOverflow && sortedAccounts.length > MAX_VISIBLE_ACCOUNTS) {
-    visibleAccounts = [
-      ...sortedAccounts.slice(0, MAX_VISIBLE_ACCOUNTS - 1),
-      sortedAccounts[selectedIndex],
-    ];
-    overflowAccounts = sortedAccounts.filter(
-      (_, i) => i >= MAX_VISIBLE_ACCOUNTS - 1 && i !== selectedIndex,
-    );
-  } else {
-    visibleAccounts = sortedAccounts.slice(0, MAX_VISIBLE_ACCOUNTS);
-    overflowAccounts = sortedAccounts.slice(MAX_VISIBLE_ACCOUNTS);
-  }
+  // First MAX_VISIBLE_ACCOUNTS are visible, rest go to overflow
+  const visibleAccounts = sortedAccounts.slice(0, MAX_VISIBLE_ACCOUNTS);
+  const overflowAccounts = sortedAccounts.slice(MAX_VISIBLE_ACCOUNTS);
 
   const handleOverflowSelect = useCallback(
     (name: string) => {

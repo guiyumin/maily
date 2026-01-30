@@ -26,7 +26,17 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Plus, Trash2, Zap, CheckCircle, XCircle, Loader2, Pencil, Eye, EyeOff } from "lucide-react";
+import {
+  Plus,
+  Trash2,
+  Zap,
+  CheckCircle,
+  XCircle,
+  Loader2,
+  Pencil,
+  Eye,
+  EyeOff,
+} from "lucide-react";
 import { toast } from "sonner";
 import type { Account } from "./types";
 import { useLocale } from "@/lib/i18n";
@@ -37,16 +47,34 @@ interface AccountsSettingsProps {
 }
 
 const PROVIDER_DEFAULTS = {
-  gmail: { imap_host: "imap.gmail.com", imap_port: 993, smtp_host: "smtp.gmail.com", smtp_port: 587 },
-  yahoo: { imap_host: "imap.mail.yahoo.com", imap_port: 993, smtp_host: "smtp.mail.yahoo.com", smtp_port: 587 },
-  imap: { imap_host: "", imap_port: 993, smtp_host: "", smtp_port: 587 },
+  gmail: {
+    imap_host: "imap.gmail.com",
+    imap_port: 993,
+    smtp_host: "smtp.gmail.com",
+    smtp_port: 587,
+  },
+  yahoo: {
+    imap_host: "imap.mail.yahoo.com",
+    imap_port: 993,
+    smtp_host: "smtp.mail.yahoo.com",
+    smtp_port: 587,
+  },
+  qq: {
+    imap_host: "imap.qq.com",
+    imap_port: 993,
+    smtp_host: "smtp.qq.com",
+    smtp_port: 465,
+  },
 };
 
-export function AccountsSettings({ accounts, onAccountsChange }: AccountsSettingsProps) {
+export function AccountsSettings({
+  accounts,
+  onAccountsChange,
+}: AccountsSettingsProps) {
   const { t } = useLocale();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingName, setEditingName] = useState<string | null>(null);
-  const [provider, setProvider] = useState<"gmail" | "yahoo" | "imap">("gmail");
+  const [provider, setProvider] = useState<"gmail" | "yahoo" | "qq">("gmail");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -55,7 +83,10 @@ export function AccountsSettings({ accounts, onAccountsChange }: AccountsSetting
   const [smtpHost, setSmtpHost] = useState("smtp.gmail.com");
   const [smtpPort, setSmtpPort] = useState(587);
   const [testing, setTesting] = useState(false);
-  const [testResult, setTestResult] = useState<{ success: boolean; error?: string } | null>(null);
+  const [testResult, setTestResult] = useState<{
+    success: boolean;
+    error?: string;
+  } | null>(null);
   const [showPassword, setShowPassword] = useState(false);
 
   const resetForm = () => {
@@ -74,7 +105,7 @@ export function AccountsSettings({ accounts, onAccountsChange }: AccountsSetting
 
   const openEditDialog = (account: Account) => {
     setEditingName(account.name);
-    const accountProvider = account.provider as "gmail" | "yahoo" | "imap";
+    const accountProvider = account.provider as "gmail" | "yahoo" | "qq";
     setProvider(accountProvider);
     setName(account.name);
     setEmail(account.credentials.email);
@@ -88,7 +119,7 @@ export function AccountsSettings({ accounts, onAccountsChange }: AccountsSetting
     setDialogOpen(true);
   };
 
-  const handleProviderChange = (newProvider: "gmail" | "yahoo" | "imap") => {
+  const handleProviderChange = (newProvider: "gmail" | "yahoo" | "qq") => {
     setProvider(newProvider);
     const defaults = PROVIDER_DEFAULTS[newProvider];
     setImapHost(defaults.imap_host);
@@ -157,10 +188,13 @@ export function AccountsSettings({ accounts, onAccountsChange }: AccountsSetting
   };
 
   const deleteAccount = async (accountName: string) => {
-    if (!confirm(`Delete account "${accountName}"? This cannot be undone.`)) return;
+    if (!confirm(`Delete account "${accountName}"? This cannot be undone.`))
+      return;
 
     try {
-      const newAccounts = await invoke<Account[]>("remove_account", { name: accountName });
+      const newAccounts = await invoke<Account[]>("remove_account", {
+        name: accountName,
+      });
       onAccountsChange(newAccounts);
       toast.success("Account deleted");
     } catch (err) {
@@ -176,7 +210,9 @@ export function AccountsSettings({ accounts, onAccountsChange }: AccountsSetting
       </CardHeader>
       <CardContent className="space-y-4">
         {accounts.length === 0 ? (
-          <p className="text-sm text-muted-foreground">{t("settings.accounts.noAccounts")}</p>
+          <p className="text-sm text-muted-foreground">
+            {t("settings.accounts.noAccounts")}
+          </p>
         ) : (
           <div className="space-y-2">
             {accounts.map((account) => (
@@ -228,7 +264,9 @@ export function AccountsSettings({ accounts, onAccountsChange }: AccountsSetting
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>{editingName ? "Edit Account" : "Add Account"}</DialogTitle>
+              <DialogTitle>
+                {editingName ? "Edit Account" : "Add Account"}
+              </DialogTitle>
               <DialogDescription>
                 {editingName
                   ? "Update your email account settings"
@@ -246,7 +284,7 @@ export function AccountsSettings({ accounts, onAccountsChange }: AccountsSetting
                   <SelectContent>
                     <SelectItem value="gmail">Gmail</SelectItem>
                     <SelectItem value="yahoo">Yahoo</SelectItem>
-                    <SelectItem value="imap">Custom IMAP</SelectItem>
+                    <SelectItem value="qq">QQ Mail</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -273,12 +311,16 @@ export function AccountsSettings({ accounts, onAccountsChange }: AccountsSetting
               </div>
 
               <div className="grid gap-2">
-                <Label htmlFor="account_password">App Password</Label>
+                <Label htmlFor="account_password">
+                  {provider === "qq" ? "Authorization Code" : "App Password"}
+                </Label>
                 <div className="relative">
                   <Input
                     id="account_password"
                     type={showPassword ? "text" : "password"}
-                    placeholder="App password"
+                    placeholder={
+                      provider === "qq" ? "Authorization code" : "App password"
+                    }
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="pr-10"
@@ -310,53 +352,13 @@ export function AccountsSettings({ accounts, onAccountsChange }: AccountsSetting
                     </a>
                   </p>
                 )}
+                {provider === "qq" && (
+                  <p className="text-xs text-muted-foreground">
+                    Generate authorization code in QQ Mail Settings → Account →
+                    POP3/IMAP/SMTP
+                  </p>
+                )}
               </div>
-
-              {provider === "imap" && (
-                <>
-                  <div className="grid grid-cols-3 gap-2">
-                    <div className="col-span-2">
-                      <Label htmlFor="imap_host">IMAP Host</Label>
-                      <Input
-                        id="imap_host"
-                        placeholder="imap.example.com"
-                        value={imapHost}
-                        onChange={(e) => setImapHost(e.target.value)}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="imap_port">Port</Label>
-                      <Input
-                        id="imap_port"
-                        type="number"
-                        value={imapPort}
-                        onChange={(e) => setImapPort(parseInt(e.target.value) || 993)}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-2">
-                    <div className="col-span-2">
-                      <Label htmlFor="smtp_host">SMTP Host</Label>
-                      <Input
-                        id="smtp_host"
-                        placeholder="smtp.example.com"
-                        value={smtpHost}
-                        onChange={(e) => setSmtpHost(e.target.value)}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="smtp_port">Port</Label>
-                      <Input
-                        id="smtp_port"
-                        type="number"
-                        value={smtpPort}
-                        onChange={(e) => setSmtpPort(parseInt(e.target.value) || 587)}
-                      />
-                    </div>
-                  </div>
-                </>
-              )}
             </div>
 
             <DialogFooter className="flex-col sm:flex-row gap-2">
@@ -387,11 +389,22 @@ export function AccountsSettings({ accounts, onAccountsChange }: AccountsSetting
                 </Button>
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setDialogOpen(false)}>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setDialogOpen(false);
+                    resetForm();
+                  }}
+                >
                   {t("common.cancel")}
                 </Button>
-                <Button onClick={saveAccount} disabled={!name || !email || !password}>
-                  {editingName ? t("common.save") : t("settings.accounts.addAccount")}
+                <Button
+                  onClick={saveAccount}
+                  disabled={!name || !email || !password}
+                >
+                  {editingName
+                    ? t("common.save")
+                    : t("settings.accounts.addAccount")}
                 </Button>
               </div>
             </DialogFooter>

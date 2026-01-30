@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
 import { RefreshCw, Check, Download, Loader2, AlertCircle } from "lucide-react";
-import type { Config } from "./types";
+import type { Config } from "@/types/config";
 import { useLocale } from "@/lib/i18n";
 
 interface GeneralSettingsProps {

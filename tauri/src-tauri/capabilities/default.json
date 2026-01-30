@@ -11,6 +11,7 @@
     "process:allow-restart",
     "process:allow-exit",
     "notification:default",
+    "dialog:default",
     {
       "identifier": "http:default",
       "allow": [

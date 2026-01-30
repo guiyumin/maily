@@ -26,6 +26,8 @@ use mail::{
     list_drafts as mail_list_drafts, delete_draft as mail_delete_draft, log_op,
     add_account as mail_add_account, remove_account as mail_remove_account,
     update_account as mail_update_account, test_account_credentials,
+    upload_avatar as mail_upload_avatar, delete_avatar as mail_delete_avatar,
+    get_avatar_path as mail_get_avatar_path,
     Account, Email, ListEmailsResult, SyncResult, InitialState, Draft,
 };
 use smtp::{send_email as smtp_send, save_draft_to_imap, ComposeEmail, SendResult, AttachmentInfo};
@@ -70,6 +72,89 @@ fn update_account(name: String, account: Account) -> Result<Vec<Account>, String
 #[tauri::command]
 fn test_account(email: String, password: String, imap_host: String, imap_port: u16) -> Result<(), String> {
     test_account_credentials(&email, &password, &imap_host, imap_port).map_err(|e| e.to_string())
+}
+
+/// Upload avatar for an account from a file path.
+/// Updates the account's avatar field and returns updated accounts list.
+#[tauri::command]
+fn upload_account_avatar(
+    account_name: String,
+    file_path: String,
+) -> Result<Vec<Account>, String> {
+    use std::path::Path;
+
+    let path = Path::new(&file_path);
+    let extension = path
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("png")
+        .to_lowercase();
+
+    // Read the file
+    let image_data = std::fs::read(&file_path)
+        .map_err(|e| format!("Failed to read image file: {}", e))?;
+
+    // Upload the avatar file
+    let filename = mail_upload_avatar(&account_name, &image_data, &extension)
+        .map_err(|e| e.to_string())?;
+
+    // Update the account with the avatar filename
+    let mut accounts = get_accounts().map_err(|e| e.to_string())?;
+    if let Some(account) = accounts.iter_mut().find(|a| a.name == account_name) {
+        // Delete old avatar if exists
+        if let Some(old_avatar) = &account.avatar {
+            let _ = mail_delete_avatar(old_avatar);
+        }
+        account.avatar = Some(filename);
+    }
+
+    // Save accounts
+    mail_update_account(&account_name, accounts.iter().find(|a| a.name == account_name).cloned().ok_or("Account not found")?)
+        .map_err(|e| e.to_string())
+}
+
+/// Delete avatar for an account
+#[tauri::command]
+fn delete_account_avatar(account_name: String) -> Result<Vec<Account>, String> {
+    let mut accounts = get_accounts().map_err(|e| e.to_string())?;
+    if let Some(account) = accounts.iter_mut().find(|a| a.name == account_name) {
+        if let Some(avatar) = &account.avatar {
+            mail_delete_avatar(avatar).map_err(|e| e.to_string())?;
+        }
+        let mut updated = account.clone();
+        updated.avatar = None;
+        return mail_update_account(&account_name, updated).map_err(|e| e.to_string());
+    }
+    Err("Account not found".to_string())
+}
+
+/// Get avatar as data URL for an account (base64 encoded)
+#[tauri::command]
+fn get_account_avatar_data_url(account_name: String) -> Result<Option<String>, String> {
+    use base64::{Engine, engine::general_purpose::STANDARD};
+
+    let accounts = get_accounts().map_err(|e| e.to_string())?;
+    if let Some(account) = accounts.iter().find(|a| a.name == account_name) {
+        if let Some(avatar) = &account.avatar {
+            if let Some(path) = mail_get_avatar_path(avatar) {
+                let data = std::fs::read(&path).map_err(|e| e.to_string())?;
+                let ext = path.extension()
+                    .and_then(|e| e.to_str())
+                    .unwrap_or("png")
+                    .to_lowercase();
+                let mime = match ext.as_str() {
+                    "jpg" | "jpeg" => "image/jpeg",
+                    "png" => "image/png",
+                    "gif" => "image/gif",
+                    "webp" => "image/webp",
+                    _ => "image/png",
+                };
+                let b64 = STANDARD.encode(&data);
+                return Ok(Some(format!("data:{};base64,{}", mime, b64)));
+            }
+        }
+    }
+    Ok(None)
 }
 
 /// Get everything needed to render on startup - ONE call instead of multiple
@@ -723,6 +808,9 @@ pub fn run() {
             remove_account,
             update_account,
             test_account,
+            upload_account_avatar,
+            delete_account_avatar,
+            get_account_avatar_data_url,
             // Email operations
             get_startup_state,
             list_emails,

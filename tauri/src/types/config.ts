@@ -17,21 +17,6 @@ export interface AIProvider {
   custom_headers?: Record<string, string>;
 }
 
-export interface Credentials {
-  email: string;
-  password: string;
-  imap_host: string;
-  imap_port: number;
-  smtp_host: string;
-  smtp_port: number;
-}
-
-export interface Account {
-  name: string;
-  provider: string;
-  credentials: Credentials;
-}
-
 // Notification settings
 export interface NativeNotificationConfig {
   enabled: boolean;

@@ -10,7 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Github, Eye, EyeOff } from "lucide-react";
-import type { Config, IntegrationsConfig, GitHubConfig } from "./types";
+import type { Config, IntegrationsConfig, GitHubConfig } from "@/types/config";
 import { useLocale } from "@/lib/i18n";
 
 interface IntegrationsSettingsProps {

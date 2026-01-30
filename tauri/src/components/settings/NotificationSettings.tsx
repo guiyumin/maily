@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/card";
 import { Bell, Send, Loader2, CheckCircle, XCircle, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
-import type { Config, NotificationConfig, TelegramConfig } from "./types";
+import type { Config, NotificationConfig, TelegramConfig } from "@/types/config";
 import { useLocale } from "@/lib/i18n";
 
 interface NotificationSettingsProps {

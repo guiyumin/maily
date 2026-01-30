@@ -1,5 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { open } from "@tauri-apps/plugin-dialog";
+import { useAccountsStore } from "@/stores/accounts";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -36,14 +38,17 @@ import {
   Pencil,
   Eye,
   EyeOff,
+  Upload,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
-import type { Account } from "./types";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import type { FullAccount } from "@/types/account";
 import { useLocale } from "@/lib/i18n";
 
 interface AccountsSettingsProps {
-  accounts: Account[];
-  onAccountsChange: (accounts: Account[]) => void;
+  accounts: FullAccount[];
+  onAccountsChange: (accounts: FullAccount[]) => void;
 }
 
 const PROVIDER_DEFAULTS = {
@@ -88,6 +93,17 @@ export function AccountsSettings({
     error?: string;
   } | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [avatarFilePath, setAvatarFilePath] = useState<string | null>(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+
+  // Use shared store for avatar URLs
+  const { avatarUrls, setAvatarUrl, removeAvatarUrl, loadAvatarUrls } = useAccountsStore();
+
+  // Load avatar URLs for all accounts on mount
+  useEffect(() => {
+    loadAvatarUrls();
+  }, [accounts, loadAvatarUrls]);
 
   const resetForm = () => {
     setEditingName(null);
@@ -101,9 +117,11 @@ export function AccountsSettings({
     setSmtpPort(587);
     setTestResult(null);
     setShowPassword(false);
+    setAvatarPreview(null);
+    setAvatarFilePath(null);
   };
 
-  const openEditDialog = (account: Account) => {
+  const openEditDialog = async (account: FullAccount) => {
     setEditingName(account.name);
     const accountProvider = account.provider as "gmail" | "yahoo" | "qq";
     setProvider(accountProvider);
@@ -116,7 +134,48 @@ export function AccountsSettings({
     setSmtpPort(account.credentials.smtp_port);
     setTestResult(null);
     setShowPassword(false);
+    setAvatarFilePath(null);
+
+    // Load existing avatar if any
+    if (account.avatar && avatarUrls[account.credentials.email]) {
+      setAvatarPreview(avatarUrls[account.credentials.email]);
+    } else {
+      setAvatarPreview(null);
+    }
+
     setDialogOpen(true);
+  };
+
+  const selectAvatar = async () => {
+    try {
+      const selected = await open({
+        multiple: false,
+        filters: [
+          {
+            name: "Images",
+            extensions: ["png", "jpg", "jpeg", "gif", "webp"],
+          },
+        ],
+      });
+
+      if (selected) {
+        const filePath = selected as string;
+
+        // For preview, we'll create an object URL. Since we can't read the file
+        // directly in frontend without fs plugin, we'll just show a placeholder
+        // and the actual image after upload. For now, use a simple indicator.
+        setAvatarFilePath(filePath);
+        // Show filename as indicator since we can't preview without fs plugin
+        setAvatarPreview(`selected:${filePath.split("/").pop() || filePath.split("\\").pop()}`);
+      }
+    } catch (err) {
+      toast.error(`Failed to select image: ${err}`);
+    }
+  };
+
+  const removeAvatar = () => {
+    setAvatarPreview(null);
+    setAvatarFilePath(null);
   };
 
   const handleProviderChange = (newProvider: "gmail" | "yahoo" | "qq") => {
@@ -154,7 +213,7 @@ export function AccountsSettings({
   const saveAccount = async () => {
     if (!name || !email || !password) return;
 
-    const account: Account = {
+    const account: FullAccount = {
       name,
       provider,
       credentials: {
@@ -168,17 +227,54 @@ export function AccountsSettings({
     };
 
     try {
-      let newAccounts: Account[];
+      let newAccounts: FullAccount[];
       if (editingName) {
-        newAccounts = await invoke<Account[]>("update_account", {
+        newAccounts = await invoke<FullAccount[]>("update_account", {
           name: editingName,
           account,
         });
         toast.success("Account updated");
       } else {
-        newAccounts = await invoke<Account[]>("add_account", { account });
+        newAccounts = await invoke<FullAccount[]>("add_account", { account });
         toast.success("Account added");
       }
+
+      // Handle avatar upload/removal
+      if (avatarFilePath) {
+        // Upload new avatar
+        setUploadingAvatar(true);
+        try {
+          newAccounts = await invoke<FullAccount[]>("upload_account_avatar", {
+            accountName: name,
+            filePath: avatarFilePath,
+          });
+          // Refresh avatar URL in shared store
+          const dataUrl = await invoke<string | null>("get_account_avatar_data_url", {
+            accountName: name,
+          });
+          if (dataUrl) {
+            setAvatarUrl(email, dataUrl);
+          }
+        } catch (err) {
+          toast.error(`Failed to upload avatar: ${err}`);
+        } finally {
+          setUploadingAvatar(false);
+        }
+      } else if (editingName && avatarPreview === null) {
+        // Remove existing avatar if preview was cleared
+        const existingAccount = accounts.find((a) => a.name === editingName);
+        if (existingAccount?.avatar) {
+          try {
+            newAccounts = await invoke<FullAccount[]>("delete_account_avatar", {
+              accountName: name,
+            });
+            removeAvatarUrl(email);
+          } catch (err) {
+            toast.error(`Failed to remove avatar: ${err}`);
+          }
+        }
+      }
+
       onAccountsChange(newAccounts);
       setDialogOpen(false);
       resetForm();
@@ -192,7 +288,7 @@ export function AccountsSettings({
       return;
 
     try {
-      const newAccounts = await invoke<Account[]>("remove_account", {
+      const newAccounts = await invoke<FullAccount[]>("remove_account", {
         name: accountName,
       });
       onAccountsChange(newAccounts);
@@ -220,11 +316,21 @@ export function AccountsSettings({
                 key={account.name}
                 className="flex items-center justify-between rounded-lg border p-3"
               >
-                <div>
-                  <p className="font-medium">{account.name}</p>
-                  <p className="text-sm text-muted-foreground">
-                    {account.credentials.email} • {account.provider}
-                  </p>
+                <div className="flex items-center gap-3">
+                  <Avatar className="size-10">
+                    {avatarUrls[account.credentials.email] && (
+                      <AvatarImage src={avatarUrls[account.credentials.email]} alt={account.name} />
+                    )}
+                    <AvatarFallback className="bg-violet-600 text-xs">
+                      {account.name.slice(0, 2).toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <p className="font-medium">{account.name}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {account.credentials.email} • {account.provider}
+                    </p>
+                  </div>
                 </div>
                 <div className="flex items-center gap-1">
                   <Button
@@ -358,6 +464,51 @@ export function AccountsSettings({
                     POP3/IMAP/SMTP
                   </p>
                 )}
+              </div>
+
+              <div className="grid gap-2">
+                <Label>Avatar (optional)</Label>
+                <div className="flex items-center gap-3">
+                  <Avatar className="size-12">
+                    {avatarPreview && !avatarPreview.startsWith("selected:") ? (
+                      <AvatarImage src={avatarPreview} alt="Avatar preview" />
+                    ) : null}
+                    <AvatarFallback className="bg-violet-600 text-xs">
+                      {name ? name.slice(0, 2).toUpperCase() : "?"}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex flex-col gap-1">
+                    {avatarPreview?.startsWith("selected:") && (
+                      <p className="text-xs text-muted-foreground">
+                        Selected: {avatarPreview.replace("selected:", "")}
+                      </p>
+                    )}
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={selectAvatar}
+                        disabled={uploadingAvatar}
+                      >
+                        <Upload className="mr-1 h-3 w-3" />
+                        {avatarPreview ? "Change" : "Upload"}
+                      </Button>
+                      {avatarPreview && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={removeAvatar}
+                          disabled={uploadingAvatar}
+                        >
+                          <X className="mr-1 h-3 w-3" />
+                          Remove
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 

@@ -1,7 +1,9 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Plus, Settings, MoreHorizontal, GripVertical, Calendar } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { useLocale } from "@/lib/i18n";
+import { useAccountsStore } from "@/stores/accounts";
+import type { SanitizedAccount } from "@/types/account";
 import {
   DndContext,
   closestCenter,
@@ -21,7 +23,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -35,13 +37,8 @@ import {
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 
-interface Account {
-  name: string;
-  provider: string;
-}
-
 interface AccountRailProps {
-  accounts: Account[];
+  accounts: SanitizedAccount[];
   selectedAccount: string;
   onSelectAccount: (name: string) => void;
   unreadCounts?: Record<string, number>;
@@ -72,13 +69,14 @@ function getAccountColor(index: number): string {
 
 // Sortable account item for visible accounts
 interface SortableAccountProps {
-  account: Account;
+  account: SanitizedAccount;
   originalIndex: number;
   isSelected: boolean;
   unread: number;
   onSelect: (name: string) => void;
   isDragging?: boolean;
   canDrag: boolean;
+  avatarUrl?: string;
 }
 
 function SortableVisibleAccount({
@@ -89,6 +87,7 @@ function SortableVisibleAccount({
   onSelect,
   isDragging: isCurrentlyDragging,
   canDrag,
+  avatarUrl,
 }: SortableAccountProps) {
   const {
     attributes,
@@ -131,6 +130,7 @@ function SortableVisibleAccount({
           )}
         >
           <Avatar className="size-8 pointer-events-none">
+            {avatarUrl && <AvatarImage src={avatarUrl} alt={account.name} />}
             <AvatarFallback className={cn(getAccountColor(originalIndex), "text-xs")}>
               {getInitials(account.name)}
             </AvatarFallback>
@@ -165,6 +165,7 @@ function SortableOverflowAccount({
   onSelect,
   isDragging: isCurrentlyDragging,
   canDrag,
+  avatarUrl,
 }: SortableAccountProps) {
   const {
     attributes,
@@ -209,6 +210,7 @@ function SortableOverflowAccount({
       )}
       <div className="relative">
         <Avatar className="size-8">
+          {avatarUrl && <AvatarImage src={avatarUrl} alt={account.name} />}
           <AvatarFallback className={getAccountColor(originalIndex)}>
             {getInitials(account.name)}
           </AvatarFallback>
@@ -238,16 +240,19 @@ function DragOverlayContent({
   originalIndex,
   unread,
   variant,
+  avatarUrl,
 }: {
-  account: Account;
+  account: SanitizedAccount;
   originalIndex: number;
   unread: number;
   variant: "visible" | "overflow";
+  avatarUrl?: string;
 }) {
   if (variant === "visible") {
     return (
       <div className="relative size-8 rounded-full ring-2 ring-primary ring-offset-2 ring-offset-background cursor-grabbing">
         <Avatar className="size-8">
+          {avatarUrl && <AvatarImage src={avatarUrl} alt={account.name} />}
           <AvatarFallback className={cn(getAccountColor(originalIndex), "text-xs")}>
             {getInitials(account.name)}
           </AvatarFallback>
@@ -266,6 +271,7 @@ function DragOverlayContent({
       <GripVertical className="h-4 w-4 text-muted-foreground/50 shrink-0" />
       <div className="relative">
         <Avatar className="size-8">
+          {avatarUrl && <AvatarImage src={avatarUrl} alt={account.name} />}
           <AvatarFallback className={getAccountColor(originalIndex)}>
             {getInitials(account.name)}
           </AvatarFallback>
@@ -297,6 +303,14 @@ export function AccountRail({
   const [overflowOpen, setOverflowOpen] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
 
+  // Use shared store for avatar URLs
+  const { avatarUrls, loadAvatarUrls } = useAccountsStore();
+
+  // Load avatar URLs on mount and when accounts change
+  useEffect(() => {
+    loadAvatarUrls();
+  }, [accounts, loadAvatarUrls]);
+
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
@@ -326,8 +340,8 @@ export function AccountRail({
   const selectedInOverflow = selectedIndex >= MAX_VISIBLE_ACCOUNTS;
 
   // Determine visible accounts: first 3, or swap in selected if it's in overflow
-  let visibleAccounts: Account[];
-  let overflowAccounts: Account[];
+  let visibleAccounts: SanitizedAccount[];
+  let overflowAccounts: SanitizedAccount[];
 
   if (selectedInOverflow && sortedAccounts.length > MAX_VISIBLE_ACCOUNTS) {
     visibleAccounts = [
@@ -406,6 +420,7 @@ export function AccountRail({
                   onSelect={onSelectAccount}
                   isDragging={activeId === account.name}
                   canDrag={!!onOrderChange}
+                  avatarUrl={avatarUrls[account.email]}
                 />
               );
             })}
@@ -456,6 +471,7 @@ export function AccountRail({
                           onSelect={handleOverflowSelect}
                           isDragging={activeId === account.name}
                           canDrag={!!onOrderChange}
+                          avatarUrl={avatarUrls[account.email]}
                         />
                       );
                     })}
@@ -513,6 +529,7 @@ export function AccountRail({
             originalIndex={activeOriginalIndex}
             unread={unreadCounts[activeAccount.name] || 0}
             variant={activeInOverflow ? "overflow" : "visible"}
+            avatarUrl={avatarUrls[activeAccount.email]}
           />
         )}
       </DragOverlay>

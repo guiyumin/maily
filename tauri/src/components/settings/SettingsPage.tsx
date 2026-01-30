@@ -18,7 +18,8 @@ import { AccountsSettings } from "./AccountsSettings";
 import { NotificationSettings } from "./NotificationSettings";
 import { IntegrationsSettings } from "./IntegrationsSettings";
 import { TagsSettings } from "./TagsSettings";
-import type { Account, Config } from "./types";
+import type { FullAccount } from "@/types/account";
+import type { Config } from "@/types/config";
 import { cn } from "@/lib/utils";
 import { useLocale } from "@/lib/i18n";
 import type { TranslationKey } from "@/lib/i18n";
@@ -49,7 +50,7 @@ export function SettingsPage() {
   const { section: initialSection } = useSearch({ from: "/settings" });
   const [config, setConfig] = useState<Config | null>(null);
   const [originalConfig, setOriginalConfig] = useState<Config | null>(null);
-  const [accounts, setAccounts] = useState<Account[]>([]);
+  const [accounts, setAccounts] = useState<FullAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
@@ -58,7 +59,7 @@ export function SettingsPage() {
 
   useEffect(() => {
     Promise.all([
-      invoke<Account[]>("list_accounts"),
+      invoke<FullAccount[]>("list_accounts"),
       invoke<Config>("get_config"),
     ])
       .then(([accountsData, configData]) => {

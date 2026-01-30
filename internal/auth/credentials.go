@@ -64,6 +64,7 @@ type Account struct {
 	Name        string      `yaml:"name"`
 	Provider    string      `yaml:"provider"`
 	Credentials Credentials `yaml:"credentials"`
+	Avatar      string      `yaml:"avatar,omitempty"`
 }
 
 type AccountStore struct {

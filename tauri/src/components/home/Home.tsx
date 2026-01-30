@@ -13,11 +13,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Link } from "@tanstack/react-router";
 import { getBatchEmailTags } from "@/lib/tags";
 import type { EmailTag } from "@/types/tags";
-
-interface Account {
-  name: string;
-  provider: string;
-}
+import { useAccountsStore } from "@/stores/accounts";
+import type { SanitizedAccount } from "@/types/account";
 
 type UnreadCounts = Record<string, number>;
 
@@ -29,7 +26,7 @@ interface ListEmailsResult {
 }
 
 interface InitialState {
-  accounts: Account[];
+  accounts: SanitizedAccount[];
   selected_account: string | null;
   emails: ListEmailsResult;
 }
@@ -114,7 +111,7 @@ async function fetchAndMergeTags(
 
 export function Home() {
   // Initialize with preloaded data if available - INSTANT first render
-  const [accounts, setAccounts] = useState<Account[]>(
+  const [accounts, setAccounts] = useState<SanitizedAccount[]>(
     PRELOADED_STATE?.accounts ?? []
   );
   const [selectedAccount, setSelectedAccount] = useState<string>(
@@ -137,6 +134,14 @@ export function Home() {
   const count14DaysRef = useRef(0);
   const backgroundLoadingRef = useRef(false);
   const initialLoadDoneRef = useRef(!!PRELOADED_STATE);
+
+  // Sync accounts with shared store for avatar URLs
+  const { setAccounts: setStoreAccounts, loadAvatarUrls } = useAccountsStore();
+
+  useEffect(() => {
+    setStoreAccounts(accounts);
+    loadAvatarUrls();
+  }, [accounts, setStoreAccounts, loadAvatarUrls]);
 
   // Fetch unread counts for all accounts
   const fetchUnreadCounts = useCallback(async () => {

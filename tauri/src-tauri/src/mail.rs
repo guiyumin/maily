@@ -34,6 +34,8 @@ pub struct Account {
     pub name: String,
     pub provider: String,
     pub credentials: Credentials,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub avatar: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -307,6 +309,52 @@ fn save_accounts(accounts: &[Account]) -> Result<(), Box<dyn std::error::Error>>
     }
 
     Ok(())
+}
+
+fn avatars_dir() -> PathBuf {
+    config_dir().join("avatars")
+}
+
+/// Upload avatar for an account. Returns the avatar filename.
+pub fn upload_avatar(
+    account_name: &str,
+    image_data: &[u8],
+    extension: &str,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let avatars = avatars_dir();
+    fs::create_dir_all(&avatars)?;
+
+    // Sanitize account name for filename
+    let safe_name: String = account_name
+        .chars()
+        .map(|c| if c.is_alphanumeric() || c == '-' || c == '_' { c } else { '_' })
+        .collect();
+
+    let filename = format!("{}.{}", safe_name, extension);
+    let filepath = avatars.join(&filename);
+
+    fs::write(&filepath, image_data)?;
+
+    Ok(filename)
+}
+
+/// Delete avatar file for an account
+pub fn delete_avatar(filename: &str) -> Result<(), Box<dyn std::error::Error>> {
+    let filepath = avatars_dir().join(filename);
+    if filepath.exists() {
+        fs::remove_file(filepath)?;
+    }
+    Ok(())
+}
+
+/// Get avatar file path for display (returns full path)
+pub fn get_avatar_path(filename: &str) -> Option<PathBuf> {
+    let filepath = avatars_dir().join(filename);
+    if filepath.exists() {
+        Some(filepath)
+    } else {
+        None
+    }
 }
 
 /// Test account credentials by connecting to IMAP

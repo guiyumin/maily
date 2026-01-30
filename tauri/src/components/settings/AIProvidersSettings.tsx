@@ -39,7 +39,7 @@ import {
   EyeOff,
 } from "lucide-react";
 import { toast } from "sonner";
-import type { AIProvider, Config, TestResult } from "./types";
+import type { AIProvider, Config, TestResult } from "@/types/config";
 import { useLocale } from "@/lib/i18n";
 import {
   testProvider as testApiProvider,

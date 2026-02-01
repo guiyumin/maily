@@ -6,7 +6,11 @@ mod mail;
 mod reminders;
 mod smtp;
 
-use tauri::{Manager, RunEvent, WebviewWindowBuilder, WindowEvent};
+use tauri::{
+    Manager, RunEvent, WebviewWindowBuilder, WindowEvent,
+    tray::TrayIconBuilder,
+    image::Image,
+};
 use ai::{
     init_summaries_table, get_cached_summary, delete_summary, list_available_providers,
     cli_complete as do_cli_complete, save_summary_from_frontend,
@@ -775,11 +779,28 @@ pub fn run() {
                     if let WindowEvent::CloseRequested { api, .. } = event {
                         // Prevent the window from being destroyed
                         api.prevent_close();
-                        // Hide the window instead (it goes to dock)
+                        // Hide the window instead
                         let _ = window_clone.hide();
                     }
                 });
             }
+
+            // Create system tray (menu bar icon) - click to show window
+            let tray_icon = Image::from_bytes(include_bytes!("../icons/32x32.png"))?;
+
+            let _tray = TrayIconBuilder::new()
+                .icon(tray_icon)
+                .tooltip("Maily")
+                .on_tray_icon_event(|tray, event| {
+                    // Any click on tray icon shows the window
+                    if let tauri::tray::TrayIconEvent::Click { .. } = event {
+                        if let Some(window) = tray.app_handle().get_webview_window("main") {
+                            let _ = window.show();
+                            let _ = window.set_focus();
+                        }
+                    }
+                })
+                .build(app)?;
 
             // Initialize IMAP queue with app handle for events
             init_imap_queue(app.handle().clone());

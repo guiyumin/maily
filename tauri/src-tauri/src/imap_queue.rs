@@ -532,7 +532,7 @@ pub fn fetch_body_via_pool(
 ) -> Result<Option<(String, String)>, Box<dyn std::error::Error + Send + Sync>> {
     with_imap_connection(account_name, mailbox, |session| {
         let uid_str = uid.to_string();
-        let fetched = session.uid_fetch(&uid_str, "(UID RFC822)")?;
+        let fetched = session.uid_fetch(&uid_str, "(UID BODY.PEEK[])")?;
 
         for msg in fetched.iter() {
             if msg.uid == Some(uid) {

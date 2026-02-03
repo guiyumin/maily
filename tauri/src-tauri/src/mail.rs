@@ -1367,7 +1367,7 @@ pub fn sync_emails(account_name: &str, mailbox: &str) -> Result<SyncResult, Box<
                 .collect::<Vec<_>>()
                 .join(",");
 
-            let fetched = session.uid_fetch(&uid_set, "(UID FLAGS INTERNALDATE RFC822)")?;
+            let fetched = session.uid_fetch(&uid_set, "(UID FLAGS INTERNALDATE BODY.PEEK[])")?;
 
             let conn = DB.lock().unwrap();
             for msg in fetched.iter() {
@@ -1520,7 +1520,7 @@ pub fn sync_emails_since(
                 .join(",");
 
             let fetched = session
-                .uid_fetch(&batch_uid_set, "(UID FLAGS INTERNALDATE RFC822)")
+                .uid_fetch(&batch_uid_set, "(UID FLAGS INTERNALDATE BODY.PEEK[])")
                 .map_err(|e| e.to_string())?;
 
             let conn = DB.lock().unwrap();
@@ -1788,7 +1788,7 @@ pub fn sync_emails_improved(
         eprintln!("[sync-improved] Prefetching body for {} most recent emails...", prefetch_uids.len());
         let uid_set: String = prefetch_uids.iter().map(|u| u.to_string()).collect::<Vec<_>>().join(",");
 
-        if let Ok(fetched) = session.uid_fetch(&uid_set, "(UID RFC822)") {
+        if let Ok(fetched) = session.uid_fetch(&uid_set, "(UID BODY.PEEK[])") {
             let conn = DB.lock().unwrap();
             for msg in fetched.iter() {
                 if let Some(uid) = msg.uid {
@@ -2005,7 +2005,7 @@ pub fn sync_emails_with_session(
         eprintln!("[sync-session] Prefetching body for {} most recent emails...", prefetch_uids.len());
         let uid_set: String = prefetch_uids.iter().map(|u| u.to_string()).collect::<Vec<_>>().join(",");
 
-        if let Ok(fetched) = session.uid_fetch(&uid_set, "(UID RFC822)") {
+        if let Ok(fetched) = session.uid_fetch(&uid_set, "(UID BODY.PEEK[])") {
             let conn = DB.lock().unwrap();
             for msg in fetched.iter() {
                 if let Some(uid) = msg.uid {

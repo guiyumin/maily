@@ -793,7 +793,7 @@ func (c *IMAPClient) FetchAttachment(mailbox string, uid imap.UID, partID string
 
 	fetchOptions := &imap.FetchOptions{
 		BodySection: []*imap.FetchItemBodySection{
-			{Part: part},
+			{Part: part, Peek: true},
 		},
 	}
 

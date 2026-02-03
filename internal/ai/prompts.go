@@ -116,6 +116,15 @@ Respond with ONLY the JSON, no other text.`, now.Format(time.RFC3339), emailCont
 func SummarizePrompt(from, subject, body string) string {
 	return fmt.Sprintf(`Summarize this email as bullet points.
 
+IMPORTANT - Language requirement:
+- You MUST respond in the SAME language as the email content
+- If the email is in English, respond in English
+- If the email is in Traditional Chinese (繁體中文), respond in Traditional Chinese
+- If the email is in Simplified Chinese (简体中文), respond in Simplified Chinese
+- If the email is in Japanese, respond in Japanese
+- If the email is in any other language, respond in that same language
+- Pay special attention to distinguish between Traditional Chinese (used in Taiwan, Hong Kong, Macau) and Simplified Chinese (used in Mainland China, Singapore)
+
 From: %s
 Subject: %s
 

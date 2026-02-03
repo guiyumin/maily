@@ -12,6 +12,15 @@ export interface SummarizeEmailParams {
 export function buildSummarizePrompt(params: SummarizeEmailParams): string {
   return `Summarize the NEWEST/MOST RECENT message in this email thread only. User's timezone: ${params.timezone}
 
+IMPORTANT - Language requirement:
+- You MUST respond in the SAME language as the email content
+- If the email is in English, respond in English
+- If the email is in Traditional Chinese (繁體中文), respond in Traditional Chinese
+- If the email is in Simplified Chinese (简体中文), respond in Simplified Chinese
+- If the email is in Japanese, respond in Japanese
+- If the email is in any other language, respond in that same language
+- Pay special attention to distinguish between Traditional Chinese (used in Taiwan, Hong Kong, Macau) and Simplified Chinese (used in Mainland China, Singapore)
+
 IMPORTANT: This email may contain quoted replies or forwarded content from previous messages.
 - Focus ONLY on the new content at the TOP of the email
 - IGNORE any quoted text (lines starting with ">", "On ... wrote:", blockquotes, "Original Message", "Forwarded message", etc.)

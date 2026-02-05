@@ -99,6 +99,18 @@ function parseRecipients(value: string): string[] {
     .filter((s) => s.length > 0);
 }
 
+function extractEmailAddress(recipient: string): string {
+  const match = recipient.match(/<([^>]+)>/);
+  return (match ? match[1] : recipient).trim().toLowerCase();
+}
+
+function filterOutAccount(recipients: string[], account: string): string[] {
+  const accountEmail = account.trim().toLowerCase();
+  return recipients.filter(
+    (r) => extractEmailAddress(r) !== accountEmail,
+  );
+}
+
 function getContentType(ext: string): string {
   const mimeTypes: Record<string, string> = {
     // Documents
@@ -153,18 +165,19 @@ export function Compose({
       return originalEmail.from;
     }
     if (mode === "reply-all" && originalEmail) {
-      const recipients = [originalEmail.from];
+      const allTo = [originalEmail.from];
       if (originalEmail.to) {
-        recipients.push(originalEmail.to);
+        allTo.push(...parseRecipients(originalEmail.to));
       }
-      return recipients.join(", ");
+      return filterOutAccount(allTo, account).join(", ");
     }
     return "";
   });
 
   const [cc, setCc] = useState(() => {
     if (mode === "reply-all" && originalEmail?.cc) {
-      return originalEmail.cc;
+      const ccRecipients = parseRecipients(originalEmail.cc);
+      return filterOutAccount(ccRecipients, account).join(", ");
     }
     return "";
   });

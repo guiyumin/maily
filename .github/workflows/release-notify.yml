@@ -1,0 +1,37 @@
+name: Release Notification
+
+on:
+  workflow_run:
+    workflows:
+      - "Release"
+      - "Release Desktop (Apple Silicon)"
+      - "Release Desktop (Intel)"
+    types: [completed]
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Get commit message
+        id: commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          MESSAGE=$(gh api repos/${{ github.repository }}/commits/${{ github.event.workflow_run.head_sha }} --jq '.commit.message' | head -1)
+          echo "message=$MESSAGE" >> "$GITHUB_OUTPUT"
+
+      - name: Notify Telegram on success
+        if: github.event.workflow_run.conclusion == 'success'
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
+            -d parse_mode="HTML" \
+            -d text="✅ <b>Maily Release Succeeded</b>%0A%0AWorkflow: ${{ github.event.workflow_run.name }}%0ABranch: ${{ github.event.workflow_run.head_branch }}%0ACommit: <code>${{ github.event.workflow_run.head_sha }}</code>%0AMessage: ${{ steps.commit.outputs.message }}"
+
+      - name: Notify Telegram on failure
+        if: github.event.workflow_run.conclusion == 'failure'
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
+            -d parse_mode="HTML" \
+            -d text="❌ <b>Maily Release Failed</b>%0A%0AWorkflow: ${{ github.event.workflow_run.name }}%0ABranch: ${{ github.event.workflow_run.head_branch }}%0ACommit: <code>${{ github.event.workflow_run.head_sha }}</code>%0AMessage: ${{ steps.commit.outputs.message }}%0A%0A<a href='${{ github.event.workflow_run.html_url }}'>View details</a>"

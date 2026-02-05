@@ -233,6 +233,7 @@ config.select_language: "언어 선택"
 # ============================================
 command.new: "새 이메일"
 command.reply: "이 이메일에 답장"
+command.reply_all: "전체 답장"
 command.delete: "이 이메일 삭제"
 command.search: "이메일 검색"
 command.refresh: "받은편지함 새로고침"

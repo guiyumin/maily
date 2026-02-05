@@ -238,6 +238,7 @@ config.select_language: "Taal selecteren"
 # ============================================
 command.new: "Nieuwe e-mail"
 command.reply: "Op deze e-mail beantwoorden"
+command.reply_all: "Allen beantwoorden"
 command.delete: "Deze e-mail verwijderen"
 command.search: "E-mails zoeken"
 command.refresh: "Postvak IN vernieuwen"

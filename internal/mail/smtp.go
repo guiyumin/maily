@@ -84,6 +84,29 @@ func encodeFilename(name string) string {
 	return clean
 }
 
+// parseRecipients extracts individual email addresses from a comma-separated
+// header value for use as SMTP envelope recipients.
+func parseRecipients(to string) []string {
+	var addrs []string
+	for _, part := range strings.Split(to, ",") {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		// Extract email from "Name <email>" format
+		if idx := strings.Index(part, "<"); idx >= 0 {
+			if end := strings.Index(part, ">"); end > idx {
+				part = part[idx+1 : end]
+			}
+		}
+		part = strings.TrimSpace(part)
+		if part != "" {
+			addrs = append(addrs, part)
+		}
+	}
+	return addrs
+}
+
 type SMTPClient struct {
 	creds *auth.Credentials
 }
@@ -109,7 +132,7 @@ func (c *SMTPClient) Send(to, subject, body string) error {
 		"\r\n"+
 		"%s", c.creds.Email, to, subject, body)
 
-	return smtp.SendMail(addr, auth, c.creds.Email, []string{to}, []byte(msg))
+	return smtp.SendMail(addr, auth, c.creds.Email, parseRecipients(to), []byte(msg))
 }
 
 func (c *SMTPClient) Reply(to, subject, body, inReplyTo, references string) error {
@@ -139,7 +162,7 @@ func (c *SMTPClient) Reply(to, subject, body, inReplyTo, references string) erro
 		"\r\n"+
 		"%s", c.creds.Email, to, subject, inReplyTo, references, body)
 
-	return smtp.SendMail(addr, auth, c.creds.Email, []string{to}, []byte(msg))
+	return smtp.SendMail(addr, auth, c.creds.Email, parseRecipients(to), []byte(msg))
 }
 
 // SendWithAttachments sends an email with attachments
@@ -160,7 +183,7 @@ func (c *SMTPClient) SendWithAttachments(to, subject, body string, attachments [
 		return fmt.Errorf("failed to build message: %w", err)
 	}
 
-	return smtp.SendMail(addr, auth, c.creds.Email, []string{to}, msg)
+	return smtp.SendMail(addr, auth, c.creds.Email, parseRecipients(to), msg)
 }
 
 // ReplyWithAttachments sends a reply email with attachments
@@ -189,7 +212,7 @@ func (c *SMTPClient) ReplyWithAttachments(to, subject, body, inReplyTo, referenc
 		return fmt.Errorf("failed to build message: %w", err)
 	}
 
-	return smtp.SendMail(addr, auth, c.creds.Email, []string{to}, msg)
+	return smtp.SendMail(addr, auth, c.creds.Email, parseRecipients(to), msg)
 }
 
 // buildMultipartMessage constructs a MIME multipart message with attachments

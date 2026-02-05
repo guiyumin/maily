@@ -744,6 +744,19 @@ func (a App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					}
 				}
 			}
+		case "A":
+			// Reply all (in list or read view)
+			if a.state == stateReady && !a.confirmDelete && (a.view == listView || a.view == readView) {
+				if email := a.mailList.SelectedEmail(); email != nil {
+					account := a.currentAccount()
+					if account != nil {
+						a.compose = NewReplyAllModel(account.Credentials.Email, email)
+						a.compose.setSize(a.width, a.height)
+						a.view = composeView
+						return a, a.compose.Init()
+					}
+				}
+			}
 		case "R":
 			// Shift+R for refresh - direct IMAP metadata-only refresh
 			if a.state == stateReady && !a.isSearchResult && a.view == listView {

@@ -248,6 +248,7 @@ config.select_language: "Выбрать язык"
 # ============================================
 command.new: "Новое письмо"
 command.reply: "Ответить на это письмо"
+command.reply_all: "Ответить всем"
 command.delete: "Удалить это письмо"
 command.search: "Поиск писем"
 command.refresh: "Обновить входящие"

@@ -238,6 +238,7 @@ config.select_language: "Seleziona lingua"
 # ============================================
 command.new: "Nuova email"
 command.reply: "Rispondi a questa email"
+command.reply_all: "Rispondi a tutti"
 command.delete: "Elimina questa email"
 command.search: "Cerca email"
 command.refresh: "Aggiorna posta in arrivo"

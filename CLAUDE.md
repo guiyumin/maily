@@ -195,3 +195,4 @@ Used for:
 - **MUST** DO NOT change tauri app's version
 - **MUST** DO NOT USE React.FC. Type the props instead
 - **MUST** NEVER RUN `bun run tauri dev`
+- **MUST** READ FILE FIRST BEFORE YOU EDIT IT

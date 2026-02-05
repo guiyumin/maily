@@ -238,6 +238,7 @@ config.select_language: "Seleccionar idioma"
 # ============================================
 command.new: "Nuevo correo"
 command.reply: "Responder a este correo"
+command.reply_all: "Responder a todos"
 command.delete: "Eliminar este correo"
 command.search: "Buscar correos"
 command.refresh: "Actualizar bandeja"

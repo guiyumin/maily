@@ -31,6 +31,7 @@ type CommandSelectedMsg struct {
 var AllCommands = []Command{
 	{Name: "new", DescKey: "command.new", Shortcut: "n", Views: []string{"list"}},
 	{Name: "reply", DescKey: "command.reply", Shortcut: "r", Views: []string{"list", "today"}},
+	{Name: "reply-all", DescKey: "command.reply_all", Shortcut: "A", Views: []string{"list", "today"}},
 	{Name: "delete", DescKey: "command.delete", Shortcut: "d", Views: []string{"list", "today"}},
 	{Name: "search", DescKey: "command.search", Shortcut: "s", Views: []string{"list"}},
 	{Name: "refresh", DescKey: "command.refresh", Shortcut: "R", Views: []string{"list"}},

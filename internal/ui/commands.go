@@ -787,6 +787,18 @@ func (a App) executeCommand(command string) (tea.Model, tea.Cmd) {
 			}
 		}
 
+	case "reply-all":
+		// Reply all to selected email
+		if email := a.mailList.SelectedEmail(); email != nil {
+			account := a.currentAccount()
+			if account != nil {
+				a.compose = NewReplyAllModel(account.Credentials.Email, email)
+				a.compose.setSize(a.width, a.height)
+				a.view = composeView
+				return a, a.compose.Init()
+			}
+		}
+
 	case "delete":
 		// Delete selected email
 		if a.mailList.SelectedEmail() != nil {

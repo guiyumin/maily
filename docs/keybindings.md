@@ -7,6 +7,7 @@
 | `enter` | Open email            |
 | `n`     | New email             |
 | `r`     | Reply to email        |
+| `A`     | Reply all             |
 | `R`     | Refresh from server   |
 | `d`     | Delete email          |
 | `s`     | Search                |
@@ -21,6 +22,7 @@
 | Key   | Action           |
 | ----- | ---------------- |
 | `r`   | Reply            |
+| `A`   | Reply all        |
 | `s`   | Summarize (AI)   |
 | `u`   | Mark as unread   |
 | `esc` | Back to list     |

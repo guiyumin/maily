@@ -66,6 +66,7 @@ type ComposeModel struct {
 	height          int
 	focused         int
 	isReply         bool
+	isReplyAll      bool
 	replyEmail      *mail.Email // Original email being replied to
 	confirming      int         // confirmNone, confirmSend, or confirmCancel
 	confirmFocused  int         // 0 = Confirm button, 1 = Cancel button
@@ -150,6 +151,96 @@ func NewReplyModel(from string, original *mail.Email) ComposeModel {
 		replyEmail:   original,
 		quotedBody:   "\n\n" + quotedBody,
 	}
+}
+
+// NewReplyAllModel creates a compose model for replying to all recipients
+func NewReplyAllModel(from string, original *mail.Email) ComposeModel {
+	// Determine who to reply to
+	replyTo := original.From
+	if original.ReplyTo != "" {
+		replyTo = original.ReplyTo
+	}
+
+	// Build recipient list: sender + all To + all CC, minus ourselves
+	fromLower := strings.ToLower(from)
+	seen := map[string]bool{fromLower: true}
+
+	var recipients []string
+	// Always include the reply-to address first
+	addr := extractEmail(replyTo)
+	if addrLower := strings.ToLower(addr); !seen[addrLower] {
+		seen[addrLower] = true
+		recipients = append(recipients, addr)
+	}
+	// Add original To recipients
+	for _, r := range parseEmailList(original.To) {
+		addr := extractEmail(r)
+		if addrLower := strings.ToLower(addr); !seen[addrLower] {
+			seen[addrLower] = true
+			recipients = append(recipients, addr)
+		}
+	}
+	// Add original CC recipients
+	for _, r := range parseEmailList(original.Cc) {
+		addr := extractEmail(r)
+		if addrLower := strings.ToLower(addr); !seen[addrLower] {
+			seen[addrLower] = true
+			recipients = append(recipients, addr)
+		}
+	}
+
+	ti := textinput.New()
+	ti.SetValue(strings.Join(recipients, ", "))
+	ti.CharLimit = 500
+	ti.Width = 50
+
+	// Build subject
+	subject := original.Subject
+	if !strings.HasPrefix(strings.ToLower(subject), "re:") {
+		subject = "Re: " + subject
+	}
+
+	si := textinput.New()
+	si.SetValue(subject)
+	si.CharLimit = 200
+	si.Width = 50
+
+	ta := textarea.New()
+	ta.Placeholder = "Type your reply..."
+	ta.CharLimit = 0
+	ta.SetWidth(80)
+	ta.SetHeight(10)
+	ta.Focus()
+
+	quotedBody := buildQuotedBody(original)
+
+	return ComposeModel{
+		from:         from,
+		toInput:      ti,
+		subjectInput: si,
+		body:         ta,
+		focused:      focusBody,
+		isReply:      true,
+		isReplyAll:   true,
+		replyEmail:   original,
+		quotedBody:   "\n\n" + quotedBody,
+	}
+}
+
+// parseEmailList splits a comma-separated email list into individual entries
+func parseEmailList(s string) []string {
+	if s == "" {
+		return nil
+	}
+	parts := strings.Split(s, ",")
+	var result []string
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p != "" {
+			result = append(result, p)
+		}
+	}
+	return result
 }
 
 // extractEmail extracts email address from "Name <email@example.com>" format
@@ -638,7 +729,9 @@ func (m ComposeModel) View() string {
 
 	// Title based on compose type
 	titleText := "Compose"
-	if m.isReply {
+	if m.isReplyAll {
+		titleText = "Reply All"
+	} else if m.isReply {
 		titleText = "Reply"
 	}
 	title := lipgloss.NewStyle().

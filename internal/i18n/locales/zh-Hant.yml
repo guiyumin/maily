@@ -233,6 +233,7 @@ config.select_language: "選擇語言"
 # ============================================
 command.new: "新郵件"
 command.reply: "回覆此郵件"
+command.reply_all: "回覆所有人"
 command.delete: "刪除此郵件"
 command.search: "搜尋郵件"
 command.refresh: "重新整理收件匣"

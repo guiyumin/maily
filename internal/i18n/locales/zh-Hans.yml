@@ -233,6 +233,7 @@ config.select_language: "选择语言"
 # ============================================
 command.new: "新邮件"
 command.reply: "回复此邮件"
+command.reply_all: "回复所有人"
 command.delete: "删除此邮件"
 command.search: "搜索邮件"
 command.refresh: "刷新收件箱"

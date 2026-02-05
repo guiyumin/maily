@@ -233,6 +233,7 @@ config.select_language: "言語を選択"
 # ============================================
 command.new: "新規メール"
 command.reply: "このメールに返信"
+command.reply_all: "全員に返信"
 command.delete: "このメールを削除"
 command.search: "メールを検索"
 command.refresh: "受信トレイを更新"

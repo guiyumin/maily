@@ -229,6 +229,11 @@ export function AccountsSettings({
   const saveAccount = async () => {
     if (!form.name || !form.email || !form.password) return;
 
+    // Preserve existing avatar when editing
+    const existingAccount = editingName
+      ? fullAccounts.find((a) => a.name === editingName)
+      : undefined;
+
     const account: FullAccount = {
       name: form.name,
       provider: form.provider,
@@ -241,6 +246,7 @@ export function AccountsSettings({
         smtp_port: form.smtpPort,
       },
       display_name: form.displayName || undefined,
+      avatar: existingAccount?.avatar,
     };
 
     try {

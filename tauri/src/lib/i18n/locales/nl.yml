@@ -45,6 +45,7 @@ settings.accounts.noAccounts: Geen accounts geconfigureerd
 settings.accounts.addAccount: Account toevoegen
 settings.accounts.removeAccount: Account verwijderen
 settings.accounts.confirmRemove: Weet u zeker dat u dit account wilt verwijderen?
+settings.yourName: "Uw naam (optioneel)"
 
 # AI Providers settings
 settings.ai.title: AI-providers
@@ -101,6 +102,7 @@ common.unsavedChanges: Niet-opgeslagen wijzigingen
 common.loading: Laden...
 common.error: Fout
 common.success: Succes
+common.optional: optioneel
 
 # Calendar page
 calendar.accessRequired: Agendatoegang vereist
@@ -161,3 +163,7 @@ compose.messagePlaceholder: Schrijf uw bericht...
 compose.accept: Accepteren
 compose.decline: Weigeren
 compose.askMore: Meer vragen
+compose.aiReply: AI-antwoord
+compose.aiInstructionPlaceholder: "Instructies voor AI (bijv. vertel ze dat ik een vergadering heb gepland, bedankt)"
+compose.aiInstructionDescription: Vertel de AI wat er in uw antwoord moet staan
+compose.generate: Genereren

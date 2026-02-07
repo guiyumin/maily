@@ -45,6 +45,7 @@ settings.accounts.noAccounts: Нет настроенных аккаунтов
 settings.accounts.addAccount: Добавить аккаунт
 settings.accounts.removeAccount: Удалить аккаунт
 settings.accounts.confirmRemove: Вы уверены, что хотите удалить этот аккаунт?
+settings.yourName: "Ваше имя (необязательно)"
 
 # AI Providers settings
 settings.ai.title: Провайдеры ИИ
@@ -101,6 +102,7 @@ common.unsavedChanges: Несохранённые изменения
 common.loading: Загрузка...
 common.error: Ошибка
 common.success: Успешно
+common.optional: необязательно
 
 # Calendar page
 calendar.accessRequired: Требуется доступ к календарю
@@ -161,3 +163,7 @@ compose.messagePlaceholder: Напишите сообщение...
 compose.accept: Принять
 compose.decline: Отклонить
 compose.askMore: Узнать больше
+compose.aiReply: ИИ-ответ
+compose.aiInstructionPlaceholder: "Инструкции для ИИ (напр. скажи им, что я назначил встречу, спасибо)"
+compose.aiInstructionDescription: Скажите ИИ, что написать в ответе
+compose.generate: Сгенерировать

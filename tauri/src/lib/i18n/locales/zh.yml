@@ -45,6 +45,7 @@ settings.accounts.noAccounts: 未配置账户
 settings.accounts.addAccount: 添加账户
 settings.accounts.removeAccount: 移除账户
 settings.accounts.confirmRemove: 确定要移除此账户吗？
+settings.yourName: "您的姓名（可选）"
 
 # AI Providers settings
 settings.ai.title: AI 提供商
@@ -101,6 +102,7 @@ common.unsavedChanges: 未保存的更改
 common.loading: 加载中...
 common.error: 错误
 common.success: 成功
+common.optional: 可选
 
 # Calendar page
 calendar.accessRequired: 需要日历访问权限
@@ -159,3 +161,6 @@ compose.recipientPlaceholder: recipient@example.com
 compose.subjectPlaceholder: 邮件主题
 compose.messagePlaceholder: 撰写邮件内容...
 compose.aiReply: AI 回复
+compose.aiInstructionPlaceholder: "AI 回复指令（例如：告诉他们我已安排会议，谢谢）"
+compose.aiInstructionDescription: 告诉 AI 你想回复什么内容
+compose.generate: 生成

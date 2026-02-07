@@ -26,6 +26,8 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -77,6 +79,7 @@ interface ComposeProps {
   open: boolean;
   onClose: () => void;
   account: string;
+  senderName?: string;
   mode?: "new" | "reply" | "reply-all" | "forward";
   draftId?: number | null;
   originalEmail?: {
@@ -106,9 +109,7 @@ function extractEmailAddress(recipient: string): string {
 
 function filterOutAccount(recipients: string[], account: string): string[] {
   const accountEmail = account.trim().toLowerCase();
-  return recipients.filter(
-    (r) => extractEmailAddress(r) !== accountEmail,
-  );
+  return recipients.filter((r) => extractEmailAddress(r) !== accountEmail);
 }
 
 function getContentType(ext: string): string {
@@ -153,6 +154,7 @@ export function Compose({
   open,
   onClose,
   account,
+  senderName,
   mode = "new",
   draftId: initialDraftId,
   originalEmail,
@@ -212,6 +214,8 @@ export function Compose({
   const [attachments, setAttachments] = useState<AttachmentInfo[]>([]);
   const [sending, setSending] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [showAiPrompt, setShowAiPrompt] = useState(false);
+  const [userInstruction, setUserInstruction] = useState("");
   const [isDragging, setIsDragging] = useState(false);
   const [draftId, setDraftId] = useState<number | null>(initialDraftId ?? null);
   const [autoSaving, setAutoSaving] = useState(false);
@@ -486,17 +490,25 @@ export function Compose({
         originalFrom: originalEmail.from,
         originalSubject: originalEmail.subject,
         originalBody: body, // Full thread context including quoted messages
+        senderName: senderName || undefined,
+        userInstruction: userInstruction.trim() || undefined,
       });
 
       const response = await completeWithFallback(
-        { prompt, systemPrompt: REPLY_SYSTEM_PROMPT, maxTokens: REPLY_MAX_TOKENS },
-        providerConfigs
+        {
+          prompt,
+          systemPrompt: REPLY_SYSTEM_PROMPT,
+          maxTokens: REPLY_MAX_TOKENS,
+        },
+        providerConfigs,
       );
 
       if (response.success && response.content) {
         // Prepend AI reply to the quoted thread
         const quotedThread = body.trim();
         setBody(response.content + "\n\n" + quotedThread);
+        setShowAiPrompt(false);
+        setUserInstruction("");
         toast.success(`Generated with ${response.modelUsed}`);
       } else {
         toast.error(response.error || "Failed to generate reply");
@@ -506,211 +518,279 @@ export function Compose({
     } finally {
       setGenerating(false);
     }
-  }, [originalEmail, body, providerConfigs]);
+  }, [originalEmail, body, userInstruction, providerConfigs]);
 
   const handleRemoveAttachment = (index: number) => {
     setAttachments((prev) => prev.filter((_, i) => i !== index));
   };
 
   return (
-    <Dialog open={open} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent
-        ref={dropZoneRef}
-        className="flex flex-col overflow-hidden"
-        style={{ maxWidth: '56rem', maxHeight: '80vh' }}
-        onDragEnter={handleDragEnter}
-        onDragLeave={handleDragLeave}
-        onDragOver={handleDragOver}
-        onDrop={handleDrop}
-      >
-        {/* Drag overlay */}
-        {isDragging && (
-          <div className="absolute inset-0 z-50 flex items-center justify-center bg-primary/10 border-2 border-dashed border-primary rounded-lg">
-            <div className="text-center">
-              <Upload className="h-12 w-12 mx-auto text-primary mb-2" />
-              <p className="text-lg font-medium">{t("compose.dropFilesToAttach")}</p>
-            </div>
-          </div>
-        )}
-
-        <DialogHeader className="shrink-0">
-          <div className="flex items-center justify-between">
-            <DialogTitle>
-              {mode === "new" && t("compose.newEmail")}
-              {mode === "reply" && t("compose.reply")}
-              {mode === "reply-all" && t("compose.replyAll")}
-              {mode === "forward" && t("compose.forward")}
-            </DialogTitle>
-            {autoSaving && (
-              <span className="text-xs text-muted-foreground flex items-center gap-1">
-                <Loader2 className="h-3 w-3 animate-spin" />
-                {t("compose.saving")}
-              </span>
-            )}
-            {!autoSaving && draftId && (
-              <span className="text-xs text-muted-foreground">{t("compose.draftSaved")}</span>
-            )}
-          </div>
-        </DialogHeader>
-
-        <div className="flex flex-col gap-4 flex-1 overflow-y-auto">
-          {/* From (read-only) */}
-          <div className="flex items-center gap-2">
-            <Label className="w-16 text-right text-muted-foreground">
-              {t("compose.from")}
-            </Label>
-            <Input value={account} disabled className="flex-1 bg-muted" />
-          </div>
-
-          {/* To */}
-          <div className="flex items-center gap-2">
-            <Label className="w-16 text-right">{t("compose.to")}</Label>
-            <Input
-              value={to}
-              onChange={(e) => setTo(e.target.value)}
-              placeholder={t("compose.recipientPlaceholder")}
-              className="flex-1"
-            />
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowCcBcc(!showCcBcc)}
-            >
-              {showCcBcc ? (
-                <ChevronUp className="h-4 w-4" />
-              ) : (
-                <ChevronDown className="h-4 w-4" />
-              )}
-              Cc/Bcc
-            </Button>
-          </div>
-
-          {/* Cc/Bcc */}
-          <Collapsible open={showCcBcc}>
-            <CollapsibleContent className="space-y-2">
-              <div className="flex items-center gap-2">
-                <Label className="w-16 text-right">Cc</Label>
-                <Input
-                  value={cc}
-                  onChange={(e) => setCc(e.target.value)}
-                  placeholder="cc@example.com"
-                  className="flex-1"
-                />
-              </div>
-              <div className="flex items-center gap-2">
-                <Label className="w-16 text-right">Bcc</Label>
-                <Input
-                  value={bcc}
-                  onChange={(e) => setBcc(e.target.value)}
-                  placeholder="bcc@example.com"
-                  className="flex-1"
-                />
-              </div>
-            </CollapsibleContent>
-          </Collapsible>
-
-          {/* Subject */}
-          <div className="flex items-center gap-2">
-            <Label className="w-16 text-right">{t("compose.subject")}</Label>
-            <Input
-              value={subject}
-              onChange={(e) => setSubject(e.target.value)}
-              placeholder={t("compose.subjectPlaceholder")}
-              className="flex-1"
-            />
-          </div>
-
-          {/* Body */}
-          <div className="flex-1 overflow-hidden flex flex-col gap-2">
-            <div className="flex items-center justify-between">
-              <Label>{t("compose.message")}</Label>
-              {(mode === "reply" || mode === "reply-all") && originalEmail && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleGenerateReply}
-                  disabled={generating}
-                >
-                  {generating ? (
-                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                  ) : (
-                    <Sparkles className="h-3 w-3 mr-1" />
-                  )}
-                  {t("compose.aiReply")}
-                </Button>
-              )}
-            </div>
-            <Textarea
-              value={body}
-              onChange={(e) => setBody(e.target.value)}
-              placeholder={t("compose.messagePlaceholder")}
-              className="flex-1 min-h-50 resize-none"
-            />
-          </div>
-
-          {/* Attachments */}
-          {attachments.length > 0 && (
-            <div className="space-y-2">
-              <Label>{t("compose.attachments")}</Label>
-              <div className="flex flex-wrap gap-2">
-                {attachments.map((att, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center gap-2 rounded-lg border bg-muted/50 px-3 py-1.5"
-                  >
-                    <Paperclip className="h-3 w-3 text-muted-foreground" />
-                    <span className="text-sm">{att.filename}</span>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-5 w-5"
-                      onClick={() => handleRemoveAttachment(index)}
-                    >
-                      <X className="h-3 w-3" />
-                    </Button>
-                  </div>
-                ))}
+    <>
+      <Dialog open={open} onOpenChange={(open) => !open && onClose()}>
+        <DialogContent
+          ref={dropZoneRef}
+          className="flex flex-col overflow-hidden"
+          style={{ maxWidth: "56rem", maxHeight: "80vh" }}
+          onDragEnter={handleDragEnter}
+          onDragLeave={handleDragLeave}
+          onDragOver={handleDragOver}
+          onDrop={handleDrop}
+        >
+          {/* Drag overlay */}
+          {isDragging && (
+            <div className="absolute inset-0 z-50 flex items-center justify-center bg-primary/10 border-2 border-dashed border-primary rounded-lg">
+              <div className="text-center">
+                <Upload className="h-12 w-12 mx-auto text-primary mb-2" />
+                <p className="text-lg font-medium">
+                  {t("compose.dropFilesToAttach")}
+                </p>
               </div>
             </div>
           )}
 
-          {/* Actions */}
-          <div className="flex items-center justify-between pt-4 border-t">
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={handleAttachFiles}>
-                <Paperclip className="h-4 w-4 mr-1" />
-                {t("compose.attach")}
+          <DialogHeader className="shrink-0">
+            <div className="flex items-center justify-between">
+              <DialogTitle>
+                {mode === "new" && t("compose.newEmail")}
+                {mode === "reply" && t("compose.reply")}
+                {mode === "reply-all" && t("compose.replyAll")}
+                {mode === "forward" && t("compose.forward")}
+              </DialogTitle>
+              {autoSaving && (
+                <span className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  {t("compose.saving")}
+                </span>
+              )}
+              {!autoSaving && draftId && (
+                <span className="text-xs text-muted-foreground">
+                  {t("compose.draftSaved")}
+                </span>
+              )}
+            </div>
+          </DialogHeader>
+
+          <div className="flex flex-col gap-4 flex-1 overflow-y-auto">
+            {/* From (read-only) */}
+            <div className="flex items-center gap-2">
+              <Label className="w-16 text-right text-muted-foreground">
+                {t("compose.from")}
+              </Label>
+              <Input value={account} disabled className="flex-1 bg-muted" />
+            </div>
+
+            {/* To */}
+            <div className="flex items-center gap-2">
+              <Label className="w-16 text-right">{t("compose.to")}</Label>
+              <Input
+                value={to}
+                onChange={(e) => setTo(e.target.value)}
+                placeholder={t("compose.recipientPlaceholder")}
+                className="flex-1"
+              />
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowCcBcc(!showCcBcc)}
+              >
+                {showCcBcc ? (
+                  <ChevronUp className="h-4 w-4" />
+                ) : (
+                  <ChevronDown className="h-4 w-4" />
+                )}
+                Cc/Bcc
               </Button>
             </div>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={onClose}>
-                <Trash2 className="h-4 w-4 mr-1" />
-                {t("compose.discard")}
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => saveDraft(true)}
-                disabled={autoSaving || sending}
-              >
-                {autoSaving ? (
-                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                ) : (
-                  <Upload className="h-4 w-4 mr-1" />
-                )}
-                {t("common.save")}
-              </Button>
-              <Button onClick={handleSend} disabled={sending || generating}>
-                {sending ? (
-                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                ) : (
-                  <Send className="h-4 w-4 mr-1" />
-                )}
-                {t("compose.send")}
-              </Button>
+
+            {/* Cc/Bcc */}
+            <Collapsible open={showCcBcc}>
+              <CollapsibleContent className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Label className="w-16 text-right">Cc</Label>
+                  <Input
+                    value={cc}
+                    onChange={(e) => setCc(e.target.value)}
+                    placeholder="cc@example.com"
+                    className="flex-1"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <Label className="w-16 text-right">Bcc</Label>
+                  <Input
+                    value={bcc}
+                    onChange={(e) => setBcc(e.target.value)}
+                    placeholder="bcc@example.com"
+                    className="flex-1"
+                  />
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+
+            {/* Subject */}
+            <div className="flex items-center gap-2">
+              <Label className="w-16 text-right">{t("compose.subject")}</Label>
+              <Input
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)}
+                placeholder={t("compose.subjectPlaceholder")}
+                className="flex-1"
+              />
+            </div>
+
+            {/* Body */}
+            <div className="flex-1 overflow-hidden flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <Label>{t("compose.message")}</Label>
+                {(mode === "reply" || mode === "reply-all") &&
+                  originalEmail && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowAiPrompt(true)}
+                      disabled={generating}
+                    >
+                      {generating ? (
+                        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                      ) : (
+                        <Sparkles className="h-3 w-3 mr-1" />
+                      )}
+                      {t("compose.aiReply")}
+                    </Button>
+                  )}
+              </div>
+              <Textarea
+                value={body}
+                onChange={(e) => setBody(e.target.value)}
+                placeholder={t("compose.messagePlaceholder")}
+                className="flex-1 min-h-50 resize-none"
+              />
+            </div>
+
+            {/* Attachments */}
+            {attachments.length > 0 && (
+              <div className="space-y-2">
+                <Label>{t("compose.attachments")}</Label>
+                <div className="flex flex-wrap gap-2">
+                  {attachments.map((att, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center gap-2 rounded-lg border bg-muted/50 px-3 py-1.5"
+                    >
+                      <Paperclip className="h-3 w-3 text-muted-foreground" />
+                      <span className="text-sm">{att.filename}</span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-5 w-5"
+                        onClick={() => handleRemoveAttachment(index)}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex items-center justify-between pt-4 border-t">
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={handleAttachFiles}>
+                  <Paperclip className="h-4 w-4 mr-1" />
+                  {t("compose.attach")}
+                </Button>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={onClose}>
+                  <Trash2 className="h-4 w-4 mr-1" />
+                  {t("compose.discard")}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => saveDraft(true)}
+                  disabled={autoSaving || sending}
+                >
+                  {autoSaving ? (
+                    <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                  ) : (
+                    <Upload className="h-4 w-4 mr-1" />
+                  )}
+                  {t("common.save")}
+                </Button>
+                <Button onClick={handleSend} disabled={sending || generating}>
+                  {sending ? (
+                    <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                  ) : (
+                    <Send className="h-4 w-4 mr-1" />
+                  )}
+                  {t("compose.send")}
+                </Button>
+              </div>
             </div>
           </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+
+      {/* AI Reply instruction dialog */}
+      <Dialog
+        open={showAiPrompt}
+        onOpenChange={(open) => {
+          if (!open) {
+            setShowAiPrompt(false);
+            setUserInstruction("");
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("compose.aiReply")} <span className="text-destructive">*</span></DialogTitle>
+            <DialogDescription>
+              {t("compose.aiInstructionDescription")}
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            value={userInstruction}
+            onChange={(e) => setUserInstruction(e.target.value)}
+            placeholder={t("compose.aiInstructionPlaceholder")}
+            className="min-h-24 resize-none"
+            onKeyDown={(e) => {
+              if (
+                e.key === "Enter" &&
+                (e.metaKey || e.ctrlKey) &&
+                userInstruction.trim()
+              ) {
+                e.preventDefault();
+                handleGenerateReply();
+              }
+            }}
+            autoFocus
+            disabled={generating}
+          />
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowAiPrompt(false);
+                setUserInstruction("");
+              }}
+              disabled={generating}
+            >
+              {t("common.cancel")}
+            </Button>
+            <Button
+              onClick={handleGenerateReply}
+              disabled={generating || !userInstruction.trim()}
+            >
+              {generating ? (
+                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+              ) : (
+                <Sparkles className="h-4 w-4 mr-1" />
+              )}
+              {t("compose.generate")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

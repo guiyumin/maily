@@ -45,6 +45,7 @@ settings.accounts.noAccounts: アカウントが設定されていません
 settings.accounts.addAccount: アカウントを追加
 settings.accounts.removeAccount: アカウントを削除
 settings.accounts.confirmRemove: このアカウントを削除してもよろしいですか？
+settings.yourName: "お名前（任意）"
 
 # AI Providers settings
 settings.ai.title: AIプロバイダー
@@ -101,6 +102,7 @@ common.unsavedChanges: 未保存の変更
 common.loading: 読み込み中...
 common.error: エラー
 common.success: 成功
+common.optional: 任意
 
 # Calendar page
 calendar.accessRequired: カレンダーへのアクセスが必要です
@@ -161,3 +163,7 @@ compose.messagePlaceholder: メッセージを入力...
 compose.accept: 承諾
 compose.decline: 辞退
 compose.askMore: 詳細を聞く
+compose.aiReply: AI返信
+compose.aiInstructionPlaceholder: "AIへの指示（例：会議を設定したことを伝えて、ありがとう）"
+compose.aiInstructionDescription: AIに返信内容を指示してください
+compose.generate: 生成

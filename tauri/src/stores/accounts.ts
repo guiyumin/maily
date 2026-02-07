@@ -44,6 +44,7 @@ export const useAccountsStore = create<AccountsState>((set, get) => ({
         provider: a.provider,
         email: a.credentials.email,
         avatar: a.avatar,
+        display_name: a.display_name,
       }));
       set({ sanitizedAccounts });
       // Also refresh avatar URLs

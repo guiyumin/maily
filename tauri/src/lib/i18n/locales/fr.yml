@@ -45,6 +45,7 @@ settings.accounts.noAccounts: Aucun compte configuré
 settings.accounts.addAccount: Ajouter un compte
 settings.accounts.removeAccount: Supprimer le compte
 settings.accounts.confirmRemove: Êtes-vous sûr de vouloir supprimer ce compte ?
+settings.yourName: "Votre nom (facultatif)"
 
 # AI Providers settings
 settings.ai.title: Fournisseurs IA
@@ -101,6 +102,7 @@ common.unsavedChanges: Modifications non enregistrées
 common.loading: Chargement...
 common.error: Erreur
 common.success: Succès
+common.optional: facultatif
 
 # Calendar page
 calendar.accessRequired: Accès au calendrier requis
@@ -161,3 +163,7 @@ compose.messagePlaceholder: Écrivez votre message...
 compose.accept: Accepter
 compose.decline: Refuser
 compose.askMore: Demander plus
+compose.aiReply: Réponse IA
+compose.aiInstructionPlaceholder: "Instructions pour l'IA (ex. dis-leur que j'ai organisé une réunion, merci)"
+compose.aiInstructionDescription: "Dites à l'IA quoi écrire dans votre réponse"
+compose.generate: Générer

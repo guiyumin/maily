@@ -45,6 +45,7 @@ settings.accounts.noAccounts: Keine Konten konfiguriert
 settings.accounts.addAccount: Konto hinzufügen
 settings.accounts.removeAccount: Konto entfernen
 settings.accounts.confirmRemove: Möchten Sie dieses Konto wirklich entfernen?
+settings.yourName: "Ihr Name (optional)"
 
 # AI Providers settings
 settings.ai.title: KI-Anbieter
@@ -101,6 +102,7 @@ common.unsavedChanges: Ungespeicherte Änderungen
 common.loading: Laden...
 common.error: Fehler
 common.success: Erfolg
+common.optional: optional
 
 # Calendar page
 calendar.accessRequired: Kalenderzugriff erforderlich
@@ -161,3 +163,7 @@ compose.messagePlaceholder: Nachricht schreiben...
 compose.accept: Annehmen
 compose.decline: Ablehnen
 compose.askMore: Mehr fragen
+compose.aiReply: KI-Antwort
+compose.aiInstructionPlaceholder: "Anweisungen für KI (z.B. sag ihnen, ich habe ein Meeting eingerichtet, danke)"
+compose.aiInstructionDescription: Sagen Sie der KI, was sie in Ihrer Antwort schreiben soll
+compose.generate: Generieren

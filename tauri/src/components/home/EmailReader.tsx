@@ -74,6 +74,7 @@ import {
 import type { Email as EmailSummary } from "./EmailList";
 import { IsolatedHtml } from "./IsolatedHtml";
 import { useEmailCache } from "@/stores/emailCache";
+import { useAccountsStore } from "@/stores/accounts";
 import { Compose } from "@/components/compose/Compose";
 import { toast } from "sonner";
 import { useLocale } from "@/lib/i18n";
@@ -808,6 +809,9 @@ export function EmailReader({
 }: EmailReaderProps) {
   const { t } = useLocale();
   const { providerConfigs } = useAIProviders();
+  const senderDisplayName = useAccountsStore(
+    (s) => s.sanitizedAccounts.find((a) => a.name === account)?.display_name,
+  );
   const [emailFull, setEmailFull] = useState<EmailFull | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -1686,6 +1690,7 @@ export function EmailReader({
           open={composeOpen}
           onClose={() => setComposeOpen(false)}
           account={account}
+          senderName={senderDisplayName}
           mode={composeMode}
           originalEmail={{
             from: emailFull.from,

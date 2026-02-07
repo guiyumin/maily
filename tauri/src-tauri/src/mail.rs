@@ -36,6 +36,8 @@ pub struct Account {
     pub credentials: Credentials,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub avatar: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub display_name: Option<String>,
 }
 
 /// Account without sensitive credentials (for display)
@@ -46,6 +48,8 @@ pub struct SanitizedAccount {
     pub email: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub avatar: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub display_name: Option<String>,
 }
 
 impl From<&Account> for SanitizedAccount {
@@ -55,6 +59,7 @@ impl From<&Account> for SanitizedAccount {
             provider: account.provider.clone(),
             email: account.credentials.email.clone(),
             avatar: account.avatar.clone(),
+            display_name: account.display_name.clone(),
         }
     }
 }

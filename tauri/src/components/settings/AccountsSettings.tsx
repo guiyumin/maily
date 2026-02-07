@@ -80,6 +80,7 @@ const PROVIDER_DEFAULTS: Record<
 interface FormState {
   provider: Provider;
   name: string;
+  displayName: string;
   email: string;
   password: string;
   imapHost: string;
@@ -91,6 +92,7 @@ interface FormState {
 const DEFAULT_FORM: FormState = {
   provider: "gmail",
   name: "",
+  displayName: "",
   email: "",
   password: "",
   ...PROVIDER_DEFAULTS.gmail,
@@ -146,6 +148,7 @@ export function AccountsSettings({
     setForm({
       provider: account.provider as Provider,
       name: account.name,
+      displayName: account.display_name || "",
       email: account.credentials.email,
       password: account.credentials.password,
       imapHost: account.credentials.imap_host,
@@ -237,6 +240,7 @@ export function AccountsSettings({
         smtp_host: form.smtpHost,
         smtp_port: form.smtpPort,
       },
+      display_name: form.displayName || undefined,
     };
 
     try {
@@ -413,6 +417,16 @@ export function AccountsSettings({
                   placeholder="Work, Personal..."
                   value={form.name}
                   onChange={(e) => updateForm({ name: e.target.value })}
+                />
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="display_name">{t("settings.yourName")}</Label>
+                <Input
+                  id="display_name"
+                  placeholder="Yumin"
+                  value={form.displayName}
+                  onChange={(e) => updateForm({ displayName: e.target.value })}
                 />
               </div>
 

@@ -44,6 +44,7 @@ export type TranslationKey =
   | 'settings.accounts.addAccount'
   | 'settings.accounts.removeAccount'
   | 'settings.accounts.confirmRemove'
+  | 'settings.yourName'
   // AI Providers settings
   | 'settings.ai.title'
   | 'settings.ai.description'
@@ -95,6 +96,7 @@ export type TranslationKey =
   | 'common.loading'
   | 'common.error'
   | 'common.success'
+  | 'common.optional'
   // Calendar page
   | 'calendar.accessRequired'
   | 'calendar.accessDescription'
@@ -147,7 +149,10 @@ export type TranslationKey =
   | 'compose.recipientPlaceholder'
   | 'compose.subjectPlaceholder'
   | 'compose.messagePlaceholder'
-  | 'compose.aiReply';
+  | 'compose.aiReply'
+  | 'compose.aiInstructionPlaceholder'
+  | 'compose.aiInstructionDescription'
+  | 'compose.generate';
 
 export type LocaleMessages = {
   [key in TranslationKey]: string;

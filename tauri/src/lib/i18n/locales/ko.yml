@@ -45,6 +45,7 @@ settings.accounts.noAccounts: 구성된 계정 없음
 settings.accounts.addAccount: 계정 추가
 settings.accounts.removeAccount: 계정 제거
 settings.accounts.confirmRemove: 이 계정을 제거하시겠습니까?
+settings.yourName: "이름 (선택사항)"
 
 # AI Providers settings
 settings.ai.title: AI 제공자
@@ -101,6 +102,7 @@ common.unsavedChanges: 저장되지 않은 변경사항
 common.loading: 로딩 중...
 common.error: 오류
 common.success: 성공
+common.optional: 선택사항
 
 # Calendar page
 calendar.accessRequired: 캘린더 접근 권한 필요
@@ -161,3 +163,7 @@ compose.messagePlaceholder: 메시지 작성...
 compose.accept: 수락
 compose.decline: 거절
 compose.askMore: 추가 문의
+compose.aiReply: AI 답장
+compose.aiInstructionPlaceholder: "AI 지시사항 (예: 회의를 설정했다고 전해줘, 감사합니다)"
+compose.aiInstructionDescription: AI에게 답장에 무엇을 쓸지 알려주세요
+compose.generate: 생성

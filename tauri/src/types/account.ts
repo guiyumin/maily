@@ -12,9 +12,10 @@ export interface FullAccount {
   provider: string;
   credentials: Credentials;
   avatar?: string;
+  display_name?: string;
 }
 
 // Account without sensitive credentials (for display)
-// SanitizedAccount = { name, provider, avatar, email }
+// SanitizedAccount = { name, provider, avatar, email, display_name }
 export type SanitizedAccount = Omit<FullAccount, "credentials"> &
   Pick<Credentials, "email">;

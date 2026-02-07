@@ -45,6 +45,7 @@ settings.accounts.noAccounts: 未設定帳戶
 settings.accounts.addAccount: 新增帳戶
 settings.accounts.removeAccount: 移除帳戶
 settings.accounts.confirmRemove: 確定要移除此帳戶嗎？
+settings.yourName: "您的姓名（可選）"
 
 # AI Providers settings
 settings.ai.title: AI 提供者
@@ -101,6 +102,7 @@ common.unsavedChanges: 未儲存的變更
 common.loading: 載入中...
 common.error: 錯誤
 common.success: 成功
+common.optional: 可選
 
 # Calendar page
 calendar.accessRequired: 需要日曆存取權限
@@ -159,3 +161,6 @@ compose.recipientPlaceholder: recipient@example.com
 compose.subjectPlaceholder: 郵件主旨
 compose.messagePlaceholder: 撰寫郵件內容...
 compose.aiReply: AI 回覆
+compose.aiInstructionPlaceholder: "AI 回覆指令（例如：告訴他們我已安排會議，謝謝）"
+compose.aiInstructionDescription: 告訴 AI 你想回覆什麼內容
+compose.generate: 生成

@@ -40,9 +40,15 @@ import {
   EyeOff,
   Upload,
   X,
+  Images,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import type { FullAccount } from "@/types/account";
 import { useLocale } from "@/lib/i18n";
 
@@ -122,11 +128,19 @@ export function AccountsSettings({
   const [showPassword, setShowPassword] = useState(false);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [avatarFilePath, setAvatarFilePath] = useState<string | null>(null);
+  const [selectedExistingAvatar, setSelectedExistingAvatar] = useState<
+    string | null
+  >(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
   // Use shared store for avatar URLs
-  const { avatarUrls, setAvatarUrl, removeAvatarUrl, setFullAccounts, loadAvatarUrls } =
-    useAccountsStore();
+  const {
+    avatarUrls,
+    setAvatarUrl,
+    removeAvatarUrl,
+    setFullAccounts,
+    loadAvatarUrls,
+  } = useAccountsStore();
 
   // Sync full accounts to store and load avatar URLs
   useEffect(() => {
@@ -141,6 +155,7 @@ export function AccountsSettings({
     setShowPassword(false);
     setAvatarPreview(null);
     setAvatarFilePath(null);
+    setSelectedExistingAvatar(null);
   };
 
   const openEditDialog = async (account: FullAccount) => {
@@ -159,6 +174,7 @@ export function AccountsSettings({
     setTestResult(null);
     setShowPassword(false);
     setAvatarFilePath(null);
+    setSelectedExistingAvatar(null);
     setAvatarPreview(
       account.avatar && avatarUrls[account.credentials.email]
         ? avatarUrls[account.credentials.email]
@@ -181,13 +197,12 @@ export function AccountsSettings({
 
       if (selected) {
         const filePath = selected as string;
-
-        // For preview, we'll create an object URL. Since we can't read the file
-        // directly in frontend without fs plugin, we'll just show a placeholder
-        // and the actual image after upload. For now, use a simple indicator.
         setAvatarFilePath(filePath);
+        setSelectedExistingAvatar(null);
         // Show filename as indicator since we can't preview without fs plugin
-        setAvatarPreview(`selected:${filePath.split("/").pop() || filePath.split("\\").pop()}`);
+        setAvatarPreview(
+          `selected:${filePath.split("/").pop() || filePath.split("\\").pop()}`,
+        );
       }
     } catch (err) {
       toast.error(`Failed to select image: ${err}`);
@@ -197,6 +212,7 @@ export function AccountsSettings({
   const removeAvatar = () => {
     setAvatarPreview(null);
     setAvatarFilePath(null);
+    setSelectedExistingAvatar(null);
   };
 
   const handleProviderChange = (provider: Provider) => {
@@ -262,28 +278,50 @@ export function AccountsSettings({
         toast.success("Account added");
       }
 
-      // Handle avatar upload/removal
+      // Handle avatar upload/copy/removal
       if (avatarFilePath) {
-        // Upload new avatar
+        // Upload new avatar from file
         setUploadingAvatar(true);
         try {
           newAccounts = await invoke<FullAccount[]>("upload_account_avatar", {
             accountName: form.name,
             filePath: avatarFilePath,
           });
-          // Refresh avatar URL in shared store
-          const avatarUrls = await invoke<Record<string, string>>("get_account_avatar_urls");
-          if (avatarUrls[form.email]) {
-            setAvatarUrl(form.email, avatarUrls[form.email]);
+          const urls = await invoke<Record<string, string>>(
+            "get_account_avatar_urls",
+          );
+          if (urls[form.email]) {
+            setAvatarUrl(form.email, urls[form.email]);
           }
         } catch (err) {
           toast.error(`Failed to upload avatar: ${err}`);
         } finally {
           setUploadingAvatar(false);
         }
+      } else if (selectedExistingAvatar) {
+        // Copy avatar from another account
+        setUploadingAvatar(true);
+        try {
+          newAccounts = await invoke<FullAccount[]>("copy_account_avatar", {
+            accountName: form.name,
+            sourceFilename: selectedExistingAvatar,
+          });
+          const urls = await invoke<Record<string, string>>(
+            "get_account_avatar_urls",
+          );
+          if (urls[form.email]) {
+            setAvatarUrl(form.email, urls[form.email]);
+          }
+        } catch (err) {
+          toast.error(`Failed to copy avatar: ${err}`);
+        } finally {
+          setUploadingAvatar(false);
+        }
       } else if (editingName && avatarPreview === null) {
         // Remove existing avatar if preview was cleared
-        const existingAccount = fullAccounts.find((a) => a.name === editingName);
+        const existingAccount = fullAccounts.find(
+          (a) => a.name === editingName,
+        );
         if (existingAccount?.avatar) {
           try {
             newAccounts = await invoke<FullAccount[]>("delete_account_avatar", {
@@ -340,7 +378,10 @@ export function AccountsSettings({
                 <div className="flex items-center gap-3">
                   <Avatar className="size-10">
                     {avatarUrls[account.credentials.email] && (
-                      <AvatarImage src={avatarUrls[account.credentials.email]} alt={account.name} />
+                      <AvatarImage
+                        src={avatarUrls[account.credentials.email]}
+                        alt={account.name}
+                      />
                     )}
                     <AvatarFallback className="bg-violet-600 text-xs">
                       {account.name.slice(0, 2).toUpperCase()}
@@ -404,7 +445,10 @@ export function AccountsSettings({
             <div className="space-y-4 py-4">
               <div className="grid gap-2">
                 <Label>Provider</Label>
-                <Select value={form.provider} onValueChange={handleProviderChange}>
+                <Select
+                  value={form.provider}
+                  onValueChange={handleProviderChange}
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -449,14 +493,18 @@ export function AccountsSettings({
 
               <div className="grid gap-2">
                 <Label htmlFor="account_password">
-                  {form.provider === "qq" ? "Authorization Code" : "App Password"}
+                  {form.provider === "qq"
+                    ? "Authorization Code"
+                    : "App Password"}
                 </Label>
                 <div className="relative">
                   <Input
                     id="account_password"
                     type={showPassword ? "text" : "password"}
                     placeholder={
-                      form.provider === "qq" ? "Authorization code" : "App password"
+                      form.provider === "qq"
+                        ? "Authorization code"
+                        : "App password"
                     }
                     value={form.password}
                     onChange={(e) => updateForm({ password: e.target.value })}
@@ -523,8 +571,69 @@ export function AccountsSettings({
                         disabled={uploadingAvatar}
                       >
                         <Upload className="mr-1 h-3 w-3" />
-                        {avatarPreview ? "Change" : "Upload"}
+                        Upload
                       </Button>
+                      {(() => {
+                        const existingAvatars = fullAccounts.filter(
+                          (a) => a.avatar && avatarUrls[a.credentials.email],
+                        );
+                        if (existingAvatars.length === 0) return null;
+                        return (
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                disabled={uploadingAvatar}
+                              >
+                                <Images className="mr-1 h-3 w-3" />
+                                Choose existing
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent
+                              side="top"
+                              align="start"
+                              className="w-fit p-3"
+                            >
+                              <p className="text-xs text-muted-foreground mb-2">
+                                Select an avatar:
+                              </p>
+                              <div className="grid grid-cols-5 gap-2">
+                                {existingAvatars.map((a) => (
+                                  <button
+                                    key={a.credentials.email}
+                                    type="button"
+                                    className={`rounded-full ring-2 ring-offset-1 transition-all ${
+                                      selectedExistingAvatar === a.avatar
+                                        ? "ring-violet-600"
+                                        : "ring-transparent hover:ring-muted-foreground/30"
+                                    }`}
+                                    onClick={() => {
+                                      setSelectedExistingAvatar(a.avatar!);
+                                      setAvatarPreview(
+                                        avatarUrls[a.credentials.email],
+                                      );
+                                      setAvatarFilePath(null);
+                                    }}
+                                    title={a.name}
+                                  >
+                                    <Avatar className="size-10">
+                                      <AvatarImage
+                                        src={avatarUrls[a.credentials.email]}
+                                        alt={a.name}
+                                      />
+                                      <AvatarFallback className="bg-violet-600 text-xs">
+                                        {a.name.slice(0, 2).toUpperCase()}
+                                      </AvatarFallback>
+                                    </Avatar>
+                                  </button>
+                                ))}
+                              </div>
+                            </PopoverContent>
+                          </Popover>
+                        );
+                      })()}
                       {avatarPreview && (
                         <Button
                           type="button"
@@ -560,7 +669,9 @@ export function AccountsSettings({
                 <Button
                   variant="outline"
                   onClick={testConnection}
-                  disabled={!form.email || !form.password || !form.imapHost || testing}
+                  disabled={
+                    !form.email || !form.password || !form.imapHost || testing
+                  }
                 >
                   {testing ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />

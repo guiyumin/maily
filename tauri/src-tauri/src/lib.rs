@@ -132,6 +132,33 @@ fn delete_account_avatar(account_name: String) -> Result<Vec<Account>, String> {
     Err("Account not found".to_string())
 }
 
+/// Copy an existing avatar file to a new account
+#[tauri::command]
+fn copy_account_avatar(account_name: String, source_filename: String) -> Result<Vec<Account>, String> {
+    let source_path = mail_get_avatar_path(&source_filename)
+        .ok_or("Source avatar not found")?;
+    let image_data = std::fs::read(&source_path)
+        .map_err(|e| format!("Failed to read source avatar: {}", e))?;
+    let extension = source_path.extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("png")
+        .to_lowercase();
+
+    let filename = mail_upload_avatar(&account_name, &image_data, &extension)
+        .map_err(|e| e.to_string())?;
+
+    let mut accounts = get_accounts().map_err(|e| e.to_string())?;
+    if let Some(account) = accounts.iter_mut().find(|a| a.name == account_name) {
+        if let Some(old_avatar) = &account.avatar {
+            let _ = mail_delete_avatar(old_avatar);
+        }
+        account.avatar = Some(filename);
+    }
+
+    mail_update_account(&account_name, accounts.iter().find(|a| a.name == account_name).cloned().ok_or("Account not found")?)
+        .map_err(|e| e.to_string())
+}
+
 /// Get avatar URLs for all accounts (email -> base64 data URL)
 #[tauri::command]
 fn get_account_avatar_urls() -> Result<std::collections::HashMap<String, String>, String> {
@@ -835,6 +862,7 @@ pub fn run() {
             test_account,
             upload_account_avatar,
             delete_account_avatar,
+            copy_account_avatar,
             get_account_avatar_urls,
             // Email operations
             get_startup_state,

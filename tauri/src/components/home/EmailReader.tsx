@@ -1679,9 +1679,10 @@ export function EmailReader({
         </DialogContent>
       </Dialog>
 
-      {/* Compose dialog */}
+      {/* Compose dialog - key forces remount when email changes so useState initializers re-run */}
       {emailFull && (
         <Compose
+          key={emailFull.uid}
           open={composeOpen}
           onClose={() => setComposeOpen(false)}
           account={account}
